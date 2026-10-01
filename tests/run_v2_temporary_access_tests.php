@@ -351,6 +351,10 @@ class TemporaryAccessV2StrictTestSuite {
         $checkSecondTable = mysqli_query($this->conexion, "SHOW TABLES LIKE 'op_rh_v2_pins_acceso_temporal'");
         $this->assert(mysqli_num_rows($checkSecondTable) === 0, "51. Verificado que la tabla no contractual op_rh_v2_pins_acceso_temporal no existe");
 
+        // 52. V2 Primary Route Guardrail (Confirmar que todo desarrollo nuevo del Checador utiliza /api/v2)
+        $indexContent = file_get_contents(__DIR__ . '/../index.php');
+        $this->assert(strpos($indexContent, "'api'") !== false && strpos($indexContent, "'v2'") !== false, "52. V2 Primary Route Guardrail: El router index.php exige prefijo /api/v2 para todas las funcionalidades V2");
+
         echo "\n=== RESUMEN DE PRUEBAS V2 TEMPORARY ACCESS REMEDIACIÓN (G8-A2) ===\n";
         echo "TOTAL PRUEBAS : " . ($this->passes + $this->fails) . "\n";
         echo "PASARON       : " . $this->passes . "\n";
