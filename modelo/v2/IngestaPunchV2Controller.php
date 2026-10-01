@@ -1,0 +1,175 @@
+<?php
+include_once __DIR__ . "/../BD.php";
+include_once __DIR__ . "/DispositivoV2.php";
+include_once __DIR__ . "/PunchEventV2.php";
+
+class IngestaPunchV2Controller {
+
+    public function procesarIngesta() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $recibidoAtUtc = gmdate('Y-m-d H:i:s');
+
+        $deviceIdHeader = $_SERVER['HTTP_X_DEVICE_ID'] ?? '';
+        $credentialKeyHeader = $_SERVER['HTTP_X_CREDENTIAL_KEY'] ?? '';
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+        $secret = '';
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $secret = trim($matches[1]);
+        }
+
+        if (empty($deviceIdHeader) || empty($credentialKeyHeader) || empty($secret)) {
+            http_response_code(401);
+            echo json_encode(array(
+                "code" => 401,
+                "status" => "NO AUTORIZADO",
+                "mensaje" => "Credenciales de dispositivo ausentes o incompletas en headers HTTP."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+
+        $serviceDispositivo = new DispositivoV2();
+        $authResult = $serviceDispositivo->autenticarCredencial($conexion, $deviceIdHeader, $credentialKeyHeader, $secret);
+
+        if (!$authResult['auth']) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(401);
+            echo json_encode(array(
+                "code" => 401,
+                "status" => "NO AUTORIZADO",
+                "mensaje" => "Autenticación de dispositivo fallida.",
+                "error_detail" => $authResult['error']
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $idDispositivo = $authResult['id_dispositivo'];
+        $idEstacionResuelta = $authResult['id_estacion'];
+        $deviceDefaultTimezone = $authResult['device_timezone'];
+
+        $inputRaw = file_get_contents('php://input');
+        $body = json_decode($inputRaw, true);
+
+        if (!$body || !is_array($body)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array(
+                "code" => 400,
+                "status" => "SOLICITUD INCORRECTA",
+                "mensaje" => "Cuerpo de solicitud JSON inválido o malformado."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $eventUuid = trim($body['event_uuid'] ?? '');
+        $externalWorkerRef = trim((string)($body['external_worker_reference'] ?? ''));
+        $sourceTimestampRaw = trim($body['source_timestamp'] ?? '');
+        $sourceTimezoneReported = isset($body['source_timezone']) ? trim($body['source_timezone']) : null;
+        $captureMethod = trim($body['capture_method'] ?? 'BIOMETRIC');
+        $externalEventId = isset($body['external_event_id']) ? trim((string)$body['external_event_id']) : null;
+        $deviceSequence = isset($body['device_sequence']) ? (int)$body['device_sequence'] : null;
+        $metadata = isset($body['metadata']) && is_array($body['metadata']) ? $body['metadata'] : array();
+
+        if (empty($eventUuid) || empty($externalWorkerRef) || empty($sourceTimestampRaw)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array(
+                "code" => 400,
+                "status" => "SOLICITUD INCORRECTA",
+                "mensaje" => "Campos obligatorios ausentes: event_uuid, external_worker_reference, source_timestamp."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $validationFlags = array();
+
+        $effectiveTimezone = null;
+        $timezoneFallbackApplied = 0;
+        $ocurridoAtUtc = null;
+
+        $reportedZoneValid = false;
+        if (!empty($sourceTimezoneReported) && in_array($sourceTimezoneReported, DateTimeZone::listIdentifiers(), true)) {
+            $reportedZoneValid = true;
+            $effectiveTimezone = $sourceTimezoneReported;
+            $timezoneFallbackApplied = 0;
+        } else {
+            if (!empty($sourceTimezoneReported)) {
+                $validationFlags[] = 'INVALID_TIMEZONE_REPORTED';
+            }
+            if (!empty($deviceDefaultTimezone) && in_array($deviceDefaultTimezone, DateTimeZone::listIdentifiers(), true)) {
+                $effectiveTimezone = $deviceDefaultTimezone;
+                $timezoneFallbackApplied = 1;
+            }
+        }
+
+        if ($effectiveTimezone === null) {
+            $validationFlags[] = 'INVALID_DEVICE_TIMEZONE';
+            $ocurridoAtUtc = null;
+        } else {
+            try {
+                $dt = new DateTime($sourceTimestampRaw, new DateTimeZone($effectiveTimezone));
+                $dt->setTimezone(new DateTimeZone('UTC'));
+                $ocurridoAtUtc = $dt->format('Y-m-d H:i:s');
+            } catch (Exception $e) {
+                $validationFlags[] = 'TIMESTAMP_PARSE_ERROR';
+                $ocurridoAtUtc = null;
+            }
+        }
+
+        if ($ocurridoAtUtc !== null) {
+            $tsOcurrido = strtotime($ocurridoAtUtc);
+            $tsRecibido = strtotime($recibidoAtUtc);
+            if (abs($tsRecibido - $tsOcurrido) > 900) {
+                $validationFlags[] = 'CLOCK_DRIFT_ALERT';
+            }
+        }
+
+        $servicePunch = new PunchEventV2();
+
+        $idPersonalResuelto = null;
+        if ($ocurridoAtUtc !== null) {
+            $idPersonalResuelto = $servicePunch->resolverTrabajadorHistorico($conexion, $idDispositivo, $externalWorkerRef, $ocurridoAtUtc);
+        }
+
+        $processingStatus = ($idPersonalResuelto !== null) ? 'RECEIVED' : 'PENDING_MATCH';
+
+        $datosIngesta = array(
+            'event_uuid' => $eventUuid,
+            'id_dispositivo' => $idDispositivo,
+            'id_estacion_resuelta' => $idEstacionResuelta,
+            'referencia_externa_personal' => $externalWorkerRef,
+            'id_personal_resuelto' => $idPersonalResuelto,
+            'source_timestamp_raw' => $sourceTimestampRaw,
+            'source_timezone_reported' => $sourceTimezoneReported,
+            'effective_timezone' => $effectiveTimezone,
+            'timezone_fallback_applied' => $timezoneFallbackApplied,
+            'ocurrido_at_utc' => $ocurridoAtUtc,
+            'recibido_at_utc' => $recibidoAtUtc,
+            'metodo_captura' => $captureMethod,
+            'external_event_id' => $externalEventId,
+            'secuencia_dispositivo' => $deviceSequence,
+            'processing_status' => $processingStatus,
+            'validation_flags' => $validationFlags,
+            'metadata' => $metadata
+        );
+
+        $resultado = $servicePunch->registrarPunchEvent($conexion, $datosIngesta);
+
+        $classBD->desconectarBD($conexion);
+
+        http_response_code($resultado['status_code']);
+        echo json_encode(array(
+            "code" => $resultado['status_code'],
+            "status" => $resultado['result'],
+            "event_uuid" => $resultado['event_uuid'],
+            "recibido_at_utc" => $recibidoAtUtc,
+            "processing_status" => $resultado['processing_status'],
+            "id_personal_resuelto" => $idPersonalResuelto,
+            "validation_flags" => $validationFlags
+        ), JSON_UNESCAPED_UNICODE);
+    }
+}
