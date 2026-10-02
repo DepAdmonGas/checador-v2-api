@@ -8,6 +8,7 @@ require_once __DIR__ . '/../modelo/BD.php';
 require_once __DIR__ . '/../modelo/v2/DispositivoV2.php';
 require_once __DIR__ . '/../modelo/v2/Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/../modelo/v2/TemporaryAccessV2Service.php';
+require_once __DIR__ . '/../modelo/v2/TemporaryAccessV2Controller.php';
 
 class TemporaryAccessV2StrictTestSuite {
     private $conexion;
@@ -87,6 +88,7 @@ class TemporaryAccessV2StrictTestSuite {
     }
 
     public function run() {
+        putenv('JWT_SECRET=Portal3_JWT_Secret_Key_2026_AdmonGas');
         echo "=== INICIANDO PRUEBAS AUTOMATIZADAS DE REMEDIACIÓN DE CONTRATO (G8-A2) ===\n\n";
 
         // Guard hashes congelados
@@ -354,6 +356,31 @@ class TemporaryAccessV2StrictTestSuite {
         // 52. V2 Primary Route Guardrail (Confirmar que todo desarrollo nuevo del Checador utiliza /api/v2)
         $indexContent = file_get_contents(__DIR__ . '/../index.php');
         $this->assert(strpos($indexContent, "'api'") !== false && strpos($indexContent, "'v2'") !== false, "52. V2 Primary Route Guardrail: El router index.php exige prefijo /api/v2 para todas las funcionalidades V2");
+
+        // 53. SEC-M01: Cache-Control no-store policy check in controller source
+        $controllerSrc = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Controller.php');
+        $this->assert(strpos($controllerSrc, "Cache-Control: no-store") !== false && strpos($controllerSrc, "Pragma: no-cache") !== false, "53. SEC-M01: Controller incluye encabezados Cache-Control: no-store y Pragma: no-cache");
+
+        // 54. SEC-M02: JWT Fail-Closed when JWT_SECRET is missing/empty
+        $oldEnv = getenv('JWT_SECRET');
+        putenv('JWT_SECRET=');
+        $jwtFailRes = Portal3JwtAuthHelper::validateToken($this->conexion, $this->buildMockJwtHeader(99, 'access', time() + 3600, 'portal3_auth', 'some_secret'));
+        $this->assert($jwtFailRes['valid'] === false && $jwtFailRes['code'] === 500 && strpos($jwtFailRes['error'], 'Configuración de seguridad') !== false, "54. SEC-M02: JWT Helper falla cerrado (500) cuando JWT_SECRET está ausente en el entorno");
+        if ($oldEnv !== false) {
+            putenv("JWT_SECRET=$oldEnv");
+        } else {
+            putenv('JWT_SECRET=Portal3_JWT_Secret_Key_2026_AdmonGas');
+        }
+
+        // 55. SEC-L01: Strict UUIDv4 rejection on non-UUIDv4 request_uuid
+        $invalidUuidRes = $service->createRequest($this->conexion, 1, 1, 'invalid-uuid-string-12345', '150');
+        // El servicio procesa el valor que le pasa el controlador; probamos la lógica helper a través del controlador
+        $ctrlTemp = new TemporaryAccessV2Controller();
+        $refMethod = new ReflectionMethod('TemporaryAccessV2Controller', 'validateUuidV4');
+        $refMethod->setAccessible(true);
+        $this->assert($refMethod->invoke($ctrlTemp, 'c71e8400-e29b-41d4-a716-446655440001') === true, "55. SEC-L01: Helper validateUuidV4 acepta un UUIDv4 válido");
+        $this->assert($refMethod->invoke($ctrlTemp, 'invalid-uuid-12345') === false, "55b. SEC-L01: Helper validateUuidV4 rechaza una cadena de UUID inválida");
+        $this->assert($refMethod->invoke($ctrlTemp, 'c71e8400-e29b-11d4-a716-446655440001') === false, "55c. SEC-L01: Helper validateUuidV4 rechaza un UUIDv1 (no es versión 4)");
 
         echo "\n=== RESUMEN DE PRUEBAS V2 TEMPORARY ACCESS REMEDIACIÓN (G8-A2) ===\n";
         echo "TOTAL PRUEBAS : " . ($this->passes + $this->fails) . "\n";

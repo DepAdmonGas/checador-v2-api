@@ -36,7 +36,7 @@ class Portal3JwtAuthHelper {
 
         $secret = getenv('JWT_SECRET');
         if (!$secret || trim($secret) === '') {
-            $secret = 'Portal3_JWT_Secret_Key_2026_AdmonGas'; // Fallback para dev/local
+            return array('valid' => false, 'error' => 'Configuración de seguridad del servidor no disponible.', 'code' => 500);
         }
 
         $expectedSig = self::base64UrlEncode(hash_hmac('sha256', $headB64 . '.' . $payloadB64, $secret, true));

@@ -36,6 +36,12 @@ class TemporaryAccessV2Controller {
         $refExternaPersonal = $body['external_worker_reference'] ?? ($body['referencia_externa_personal'] ?? '');
         $reason = $body['reason'] ?? 'FINGERPRINT_NOT_RECOGNIZED';
 
+        if (!$this->validateUuidV4($requestUuid)) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'INVALID_UUID', 'message' => 'El campo request_uuid debe ser un UUIDv4 válido.'));
+            return;
+        }
+
         $result = $this->service->createRequest($conexion, $idDispositivo, $idEstacionResuelta, $requestUuid, $refExternaPersonal, $reason);
 
         $this->closeConexion($conexion);
@@ -188,6 +194,12 @@ class TemporaryAccessV2Controller {
         $temporaryPin = $body['temporary_pin'] ?? ($body['pin_code'] ?? '');
         $validationUuid = $body['validation_uuid'] ?? '';
 
+        if (!$this->validateUuidV4($validationUuid)) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'INVALID_UUID', 'message' => 'El campo validation_uuid debe ser un UUIDv4 válido.'));
+            return;
+        }
+
         $result = $this->service->validatePin($conexion, $idDispositivo, $idEstacionResuelta, $refExternaPersonal, $temporaryPin, $validationUuid);
         $this->closeConexion($conexion);
 
@@ -268,7 +280,17 @@ class TemporaryAccessV2Controller {
         );
     }
 
+    private function validateUuidV4($uuid) {
+        if (empty($uuid) || !is_string($uuid)) {
+            return false;
+        }
+        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', trim($uuid));
+    }
+
     private function sendJsonResponse($code, $data) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         http_response_code($code);
         echo json_encode($data, JSON_UNESCAPED_UNICODE);
     }
