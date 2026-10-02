@@ -1,0 +1,363 @@
+openapi: 3.0.3
+info:
+  title: Checador V2 API Specification
+  description: API especificación formal para la ingesta de marcaciones biométricas (Punch Events) y gestión de accesos temporales (Temporary Access) de Checador V2.
+  version: 2.1.0
+servers:
+  - url: https://portal3.admongas.com.mx/portal-api-v.1.0.1/api/v2
+    description: Servidor de Desarrollo / DEMO
+
+paths:
+  /punch-events:
+    post:
+      summary: Ingesta de Marcación Biométrica o Contingencia (Punch Event)
+      description: Registrar una marcación física inalterable reportada por un lector biométrico.
+      security:
+        - DeviceAuth: []
+        - CredentialKey: []
+        - DeviceSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PunchEventRequest'
+      responses:
+        '201':
+          description: Marcación aceptada y registrada por primera vez.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PunchEventAcceptedResponse'
+        '200':
+          description: Marcación ya recibida previamente (Idempotencia).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PunchEventAlreadyReceivedResponse'
+        '400':
+          description: Campos requeridos ausentes o JSON malformado.
+        '401':
+          description: Credenciales de dispositivo inválidas o revocadas.
+
+  /temporary-access/requests:
+    post:
+      summary: Crear Solicitud de Acceso Temporal (Lector)
+      description: Registrar una solicitud de contingencia PENDING tras fallar la captura de huella.
+      security:
+        - DeviceAuth: []
+        - CredentialKey: []
+        - DeviceSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemporaryAccessRequest'
+      responses:
+        '201':
+          description: Solicitud registrada exitosamente o devuelta por idempotencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryAccessCreatedResponse'
+        '400':
+          description: UUID no válido o payload incorrecto.
+        '404':
+          description: Trabajador no resuelto para la estación.
+
+    get:
+      summary: Listar Solicitudes Pendientes (Portal3)
+      description: Obtener las solicitudes PENDING de las estaciones autorizadas del supervisor.
+      security:
+        - Portal3JwtAuth: []
+      parameters:
+        - in: query
+          name: id_estacion
+          schema:
+            type: integer
+          description: Filtrar por ID de estación específica.
+      responses:
+        '200':
+          description: Lista de solicitudes pendientes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: OK
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TemporaryAccessPendingItem'
+        '403':
+          description: Estación no autorizada para el supervisor.
+
+  /temporary-access/requests/{request_uuid}/authorize:
+    post:
+      summary: Autorizar Solicitud y Generar PIN (Portal3)
+      description: Autorizar solicitud PENDING y obtener PIN de 6 dígitos (se muestra una sola vez).
+      security:
+        - Portal3JwtAuth: []
+      parameters:
+        - in: path
+          name: request_uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Solicitud autorizada y PIN generado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryAccessAuthorizedResponse'
+        '403':
+          description: Estación no autorizada.
+        '409':
+          description: Solicitud expirada o en estado inválido.
+
+  /temporary-access/requests/{request_uuid}/reject:
+    post:
+      summary: Rechazar Solicitud (Portal3)
+      description: Rechazar explícitamente una solicitud PENDING.
+      security:
+        - Portal3JwtAuth: []
+      parameters:
+        - in: path
+          name: request_uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Solicitud rechazada exitosamente.
+
+  /temporary-access/requests/{request_uuid}/cancel:
+    post:
+      summary: Cancelar Solicitud (Portal3)
+      description: Cancelar manualmente una solicitud activa.
+      security:
+        - Portal3JwtAuth: []
+      parameters:
+        - in: path
+          name: request_uuid
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Solicitud cancelada exitosamente.
+
+  /temporary-access/validate:
+    post:
+      summary: Validar PIN Temporal en Lector
+      description: Validar el PIN ingresado por el trabajador y consumir la solicitud atómicamente.
+      security:
+        - DeviceAuth: []
+        - CredentialKey: []
+        - DeviceSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidatePinRequest'
+      responses:
+        '200':
+          description: PIN válido y consumido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidatePinSuccessResponse'
+        '400':
+          description: PIN incorrecto o expirado.
+        '403':
+          description: Solicitud bloqueada por rebasar intentos fallidos.
+        '409':
+          description: PIN ya consumido por otro validation_uuid.
+
+components:
+  securitySchemes:
+    DeviceAuth:
+      type: apiKey
+      in: header
+      name: X-Device-Id
+    CredentialKey:
+      type: apiKey
+      in: header
+      name: X-Credential-Key
+    DeviceSecret:
+      type: http
+      scheme: bearer
+      description: Secret en Bearer Token
+    Portal3JwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PunchEventRequest:
+      type: object
+      required:
+        - event_uuid
+        - external_worker_reference
+        - source_timestamp
+      properties:
+        event_uuid:
+          type: string
+          format: uuid
+        external_worker_reference:
+          type: string
+        source_timestamp:
+          type: string
+          example: "2026-09-28 12:30:00"
+        source_timezone:
+          type: string
+          example: "America/Mexico_City"
+        capture_method:
+          type: string
+          example: "BIOMETRIC"
+
+    PunchEventAcceptedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 201
+        status:
+          type: string
+          example: ACCEPTED
+        event_uuid:
+          type: string
+          format: uuid
+        recibido_at_utc:
+          type: string
+        processing_status:
+          type: string
+          example: RECEIVED
+        id_personal_resuelto:
+          type: integer
+
+    PunchEventAlreadyReceivedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        status:
+          type: string
+          example: ALREADY_RECEIVED
+        event_uuid:
+          type: string
+          format: uuid
+
+    CreateTemporaryAccessRequest:
+      type: object
+      required:
+        - request_uuid
+        - external_worker_reference
+      properties:
+        request_uuid:
+          type: string
+          format: uuid
+        external_worker_reference:
+          type: string
+        reason:
+          type: string
+          example: FINGERPRINT_NOT_RECOGNIZED
+
+    TemporaryAccessCreatedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 201
+        status:
+          type: string
+          example: REQUEST_ACCEPTED
+        request_uuid:
+          type: string
+          format: uuid
+        request_status:
+          type: string
+          example: PENDING
+
+    TemporaryAccessPendingItem:
+      type: object
+      properties:
+        request_uuid:
+          type: string
+          format: uuid
+        id_personal_resuelto:
+          type: integer
+        nombre_trabajador:
+          type: string
+        id_estacion:
+          type: integer
+        reason:
+          type: string
+        requested_at_utc:
+          type: string
+        request_expires_at_utc:
+          type: string
+
+    TemporaryAccessAuthorizedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        status:
+          type: string
+          example: AUTHORIZED
+        request_uuid:
+          type: string
+          format: uuid
+        temporary_pin:
+          type: string
+          example: "849201"
+        pin_expires_at_utc:
+          type: string
+
+    ValidatePinRequest:
+      type: object
+      required:
+        - external_worker_reference
+        - temporary_pin
+        - validation_uuid
+      properties:
+        external_worker_reference:
+          type: string
+        temporary_pin:
+          type: string
+          example: "849201"
+        validation_uuid:
+          type: string
+          format: uuid
+
+    ValidatePinSuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        status:
+          type: string
+          example: VALID
+        request_uuid:
+          type: string
+          format: uuid
+        validation_uuid:
+          type: string
+          format: uuid
+        id_personal_resuelto:
+          type: integer
