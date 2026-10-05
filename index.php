@@ -94,6 +94,11 @@ if ($partes_ruta[0] == 'portal-api-v.1.0.1' || $partes_ruta[0] == 'portal-api-v.
             $controllerV2 = new IngestaPunchV2Controller();
             $controllerV2->procesarIngesta();
             exit;
+        } else if ($server_method == 'GET') {
+            include_once "modelo/v2/PunchEventReadV2Controller.php";
+            $controllerReadV2 = new PunchEventReadV2Controller();
+            $controllerReadV2->consultarMarcacionesCrudas();
+            exit;
         } else {
             include_once $ruta_elegida;
         }
