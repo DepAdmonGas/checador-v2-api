@@ -137,6 +137,9 @@ class IngestaPunchV2Controller {
 
         $processingStatus = ($idPersonalResuelto !== null) ? 'RECEIVED' : 'PENDING_MATCH';
 
+        $deviceGeneration = isset($body['device_generation']) ? trim((string)$body['device_generation']) : null;
+        $deviceSequence = isset($body['device_sequence']) ? (int)$body['device_sequence'] : null;
+
         $datosIngesta = array(
             'event_uuid' => $eventUuid,
             'id_dispositivo' => $idDispositivo,
@@ -158,6 +161,31 @@ class IngestaPunchV2Controller {
         );
 
         $resultado = $servicePunch->registrarPunchEvent($conexion, $datosIngesta);
+
+        // Si la marcación fue insertada exitosamente y contiene datos de Nivel 2 (generation + sequence)
+        if (($resultado['status_code'] === 201 || $resultado['status_code'] === 200) && !empty($deviceGeneration) && $deviceSequence !== null) {
+            $idRawPunch = (int)($resultado['id_raw_punch'] ?? $resultado['id'] ?? 0);
+            if ($idRawPunch <= 0) {
+                // Consultar id_raw_punch si no fue retornado directamente
+                $stmtGetId = $conexion->prepare('SELECT id FROM op_rh_v2_marcaciones_crudas WHERE id_dispositivo = ? AND event_uuid = ? LIMIT 1');
+                $stmtGetId->bind_param('is', $idDispositivo, $eventUuid);
+                $stmtGetId->execute();
+                $idRawPunch = (int)($stmtGetId->get_result()->fetch_assoc()['id'] ?? 0);
+                $stmtGetId->close();
+            }
+            if ($idRawPunch > 0) {
+                include_once __DIR__ . "/Level2ServerService.php";
+                $l2Service = new Level2ServerService();
+                $l2Res = $l2Service->procesarSecuenciaNivel2($conexion, $idRawPunch, $idDispositivo, $deviceGeneration, $deviceSequence);
+                if (!$l2Res['success'] && $l2Res['code'] === 409) {
+                    // Conflicto de secuencia dentro de la generación
+                    $classBD->desconectarBD($conexion);
+                    http_response_code(409);
+                    echo json_encode(array("code" => 409, "status" => "SEQUENCE_COLLISION", "mensaje" => $l2Res['error']), JSON_UNESCAPED_UNICODE);
+                    return;
+                }
+            }
+        }
 
         $classBD->desconectarBD($conexion);
 

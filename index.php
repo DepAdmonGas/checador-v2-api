@@ -160,6 +160,29 @@ if ($partes_ruta[0] == 'portal-api-v.1.0.1' || $partes_ruta[0] == 'portal-api-v.
         } else {
             include_once $ruta_elegida;
         }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'devices') {
+        include_once "modelo/v2/Level2ServerController.php";
+        $l2Ctrl = new Level2ServerController();
+        $count = count($partes_ruta);
+        if ($count == 5 && $partes_ruta[4] === 'generations' && $server_method === 'POST') {
+            $l2Ctrl->handleRegisterGeneration();
+            exit;
+        } else if ($count == 5 && $partes_ruta[4] === 'telemetry' && $server_method === 'POST') {
+            $l2Ctrl->handleIngestTelemetry();
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'level2') {
+        include_once "modelo/v2/Level2ServerController.php";
+        $l2Ctrl = new Level2ServerController();
+        $count = count($partes_ruta);
+        if ($count == 5 && $partes_ruta[4] === 'window-status' && $server_method === 'GET') {
+            $l2Ctrl->handleGetWindowStatus();
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
     }
 }
 
