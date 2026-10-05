@@ -99,3 +99,15 @@ Respuesta emitida si faltan campos obligatorios en el JSON.
   "mensaje": "Campos obligatorios ausentes: event_uuid, external_worker_reference, source_timestamp."
 }
 ```
+
+### E. 409 CONFLICTO DE IDEMPOTENCIA (IDEMPOTENCY_CONFLICT)
+Respuesta emitida si se reenvía un `event_uuid` previamente registrado pero con un payload del cliente divergente.
+
+```json
+{
+  "status_code": 409,
+  "result": "IDEMPOTENCY_CONFLICT",
+  "event_uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "error": "Same event_uuid submitted with divergent client payload."
+}
+```

@@ -39,6 +39,67 @@ paths:
           description: Campos requeridos ausentes o JSON malformado.
         '401':
           description: Credenciales de dispositivo inválidas o revocadas.
+        '409':
+          description: Mismo event_uuid enviado previamente con payload divergente del cliente (Conflicto de Idempotencia).
+
+    get:
+      summary: Consulta de Marcaciones Crudas V2 (Portal3)
+      description: Consultar marcaciones crudas inalterables y su estado de integridad criptográfica (READ-ONLY).
+      security:
+        - Portal3JwtAuth: []
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+          description: Inicio de rango UTC (ISO-8601 o Y-m-d H:i:s). Por omisión 30 días atrás. Máximo 31 días.
+        - in: query
+          name: to
+          schema:
+            type: string
+          description: Fin de rango UTC (ISO-8601 o Y-m-d H:i:s). Por omisión UTC actual. Máximo 31 días.
+        - in: query
+          name: station_id
+          schema:
+            type: integer
+          description: ID de estación resuelta a filtrar (debe estar autorizada para el supervisor).
+        - in: query
+          name: external_worker_reference
+          schema:
+            type: string
+          description: Filtrar por referencia externa de trabajador (num_emp).
+        - in: query
+          name: device_id
+          schema:
+            type: integer
+          description: Filtrar por ID de dispositivo.
+        - in: query
+          name: capture_method
+          schema:
+            type: string
+          description: Filtrar por método de captura (BIOMETRIC, PIN, TEMPORARY_CODE, etc).
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Número de página.
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Cantidad de registros por página (máximo 200).
+      responses:
+        '200':
+          description: Lista de marcaciones crudas paginadas con estado de integridad dinámico.
+        '400':
+          description: Parámetros o rango de fechas inválidos.
+        '401':
+          description: JWT no proporcionado o inválido.
+        '403':
+          description: Permiso funcional biométricos.leer denegado o estación fuera de alcance.
 
   /temporary-access/requests:
     post:
@@ -203,6 +264,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: >-
+        Human supervisor JWT. Requires iss=portal3_auth, type=access, exp, and
+        sub=tb_usuarios.id for an active user (estatus=0). SEC-L03 additionally
+        requires fresh acceso-temporal function permission and server-side
+        station scope; see TEMPORARY_ACCESS_SECURITY_ADDENDUM_V1.0.md.
 
   schemas:
     PunchEventRequest:

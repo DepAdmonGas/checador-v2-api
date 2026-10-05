@@ -11,12 +11,22 @@
 | Método | Ruta | Actor | Tipo de Autenticación |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v2/punch-events` | Lector | Device Auth |
+| `GET` | `/api/v2/punch-events` | Portal3 | Supervisor JWT |
 | `POST` | `/api/v2/temporary-access/requests` | Lector | Device Auth |
 | `GET` | `/api/v2/temporary-access/requests` | Portal3 | Supervisor JWT |
 | `POST` | `/api/v2/temporary-access/requests/{uuid}/authorize` | Portal3 | Supervisor JWT |
 | `POST` | `/api/v2/temporary-access/requests/{uuid}/reject` | Portal3 | Supervisor JWT |
 | `POST` | `/api/v2/temporary-access/requests/{uuid}/cancel` | Portal3 | Supervisor JWT |
 | `POST` | `/api/v2/temporary-access/validate` | Lector | Device Auth |
+
+### Autorización de operaciones de supervisor (SEC-L03 & V2.3)
+
+- `GET /api/v2/punch-events`: JWT Portal3 válido, usuario activo y grant fresco `biometricos.leer = 1`, además de alcance de estación server-side.
+- `GET /api/v2/temporary-access/requests`: JWT Portal3 válido, usuario activo y grant fresco `acceso-temporal.leer = 1`, además de alcance de estación server-side.
+- `POST .../{uuid}/authorize`, `POST .../{uuid}/reject` y `POST .../{uuid}/cancel`: JWT Portal3 válido, usuario activo y grant fresco `acceso-temporal.editar = 1`, además de alcance de estación server-side.
+- Respuestas de autorización: `401` para JWT/usuario inválido, `403` para falta de permiso o alcance, `503` si una dependencia de identidad/ACL/estación no está disponible.
+- Los endpoints Lector `POST /requests` y `POST /validate` conservan Device Auth y no usan este ACL humano.
+- No cambian paths ni payloads del contrato base V1.0. SEC-L03 permanece `IMPLEMENTED_PENDING_REAUDIT`.
 
 ---
 
