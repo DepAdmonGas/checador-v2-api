@@ -16,9 +16,17 @@
 - [x] **Fail-Closed Env:** Ausencia de `JWT_SECRET` provoca HTTP `500` intencional sin asumir secretos por defecto.
 - [x] **No Cache Headers:** Encabezados `Cache-Control: no-store` emitidos en las respuestas de controladores V2.
 - [x] **UUID Integrity:** Todos los UUIDs entrantes se validan con formato estricto UUIDv4.
-- [x] **Station Isolation:** Las consultas a base de datos aplican `id_estacion` extraído de la sesión/token autorizada del supervisor.
+- [x] **Station Isolation:** Las operaciones Portal3 reciben únicamente IDs autorizados por el resolver server-side; el alcance usa el modelo usuario/multiestación y se mapea por `numlista` a `op_rh_localidades.id`.
 - [x] **Lazy Expiration:** Transición atómica a `EXPIRED` de registros vencidos en cada interacción.
 - [x] **Brute-Force Lock:** Bloqueo `LOCKED` automático al tercer intento de validación erróneo.
+
+### SEC-L03 — Implementación pendiente de re-auditoría
+
+- [x] JWT Portal3 requiere `iss=portal3_auth`, `type=access`, `exp` y `sub=tb_usuarios.id`; usuario activo significa `estatus=0`.
+- [x] ACL fresco: `acceso-temporal.leer` para GET y `acceso-temporal.editar` para authorize/reject/cancel; precedencia directa global antes del puesto, sin merge.
+- [x] Módulo y configuración de estación activos; scope vacío o inválido denegado; fallos de dependencias ACL/scope fallan cerrado.
+- [x] Device Auth de creación y validación permanece independiente.
+- [ ] **SEC-L03 re-audit (G8-B0.4):** pendiente. No marcar como cerrado antes de la re-auditoría.
 
 ---
 

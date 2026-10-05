@@ -2,7 +2,7 @@
 
 **API Version:** V2.1  
 **Audit Reference:** Slice V2.2-G8-A7 / G8-A7.1 / G8-A7.2 / G8-A7.3  
-**Status:** Security Hardened & Audit Passed
+**Status:** SEC-L03 IMPLEMENTED_PENDING_REAUDIT; other documented controls retain their existing verification status
 
 ---
 
@@ -43,9 +43,13 @@
   }
   ```
 
-### 3.2 SEC-L03 — Supervisor Permission Model & Portal3 Integration (Pending G8-B)
-- **Estado Actual:** El API V2 aplica aislamiento por estación (`Station Scope Enforcement`), garantizando que un supervisor solo interactúe con solicitudes pertenecientes a sus estaciones autorizadas.
-- **Pendiente para Portal3 (Slice G8-B):** La definición del modelo fino de ACL/Permisos funcionales (distinguir roles de "Supervisor de Asistencia" vs "Operador") depende de las definiciones de Portal3 que se abordarán en el Slice G8-B.
+### 3.2 SEC-L03 — Functional Supervisor Permission
+- **Estado:** `IMPLEMENTED_PENDING_REAUDIT` (G8-B0.3). No se declara cerrado hasta completar G8-B0.4.
+- **Identidad:** JWT `sub` se resuelve únicamente como `tb_usuarios.id`; issuer obligatorio `portal3_auth`; usuario activo `estatus = 0`.
+- **Permiso:** módulo activo `acceso-temporal`; GET exige `leer`; authorize/reject/cancel exigen `editar`. ACL fresca por petición y precedencia global usuario sobre puesto, sin merge.
+- **Estación:** alcance server-side desde el modelo oficial de usuario/multiestación; mapeo por `numlista` hacia `op_rh_localidades.id`; sin fallback de identidad numérica.
+- **Fail-closed:** permiso/scope ausente o inválido devuelve 403; errores de dependencia ACL/scope devuelven 503. Device Auth permanece independiente.
+- **Configuración:** este cambio no crea filas de módulo, configuración de estación ni grants reales.
 
 ---
 

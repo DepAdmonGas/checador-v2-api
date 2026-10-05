@@ -6,10 +6,10 @@ class BD
     function conectarBD()
     {
 
-        $server = "localhost";
-        $user = "root";
-        $pass = "kimera";
-        $bd = "bd_admongas";
+        $server = getenv('DB_HOST') ? getenv('DB_HOST') : "localhost";
+        $user = getenv('DB_USER') ? getenv('DB_USER') : "root";
+        $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : "kimera";
+        $bd = getenv('DB_NAME') ? getenv('DB_NAME') : "bd_admongas";
 
         $con = mysqli_connect($server, $user, $pass, $bd);
 

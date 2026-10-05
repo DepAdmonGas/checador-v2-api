@@ -31,8 +31,9 @@ El API V2 implementa un esquema dual de autenticación adaptado rigurosamente al
   - Lookup en op_rh_v2_dispositivo_credenciales        type=access, sub=tb_usuarios.id
   - Hash Bcrypt: password_verify(secret, hash)                      │
                   │                                                 ▼
-                  ▼                                  Resuelve Estaciones Autorizadas:
-  Resuelve id_dispositivo & id_estacion             - Tabla localidades_perfil / personal
+                  ▼                                  ACL fresco + alcance server-side:
+  Resuelve id_dispositivo & id_estacion             - acceso-temporal.leer / editar
+                                                       - multiestación + mapeo numlista
 ```
 
 ---
@@ -70,27 +71,34 @@ Authorization: Bearer <JWT_TOKEN_STRING>
 2. **Secreto de Firma (`JWT_SECRET`):** Debe configurarse obligatoriamente en las variables de entorno del servidor.
    - **Regla Fail-Closed (SEC-M02):** Si `getenv('JWT_SECRET')` está ausente o vacío, el API interrumpe la ejecución inmediatamente y retorna un error `500 Internal Server Error`. No se asumen secretos por defecto.
 3. **Issuer Claim (`iss`):** Debe ser exactamente `portal3_auth`.
-4. **Expiration Claim (`exp`):** El timestamp UTC del token debe ser mayor que la hora actual del servidor (`exp > time()`).
+4. **Expiration Claim (`exp`):** Debe existir y no haber expirado.
 5. **Type Claim (`type`):** Debe ser estrictamente `access`.
 6. **Subject Claim (`sub`):** Debe contener el ID numérico del usuario en Portal3 (`tb_usuarios.id` > 0).
 
 ### Verificación de Usuario Activo en Base de Datos:
 Tras validar la firma y los claims del token, el API consulta la base de datos de Portal3:
 ```sql
-SELECT id, usuario FROM tb_usuarios WHERE id = :sub AND estatus = 1 LIMIT 1
+SELECT id, usuario, id_gas, id_puesto FROM tb_usuarios WHERE id = :sub AND estatus = 0 LIMIT 1
 ```
-Si el usuario no existe o está inactivo (`estatus != 1`), el API rechaza la solicitud con `401 Unauthorized`.
+El estado activo canónico es `estatus = 0`. Si el usuario no existe o está inactivo, el API rechaza la solicitud con `401 Unauthorized`. Un error de consulta no crea una identidad alternativa y responde `503`.
 
 ---
 
-## 4. AISLAMIENTO POR ESTACIÓN (`Station Scope Enforcement`)
+### Autorización funcional SEC-L03
+
+La autorización se consulta en cada petición humana. El módulo `acceso-temporal` debe existir y estar activo. GET requiere `leer = 1`; authorize, reject y cancel requieren `editar = 1`. Se conserva la precedencia global de Portal3: cualquier grant directo hace que sólo se consideren grants directos; el puesto se usa únicamente cuando no existe ningún grant directo. Los grants no se fusionan.
+
+## 4. ALCANCE POR ESTACIÓN (`Station Scope Enforcement`)
 
 El API V2 aplica un modelo estricto de aislamiento por estación (Multitenancy Server-Side) para evitar que supervisores accedan o autoricen solicitudes fuera de su jurisdicción:
 
 1. **Confianza Cero en el Cliente:** El API **NUNCA** confía en `id_estacion` enviado en el cuerpo JSON o parámetros de consulta del cliente web.
-2. **Resolución Server-Side:** Las estaciones autorizadas para un supervisor se obtienen directamente de las tablas de permisos de usuario (`localidades_perfil` o asignación de personal).
-3. **Validación de Operaciones:** En las acciones `AUTHORIZE`, `REJECT` y `CANCEL`, el API verifica que la estación de la solicitud coincida con una de las estaciones autorizadas del supervisor:
+2. **Resolución Server-Side:** El API usa `tb_usuarios.id_gas`, `tb_usuarios.id_puesto`, `tb_multiestacion_usuario`, `tb_multiestacion_puesto` y configuración activa en `tb_modulos_config`.
+3. **Mapeo canónico:** La allowlist se intersecta con `estaciones_soportadas`. Cada estación activa de `tb_estaciones` se mapea mediante `numlista` a `op_rh_localidades.numlista`; el scope final usa `op_rh_localidades.id`.
+4. **Validación de Operaciones:** En las acciones `AUTHORIZE`, `REJECT` y `CANCEL`, el API verifica que la estación de la solicitud coincida con una de las estaciones autorizadas del supervisor:
    ```sql
    WHERE id_estacion IN (:authorized_stations) AND id = :request_id
    ```
    Si un supervisor intenta operar sobre una solicitud de otra estación, el API responde `403 Forbidden`.
+
+Alcance vacío/inválido falla cerrado con `403`; dependencia ACL o de resolución de estaciones no disponible responde `503`. No se usan `op_rh_localidades_perfil.usuario`, `op_rh_personal.id`, IDs enviados por el browser ni coincidencias numéricas como identidad o fallback.

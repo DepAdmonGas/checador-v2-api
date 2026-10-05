@@ -58,9 +58,9 @@ class TemporaryAccessV2Controller {
     public function handleListPendingRequests() {
         header('Content-Type: application/json; charset=utf-8');
 
-        $userAuth = $this->autenticarPortal3User();
+        $userAuth = $this->autenticarPortal3User('leer');
         if (!$userAuth['success']) {
-            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => 'UNAUTHORIZED', 'message' => $userAuth['message']));
+            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
@@ -89,9 +89,9 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $userAuth = $this->autenticarPortal3User();
+        $userAuth = $this->autenticarPortal3User('editar');
         if (!$userAuth['success']) {
-            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => 'UNAUTHORIZED', 'message' => $userAuth['message']));
+            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
@@ -120,9 +120,9 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $userAuth = $this->autenticarPortal3User();
+        $userAuth = $this->autenticarPortal3User('editar');
         if (!$userAuth['success']) {
-            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => 'UNAUTHORIZED', 'message' => $userAuth['message']));
+            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
@@ -151,9 +151,9 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $userAuth = $this->autenticarPortal3User();
+        $userAuth = $this->autenticarPortal3User('editar');
         if (!$userAuth['success']) {
-            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => 'UNAUTHORIZED', 'message' => $userAuth['message']));
+            $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
@@ -252,31 +252,36 @@ class TemporaryAccessV2Controller {
         );
     }
 
-    private function autenticarPortal3User() {
+    private function autenticarPortal3User(string $requiredPermission) {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
         if (empty($authHeader)) {
-            return array('success' => false, 'code' => 401, 'message' => 'Header Authorization ausente.');
+            return array('success' => false, 'code' => 401, 'status' => 'UNAUTHORIZED', 'message' => 'Header Authorization ausente.');
         }
 
         $classBD = new BD();
         $conexion = $classBD->conectarBD();
-
-        $tokenVal = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
-        if (!$tokenVal['valid']) {
-            $classBD->desconectarBD($conexion);
-            return array('success' => false, 'code' => 401, 'message' => $tokenVal['error']);
+        if (!$conexion) {
+            return array('success' => false, 'code' => 503, 'status' => 'AUTH_DEPENDENCY_UNAVAILABLE', 'message' => 'Servicio de autorización no disponible.');
         }
 
-        $userId = $tokenVal['user_id'];
-        $username = $tokenVal['username'];
-        $authorizedStations = Portal3JwtAuthHelper::getAuthorizedStationsForUser($conexion, $userId);
+        $tokenVal = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
+        if (empty($tokenVal['valid'])) {
+            $classBD->desconectarBD($conexion);
+            return array('success' => false, 'code' => $tokenVal['code'] ?? 401, 'status' => $tokenVal['status'] ?? 'UNAUTHORIZED', 'message' => $tokenVal['message'] ?? $tokenVal['error'] ?? 'Autenticación inválida.');
+        }
+
+        $authorization = Portal3JwtAuthHelper::authorizeTemporaryAccess($conexion, $tokenVal, $requiredPermission);
+        if (empty($authorization['success'])) {
+            $classBD->desconectarBD($conexion);
+            return $authorization;
+        }
 
         return array(
             'success' => true,
             'conexion' => $conexion,
-            'user_id' => $userId,
-            'username' => $username,
-            'authorized_stations' => $authorizedStations
+            'user_id' => $tokenVal['user_id'],
+            'username' => $tokenVal['username'],
+            'authorized_stations' => $authorization['authorized_stations']
         );
     }
 
