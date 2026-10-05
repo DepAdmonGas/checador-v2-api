@@ -102,6 +102,21 @@ if ($partes_ruta[0] == 'portal-api-v.1.0.1' || $partes_ruta[0] == 'portal-api-v.
         } else {
             include_once $ruta_elegida;
         }
+    } else if (count($partes_ruta) >= 4 && $partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'punch-events') {
+        if (count($partes_ruta) == 5 && $partes_ruta[4] === 'read-snapshots' && $server_method === 'POST') {
+            include_once "modelo/v2/SnapshotReadV2Service.php";
+            $snapshotService = new SnapshotReadV2Service();
+            $snapshotService->handleCreateSnapshot();
+            exit;
+        } else if (count($partes_ruta) == 7 && $partes_ruta[4] === 'read-snapshots' && $partes_ruta[6] === 'events' && $server_method === 'GET') {
+            $snapshotToken = $partes_ruta[5];
+            include_once "modelo/v2/SnapshotReadV2Service.php";
+            $snapshotService = new SnapshotReadV2Service();
+            $snapshotService->handlePageSnapshot($snapshotToken);
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'temporary-access') {
         include_once "modelo/v2/TemporaryAccessV2Controller.php";
         $controllerTemp = new TemporaryAccessV2Controller();
