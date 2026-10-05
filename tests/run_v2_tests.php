@@ -4,6 +4,7 @@
 // Proyecto: portal-api-v.1.0.1
 // =============================================================================
 
+require_once __DIR__ . '/test_bootstrap_guard.php';
 require_once __DIR__ . '/../modelo/BD.php';
 require_once __DIR__ . '/../modelo/v2/DispositivoV2.php';
 require_once __DIR__ . '/../modelo/v2/PunchEventV2.php';
@@ -39,6 +40,7 @@ class V2TestSuite {
         // Ejecutar Rollback e Inserción limpia
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_rollback_v2_raw_punch_tables.sql');
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_create_v2_raw_punch_tables.sql');
+        $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_10_02_000002_add_integrity_seal_to_raw_punches.sql');
 
         // Insertar Dispositivo de prueba
         $sqlDisp = "INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado)
