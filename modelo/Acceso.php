@@ -46,6 +46,7 @@ class Acceso {
                 if(mysqli_query($conexion, $sql_edit)) {
                     $array = array (
                         "resultado"  => array (
+                        "id_estacion" => (int)$idEmpresa,
                         "empresa" => $empresanombre,
                         "token" => $token,
                         "fecha" => $fecha_del_dia,

@@ -120,6 +120,60 @@ class Level2ServerController {
         echo json_encode($res, JSON_UNESCAPED_UNICODE);
     }
 
+    // GET /api/v2/devices/context
+    public function handleGetDeviceContext() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $deviceIdHeader = $_SERVER['HTTP_X_DEVICE_ID'] ?? '';
+        $credentialKeyHeader = $_SERVER['HTTP_X_CREDENTIAL_KEY'] ?? '';
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+        $secret = '';
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $secret = trim($matches[1]);
+        }
+
+        if (empty($deviceIdHeader) || empty($credentialKeyHeader) || empty($secret)) {
+            http_response_code(401);
+            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Credenciales de dispositivo ausentes."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+
+        $serviceDispositivo = new DispositivoV2();
+        $authResult = $serviceDispositivo->autenticarCredencial($conexion, $deviceIdHeader, $credentialKeyHeader, $secret);
+
+        if (!$authResult['auth']) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(401);
+            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Autenticación de dispositivo fallida.", "error_detail" => $authResult['error']), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $device = $serviceDispositivo->obtenerDispositivoPorUuid($conexion, $deviceIdHeader);
+        $classBD->desconectarBD($conexion);
+
+        if (!$device) {
+            http_response_code(404);
+            echo json_encode(array("code" => 404, "status" => "NOT_FOUND", "mensaje" => "Dispositivo no encontrado."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode(array(
+            "code" => 200,
+            "status" => "OK",
+            "id_dispositivo" => (int)$authResult['id_dispositivo'],
+            "device_uuid" => $device['uuid_dispositivo'],
+            "id_estacion" => (int)$authResult['id_estacion'],
+            "device_name" => $device['nombre'] ?? '',
+            "device_timezone" => $authResult['device_timezone'],
+            "estado" => (int)($device['estado'] ?? 1)
+        ), JSON_UNESCAPED_UNICODE);
+    }
+
     // GET /api/v2/level2/window-status
     public function handleGetWindowStatus() {
         header('Content-Type: application/json; charset=utf-8');
