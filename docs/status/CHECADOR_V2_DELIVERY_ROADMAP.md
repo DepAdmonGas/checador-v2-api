@@ -22,16 +22,17 @@
 | **V2.3-A01 Legacy Schedule Audit** | Read-only audit of `op_rh_personal_horario` vs Freeze V1.0 Section 14 requirements | 2026-10-06 | A01 Audit Findings |
 | **V2.3-A02 Shift Model Physical Design** | Physical DDL specification created in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | Spec V1.0 (`docs/architecture/CHECADOR_V2_...`) |
 | **V2.3-A02F Physical Model Freeze Review** | Pre-freeze review & revision for multi-workplace scoping, versioning, and auditability | 2026-10-06 | Revised Spec V1.0 |
-| **V2.3-A02G Shift Model Final Freeze** | Formal freeze of physical specification `CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`87c6193c5026...`) |
+| **V2.3-A02G Shift Model Final Freeze** | Formal freeze of physical specification `CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`7fa934b7e12e...`) |
+| **V2.3-A03 Physical Model Implementation** | Create SQL migration files & 20-scenario schema test suite for V2 Shift Scheduling tables | 2026-10-06 | 20 / 20 Schema Tests PASS |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.3-A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION
-- **Goal:** Create database migration script `migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql` for frozen DDL tables (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`) when authorized.
-- **Prerequisite Status:** A02G Final Freeze COMPLETE (`docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` SHA256: `87c6193c50261f6a81d6eaa9bbb2c05bc68956b593b038cba7618c6c8bb3475a`).
-- **Target Completion:** Pending explicit authorization of migration file creation and execution.
+### Milestone: V2.3-A04_SHIFT_SCHEDULING_SERVICE_AND_API_DESIGN
+- **Goal:** Design runtime service and API contract for Shift Templates, Shift Segments, and Worker Shift Assignments.
+- **Prerequisite Status:** A03 Physical Model Implementation COMPLETE (`migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql` & `tests/v2_shift_scheduling_schema_tests.php`).
+- **Target Completion:** Pending explicit task assignment.
 
 ---
 
@@ -58,8 +59,4 @@
 - **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Deferred to pre-production security review.
 - [ ] Infrastructure TLS certificate verification
 - [ ] Database trigger installation on staging/production MySQL
-- [ ] Technical device secret provision & rotation procedures
-- [ ] Lector automated updater / deployment packaging
-- [ ] Full regression execution against production-replica database
-- [ ] Final executive code freeze (Target: 2026-12-18)
-- [ ] Final production deployment (Target: 2026-12-31)
+

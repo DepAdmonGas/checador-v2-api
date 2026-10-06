@@ -230,3 +230,20 @@
 - **DECISIONS:** Validated consistency and formally froze physical specification `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Verified multi-workplace scoping, canonical workplace timezone, template versioning, and as-recorded auditability. Set active milestone to `V2.3-A03` (pending authorization).
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.3-A03 Physical Model Implementation (creating migration file when explicitly authorized).
+
+---
+
+### Entry 014
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** SCHEMA_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `1ad6623b805af2f4a7b50575a3102f34a6b2441f`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql`, `migraciones/v2/2026_10_06_000001_rollback_v2_shift_scheduling_tables.sql`, `tests/v2_shift_scheduling_schema_tests.php`
+- **TEST_RESULTS:** 20 / 20 PASS (`tests/v2_shift_scheduling_schema_tests.php`), SEC-L03 (34/34 PASS), V2 Raw Ingestion (18/18 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented physical persistence schema for Checador V2 Shift Scheduling exactly per frozen specification `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migration scripts for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas`. Validated schema creation, FK enforcement, UK constraints, overnight shifts, split shifts, multi-workplace dates, and rollback idempotency across 20 test cases.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.3-A04 Shift Scheduling Service & API implementation.
