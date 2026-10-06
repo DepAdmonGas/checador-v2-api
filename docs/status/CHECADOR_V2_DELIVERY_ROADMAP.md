@@ -21,15 +21,16 @@
 | **API Station Context Alignment (F-03 API)** | `GET /acceso-empresa` exposing `id_estacion` & `GET /api/v2/devices/context` | 2026-10-06 | Commit `61e942f55ef5...` |
 | **V2.3-A01 Legacy Schedule Audit** | Read-only audit of `op_rh_personal_horario` vs Freeze V1.0 Section 14 requirements | 2026-10-06 | A01 Audit Findings |
 | **V2.3-A02 Shift Model Physical Design** | Physical DDL specification created in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | Spec V1.0 (`docs/architecture/CHECADOR_V2_...`) |
+| **V2.3-A02F Physical Model Freeze Review** | Pre-freeze review & revision for multi-workplace scoping, versioning, and auditability | 2026-10-06 | Revised Spec V1.0 |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
 ### Milestone: V2.3-A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION
-- **Goal:** Create database migration scripts (`migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql`) for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas` and implement seed migration helper when authorized.
-- **Prerequisite Status:** A02 Physical DDL Specification COMPLETE (`docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`).
-- **Target Completion:** Pending authorization of migration execution.
+- **Goal:** Create database migration script `migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql` for revised DDL tables (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`) when authorized.
+- **Prerequisite Status:** A02F Freeze Review COMPLETE (`docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`).
+- **Target Completion:** Pending authorization of migration file creation and execution.
 
 ---
 

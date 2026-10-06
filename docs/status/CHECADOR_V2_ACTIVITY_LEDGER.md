@@ -194,3 +194,21 @@
 - **DECISIONS:** Designed physical schema for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas`. Resolved cross-midnight shifts, multi-segment breaks, and materialized `ScheduledShift` persistence. Corrected project-control doc facts (JSON queue & `acceso-temporal` ACL).
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.3-A03 Physical Data Model Implementation (when migration execution is authorized).
+
+
+---
+
+### Entry 012
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A02F_SHIFT_SCHEDULING_PHYSICAL_MODEL_FREEZE_REVIEW`
+- **PROJECT:** Checador API
+- **TYPE:** ARCHITECTURE_REVIEW
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `aff27a0dfd1ebfbab2d5d836ddfb1fca584742cb`
+- **FINAL_HEAD:** `aff27a0dfd1ebfbab2d5d836ddfb1fca584742cb`
+- **COMMIT:** Pending docs commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`
+- **TEST_RESULTS:** N/A
+- **DECISIONS:** Evaluated pre-freeze physical data model. Outcome: `PHYSICAL_MODEL_REQUIRES_REVISION`. Resolved multi-workplace uniqueness by scoping `uk_v2_jornada_personal_estacion_fecha` to `(id_personal, id_estacion, fecha_jornada_local)`. Established canonical workplace timezone authority. Added template versioning (`clave`, `version`) and assignment audit timestamp (`registrado_at_utc`).
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.3-A03 Physical Model Implementation (SQL migration creation when explicitly authorized).

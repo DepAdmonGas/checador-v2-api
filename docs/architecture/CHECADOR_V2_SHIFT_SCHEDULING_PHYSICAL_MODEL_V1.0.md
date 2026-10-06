@@ -1,6 +1,6 @@
 # CHECADOR V2 — SHIFT SCHEDULING PHYSICAL DATA MODEL SPECIFICATION V1.0
 
-**Status:** DRAFT FOR FREEZE
+**Status:** DRAFT FOR FREEZE (REVISED)
 **Version:** 1.0
 **Date:** 2026-10-06
 **Scope:** Checador V2 API (`/home/silvinol/Proyectos/portal-api-v.1.0.1`)
@@ -16,7 +16,8 @@ This document defines the physical MariaDB/MySQL data model for the Shift Schedu
 ### Key Architectural Guarantees:
 1. **Raw Punch Fact Protection:** The shift scheduling domain **never** modifies or overwrites raw biometric punch facts recorded in `op_rh_v2_marcaciones_crudas`. Shifts dictate expected work intervals for derived journey evaluation only.
 2. **Effective Dating & History:** Historical schedule assignments use explicit `valido_desde` and `valido_hasta` intervals to support deterministic historical workday reconstruction on arbitrary dates.
-3. **Decoupled Architecture:** Replaces legacy static `op_rh_personal_horario` table (which lacks versioning, night-shift support, or segment support) with normalized V2 entities while keeping legacy tables intact for parallel operations.
+3. **Decoupled Architecture:** Replaces legacy static `op_rh_personal_horario` table with normalized V2 entities while keeping legacy tables intact for parallel operations.
+4. **Multi-Workplace Alignment:** Supports workers operating across multiple workplaces by scoping materialized shifts to `(id_personal, id_estacion, fecha_jornada_local)`.
 
 ---
 
@@ -26,10 +27,10 @@ The physical data model maps Section 14 conceptual entities into canonical V2 da
 
 | Conceptual Entity (Freeze Sec 14) | Physical Table Name | Purpose |
 | :--- | :--- | :--- |
-| **ShiftTemplate** | `op_rh_v2_turnos_plantillas` | Reusable shift configuration (e.g. Day Shift, Night Shift, Split Shift). |
-| **ShiftSegment** | `op_rh_v2_turnos_segmentos` | Ordered internal segments per template (`WORK`, `BREAK`). |
-| **ShiftAssignment** | `op_rh_v2_turnos_asignaciones` | Effective-dated worker-to-template schedule assignments. |
-| **ScheduledShift** | `op_rh_v2_jornadas_programadas` | Materialized daily scheduled workdays per worker. |
+| **ShiftTemplate** | `op_rh_v2_turnos_plantillas` | Reusable, versioned shift configuration (e.g. Day Shift, Night Shift, Split Shift). |
+| **ShiftSegment** | `op_rh_v2_turnos_segmentos` | Ordered internal segments per template version (`WORK`, `BREAK`). |
+| **ShiftAssignment** | `op_rh_v2_turnos_asignaciones` | Effective-dated worker-to-template schedule assignments per workplace. |
+| **ScheduledShift** | `op_rh_v2_jornadas_programadas` | Materialized daily scheduled workdays per worker and workplace. |
 
 ---
 
@@ -43,17 +44,18 @@ The physical data model maps Section 14 conceptual entities into canonical V2 da
 -- CHECADOR V2 — SHIFT SCHEDULING PHYSICAL SCHEMA (PROPOSED DDL - NON-APPLIED)
 -- =============================================================================
 
--- 1. REUSABLE SHIFT TEMPLATES (ShiftTemplate)
+-- 1. REUSABLE VERSIONED SHIFT TEMPLATES (ShiftTemplate)
 CREATE TABLE IF NOT EXISTS `op_rh_v2_turnos_plantillas` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `clave` VARCHAR(64) NOT NULL COMMENT 'Unique technical identifier (e.g., TURNO_DIA_06_14, TURNO_NOCHE_22_06)',
+  `clave` VARCHAR(64) NOT NULL COMMENT 'Technical identifier (e.g., TURNO_DIA_06_14, TURNO_NOCHE_22_06)',
+  `version` INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Version number for immutable template revisioning',
   `nombre` VARCHAR(128) NOT NULL COMMENT 'Human-readable description (e.g., Turno Matutino Gasolinera)',
-  `tipo_turno` ENUM('REGULAR', 'NOCTURNO', 'MIXTO', 'ROTATIVO') NOT NULL DEFAULT 'REGULAR',
+  `tipo_turno` VARCHAR(32) NOT NULL DEFAULT 'REGULAR' COMMENT 'Shift metadata (REGULAR, NOCTURNO, MIXTO, ROTATIVO)',
   `es_activo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = Active, 0 = Disabled',
   `creado_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_v2_turnos_plantillas_clave` (`clave`),
+  UNIQUE KEY `uk_v2_turnos_plantillas_clave_version` (`clave`, `version`),
   KEY `idx_v2_turnos_plantillas_activo` (`es_activo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -63,12 +65,11 @@ CREATE TABLE IF NOT EXISTS `op_rh_v2_turnos_segmentos` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `id_plantilla` INT UNSIGNED NOT NULL COMMENT 'FK to op_rh_v2_turnos_plantillas',
   `ordinal` TINYINT UNSIGNED NOT NULL COMMENT 'Segment position sequence (1, 2, 3...)',
-  `tipo_segmento` ENUM('WORK', 'BREAK') NOT NULL DEFAULT 'WORK' COMMENT 'Segment classification',
+  `tipo_segmento` VARCHAR(32) NOT NULL DEFAULT 'WORK' COMMENT 'Segment classification (WORK, BREAK, etc.)',
   `hora_inicio_local` TIME NOT NULL COMMENT 'Local start time (HH:MM:SS)',
   `hora_fin_local` TIME NOT NULL COMMENT 'Local end time (HH:MM:SS)',
   `dia_offset_inicio` TINYINT NOT NULL DEFAULT 0 COMMENT '0 = Same calendar day, 1 = Next day',
   `dia_offset_fin` TINYINT NOT NULL DEFAULT 0 COMMENT '0 = Same day, 1 = Next day (Cross-midnight)',
-  `duracion_minutos` INT UNSIGNED NOT NULL COMMENT 'Calculated length of segment in minutes',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_v2_segmento_plantilla_ordinal` (`id_plantilla`, `ordinal`),
   KEY `idx_v2_segmento_plantilla` (`id_plantilla`),
@@ -87,6 +88,7 @@ CREATE TABLE IF NOT EXISTS `op_rh_v2_turnos_asignaciones` (
   `valido_hasta` DATE NULL COMMENT 'Effective end date exclusive (NULL = Indefinite)',
   `es_activo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = Active assignment, 0 = Revoked',
   `creado_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `registrado_at_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Audit timestamp for as-recorded reconstruction',
   PRIMARY KEY (`id`),
   KEY `idx_v2_asig_busqueda_historica` (`id_personal`, `id_estacion`, `dia_semana`, `valido_desde`, `valido_hasta`),
   KEY `idx_v2_asig_plantilla` (`id_plantilla`),
@@ -105,11 +107,12 @@ CREATE TABLE IF NOT EXISTS `op_rh_v2_jornadas_programadas` (
   `tipo_jornada` ENUM('SCHEDULED', 'DAY_OFF', 'UNSCHEDULED') NOT NULL DEFAULT 'SCHEDULED',
   `scheduled_start_utc` DATETIME NULL COMMENT 'Exact UTC start timestamp of shift',
   `scheduled_end_utc` DATETIME NULL COMMENT 'Exact UTC end timestamp of shift',
-  `timezone_local` VARCHAR(64) NOT NULL DEFAULT 'America/Mexico_City' COMMENT 'Workplace timezone used for UTC conversion',
+  `timezone_local` VARCHAR(64) NOT NULL DEFAULT 'America/Mexico_City' COMMENT 'Canonical Workplace timezone used for UTC conversion',
   `payload_segmentos_json` JSON NULL COMMENT 'Snapshot of shift segments for immutable audit',
   `creado_at_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `actualizado_at_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_v2_jornada_personal_fecha` (`id_personal`, `fecha_jornada_local`),
+  UNIQUE KEY `uk_v2_jornada_personal_estacion_fecha` (`id_personal`, `id_estacion`, `fecha_jornada_local`),
   KEY `idx_v2_jornada_estacion_fecha` (`id_estacion`, `fecha_jornada_local`),
   KEY `idx_v2_jornada_intervalo_utc` (`scheduled_start_utc`, `scheduled_end_utc`),
   CONSTRAINT `fk_v2_jornada_asignacion` FOREIGN KEY (`id_asignacion_origen`) REFERENCES `op_rh_v2_turnos_asignaciones` (`id`) ON DELETE SET NULL,
@@ -119,36 +122,28 @@ CREATE TABLE IF NOT EXISTS `op_rh_v2_jornadas_programadas` (
 
 ---
 
-## 4. DESIGN DECISIONS & SEMANTIC RESOLUTIONS
+## 4. REVISED DESIGN DECISIONS & AUDIT RESOLUTIONS
 
-### A. Materialized `ScheduledShift` Persistence
-`ScheduledShift` (`op_rh_v2_jornadas_programadas`) is designed as a **materialized persistent entity** rather than calculated strictly on demand. Materialization guarantees that historical shift windows, UTC start/end timestamps, and segment snapshots remain immutably reproducible even if a master template is subsequently updated.
+### A. Multi-Workplace Scoping (`uk_v2_jornada_personal_estacion_fecha`)
+Unique key for `op_rh_v2_jornadas_programadas` is scoped to `(id_personal, id_estacion, fecha_jornada_local)`. This ensures workers assigned across multiple workplaces (e.g. Station A in morning, Station B in evening) can have valid scheduled workdays at each workplace without global date collisions.
 
-### B. Cross-Midnight / Night Shift Representation
-Night shifts (e.g. `22:00` to `06:00` next day) are represented explicitly in `op_rh_v2_turnos_segmentos`:
-- `hora_inicio_local`: `22:00:00` (`dia_offset_inicio`: `0`)
-- `hora_fin_local`: `06:00:00` (`dia_offset_fin`: `1`)
-- **Workday Ownership:** Night shifts belong to the `fecha_jornada_local` of the **starting local calendar date** (`22:00`).
+### B. Canonical Workplace Timezone Authority
+Workplace timezone resolution derives from `op_rh_v2_dispositivos.timezone` associated with `op_rh_localidades.id` (or fallback workplace config), recorded explicitly in `timezone_local` of `op_rh_v2_jornadas_programadas`. Technical device timezones serve as hardware fallback when workplace timezone is unconfigured, but do NOT override workplace authority.
 
-### C. Multi-Segment & Meal Break Support
-Templates support 1..N ordered segments. For example, a split shift with lunch break:
-- Segment 1: `WORK` (08:00 - 12:00, ordinal 1)
-- Segment 2: `BREAK` (12:00 - 14:00, ordinal 2)
-- Segment 3: `WORK` (14:00 - 18:00, ordinal 3)
-No hardcoded limit of 4 slots is enforced.
+### C. Template Versioning & Historical Immutability
+`op_rh_v2_turnos_plantillas` includes a `version` column (`uk_v2_turnos_plantillas_clave_version`). Editing a template creates a new version record, ensuring that past `op_rh_v2_jornadas_programadas` and `op_rh_v2_turnos_asignaciones` retain immutable provenance to their exact original segment configuration.
 
-### D. Day Off vs Unscheduled Representation
-- `DAY_OFF`: Explicitly assigned rest days are materialized in `op_rh_v2_jornadas_programadas` with `tipo_jornada = 'DAY_OFF'` (`scheduled_start_utc` is NULL).
-- `UNSCHEDULED`: Workers without an active assignment for a given date are marked `tipo_jornada = 'UNSCHEDULED'`.
+### D. As-Recorded Audit Reconstruction
+`op_rh_v2_turnos_asignaciones` records `registrado_at_utc` in addition to `valido_desde`/`valido_hasta`. This enables bitemporal audit queries ("What was the valid schedule on Oct 1 as recorded on Oct 10 vs corrected on Oct 20").
 
-### E. Timezone Authority
-Timezone resolution derives from `op_rh_v2_dispositivos.timezone` associated with the station (`op_rh_localidades`), recorded in `timezone_local` of `op_rh_v2_jornadas_programadas` during UTC calculation.
+### E. Night Shift & Segment Offsets
+Night shifts (e.g. `22:00` to `06:00` next day) use `dia_offset_inicio = 0` and `dia_offset_fin = 1` in `op_rh_v2_turnos_segmentos`. Workday ownership belongs to the local calendar date of shift start (`fecha_jornada_local`).
 
 ---
 
 ## 5. SEED MIGRATION STRATEGY FROM LEGACY
 
 1. **Legacy Reference:** Legacy rows in `op_rh_personal_horario` will be read for seed migration.
-2. **Template Seed:** Unique legacy `(hora_entrada, hora_salida)` pairs will map to generated `op_rh_v2_turnos_plantillas` and `op_rh_v2_turnos_segmentos`.
-3. **Assignment Seed:** Worker schedule rows will be inserted into `op_rh_v2_turnos_asignaciones` with `valido_desde = CUTOVER_DATE` and `valido_hasta = NULL`.
+2. **Template Seed:** Unique legacy `(hora_entrada, hora_salida)` pairs map to version 1 `op_rh_v2_turnos_plantillas` and `op_rh_v2_turnos_segmentos`.
+3. **Assignment Seed:** Worker schedule rows populate `op_rh_v2_turnos_asignaciones` with `valido_desde = CUTOVER_DATE` and `valido_hasta = NULL`.
 4. **Pre-Cutover History:** Pre-cutover dates will **NOT** fabricate historical validity; historical V2 journey evaluation applies only from cutover date forward.

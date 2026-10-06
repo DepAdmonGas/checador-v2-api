@@ -17,7 +17,7 @@ ACTIVITY_LEDGER_SHA256: <sha256 of docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md>
 DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 CURRENT_PHASE: V2_3_SHIFT_SCHEDULING_DESIGN
-LAST_COMPLETED_ACTIVITY: V2_3_A02_SHIFT_SCHEDULING_V2_PHYSICAL_DATA_MODEL_DESIGN
+LAST_COMPLETED_ACTIVITY: V2_3_A02F_SHIFT_SCHEDULING_PHYSICAL_MODEL_FREEZE_REVIEW
 CURRENT_ACTIVE_MILESTONE: V2.3-A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -53,7 +53,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `f736370af9ec0ff0d4e3f4bfca76378c8c459ca2` (API side)
+- **Current HEAD SHA:** `aff27a0dfd1ebfbab2d5d836ddfb1fca584742cb` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
 - **Worktree Status:** `CLEAN`
@@ -62,9 +62,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_3_A02_SHIFT_SCHEDULING_V2_PHYSICAL_DATA_MODEL_DESIGN`
-- **Type:** DOCUMENTATION_DESIGN
-- **Summary:** Designed the physical V2 shift scheduling data model specification (`docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`) mapping Freeze Section 14 entities to proposed MariaDB tables (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`). Factual corrections applied to project-control documents (JSON file queue & `acceso-temporal` ACL).
+- **Activity ID:** `V2_3_A02F_SHIFT_SCHEDULING_PHYSICAL_MODEL_FREEZE_REVIEW`
+- **Type:** ARCHITECTURE_REVIEW
+- **Summary:** Conducted pre-freeze architecture review of `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`. Outcome: `PHYSICAL_MODEL_REQUIRES_REVISION`. Revised physical spec to scope `ScheduledShift` uniqueness to `(id_personal, id_estacion, fecha_jornada_local)` for multi-workplace support, establish canonical workplace timezone authority, introduce template versioning, and add `registrado_at_utc` for as-recorded auditability. Spec status updated to `DRAFT_FOR_FREEZE (REVISED)`.
 
 ---
 
@@ -76,8 +76,8 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **API V2 Punch Ingestion** | OPERATIONAL | Server-side device auth, identity resolution, HMAC seal, idempotency (201/200/409). |
 | **API Level 1 Snapshot Read** | OPERATIONAL | Cursor pagination, durable manifest digest (SHA256), `acceso-temporal` ACL. |
 | **API Level 2 Windowing & Status** | OPERATIONAL | Generation registration, sequence gap detection, telemetry, `acceso-temporal` ACL. |
-| **API Station Context Alignment (F-03 API)** | AVAILABLE | `GET /acceso-empresa` and `GET /api/v2/devices/context` expose canonical `id_estacion` (`61e942f55ef5...`). |
-| **Shift Scheduling V2 Physical Model (A02)** | SPECIFIED | Physical DDL specification created in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`. |
+| **API Station Context Alignment (F-03 API)** | AVAILABLE | `GET /acceso-empresa` and `GET /api/v2/devices/context` expose canonical `id_estacion`. |
+| **Shift Scheduling V2 Physical Model (A02/A02F)** | REVISED SPEC | Multi-workplace unique key, template versioning, workplace timezone, and audit timestamp added. Spec in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`. |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |
@@ -88,7 +88,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **F-01 (Legacy Offline Queue):** DEFERRED / KNOWN LEGACY LIMITATION. Legacy attendance flow lacks local durable queue. Not a blocker for V2 shadow mode.
 - **F-02 (Cold-Start Offline Login):** PREPRODUCTION RESILIENCE. Lector cold-start while offline cannot call `GET /acceso-empresa`. Deferred to pre-production resilience review.
-- **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE (`61e942f55ef5...`). Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
+- **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE. Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
 - **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Deferred to pre-production security review.
 
 ---
@@ -110,4 +110,4 @@ A task is considered **FULLY CLOSED** only when all of the following criteria ar
 - **Level 1 Contract:** `65e989f2611661fd47c80844ca427fafc146eece8f37025cab3c0917c78f7c3d`
 - **Level 2 Contract:** `7176c45aceb2bb59dba5470cd3b74f729a9bf5e3c797860e1dd752be3fb51a1c`
 - **AUTH-4 Evidence Report:** `117a6c3d72d610882c987ad5b030ae1e374714af164d04f5cc7323583f647924`
-- **Shift Model Spec V1.0:** Physical DDL specification created in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`
+- **Shift Model Spec V1.0 (Revised):** Revised Physical DDL specification in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`
