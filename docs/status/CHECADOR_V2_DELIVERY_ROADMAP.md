@@ -19,25 +19,31 @@
 | **AUTH-4 E2E Cross-Project Validation** | 20 E2E scenarios across API & Lector with physical Live20R fingerprint capture | 2026-10-06 | Evidence Report (`117a6c3d72...`) |
 | **Lector Baseline (AUTH-1 to AUTH-4)** | Complete Lector acquisition, queueing, sync, telemetry, and L2 integration | 2026-10-06 | CLOSED / VERIFIED / FROZEN |
 | **API Station Context Alignment (F-03 API)** | `GET /acceso-empresa` exposing `id_estacion` & `GET /api/v2/devices/context` | 2026-10-06 | Commit `61e942f55ef5...` |
+| **V2.3-A01 Legacy Schedule Audit** | Read-only audit of `op_rh_personal_horario` vs Freeze V1.0 Section 14 requirements | 2026-10-06 | A01 Audit Findings |
+| **V2.3-A02 Shift Model Physical Design** | Physical DDL specification created in `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | Spec V1.0 (`docs/architecture/CHECADOR_V2_...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: PENDING_CANONICAL_RESELECTION
-- **Goal:** Reselect the next unfinished development milestone toward the 2026-12-31 target date from the canonical architecture and schedule dependencies.
-- **Status:** Lector functional baseline is **COMPLETE & FROZEN**. Lector is **NOT** an active development track.
-- **Next Step:** Perform a dedicated milestone reselection audit to confirm the next authorized development slice.
+### Milestone: V2.3-A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION
+- **Goal:** Create database migration scripts (`migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql`) for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas` and implement seed migration helper when authorized.
+- **Prerequisite Status:** A02 Physical DDL Specification COMPLETE (`docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`).
+- **Target Completion:** Pending authorization of migration execution.
 
 ---
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **Shift Scheduling & Motor de Jornada V2 (V2.4+ / Motor):**
-   - Implement `ScheduledShift` assignment models, daily expected window calculation, shift templates, and break segments.
-2. **Incidents & Infractions Engine:**
-   - Server-side evaluation of tardiness, unexcused absences, missing punches, and extra time against sealed raw events.
-3. **Payroll Adapter & Shadow Mode Parity Validation:**
+1. **V2.3-A04..A07 — Shift Scheduling V2 Service & API Implementation:**
+   - Implement `TurnoV2` service for managing shift templates, segments, and effective-dated worker assignments.
+2. **V2.4-P1 — Motor de Jornada (PunchEvent / ScheduledShift Pairing):**
+   - Implement deterministic pairing algorithm associating raw `PunchEvent` records with `ScheduledShift` expected work intervals.
+3. **V2.4-P2 — Motor de Jornada (Attendance, Overtime & Night Shifts):**
+   - Calculate worked hours, night-shift premiums, tardiness, and overtime in Shadow Mode.
+4. **V2.5 — Administrative Incidences & Adjustments:**
+   - Immutable justification/incidence log explaining derived journey anomalies without modifying raw facts.
+5. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
    - Statistical shadow mode comparison between legacy attendance conclusions and V2 Motor results prior to payroll cutover.
 
 ---
@@ -46,7 +52,7 @@
 
 - **F-01 (Legacy Offline Queue):** DEFERRED / KNOWN LEGACY LIMITATION. Legacy attendance flow lacks local durable queue. Not a blocker for V2 shadow mode.
 - **F-02 (Cold-Start Offline Login):** PREPRODUCTION RESILIENCE. Lector cold-start while offline cannot call `GET /acceso-empresa`. Deferred to pre-production resilience review.
-- **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE (`61e942f55ef59a22a47bb22ba3cd79dceeac7444`). Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
+- **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE (`61e942f55ef5...`). Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
 - **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Deferred to pre-production security review.
 - [ ] Infrastructure TLS certificate verification
 - [ ] Database trigger installation on staging/production MySQL

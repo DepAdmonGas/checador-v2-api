@@ -159,3 +159,38 @@
 - **DECISIONS:** Corrected project-control status based on project owner clarification: Lector implementation is COMPLETE, FINAL/FROZEN, and NOT active development. AUTH-3 is CLOSED and AUTH-4 is CLOSED/VERIFIED. F-03 station divergence API side is AVAILABLE (`61e942f55ef59a22a47bb22ba3cd79dceeac7444`) while Lector remediation is DEFERRED_PREPRODUCTION_REVIEW. Reset current active milestone to PENDING_CANONICAL_RESELECTION.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Reselect next unfinished milestone toward 2026-12-31 based on canonical roadmap dependencies.
+
+
+---
+
+### Entry 010
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A01_SHIFT_SCHEDULING_MODEL_AND_CURRENT_SCHEDULE_AUDIT`
+- **PROJECT:** Checador API
+- **TYPE:** DOMAIN_AUDIT
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `f736370af9ec0ff0d4e3f4bfca76378c8c459ca2`
+- **FINAL_HEAD:** `f736370af9ec0ff0d4e3f4bfca76378c8c459ca2`
+- **COMMIT:** N/A (Read-only audit)
+- **ARTIFACTS:** Detailed domain audit findings
+- **TEST_RESULTS:** N/A
+- **DECISIONS:** Audited legacy `op_rh_personal_horario` table. Established that legacy schedule model lacks effective dating, night-shift support, and multi-segment support required for V2. Confirmed Section 14 of Freeze V1.0 is sufficient for physical model design.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.3-A02 Shift Scheduling V2 Physical Data Model Design
+
+---
+
+### Entry 011
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A02_SHIFT_SCHEDULING_V2_PHYSICAL_DATA_MODEL_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** DOCUMENTATION_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `f736370af9ec0ff0d4e3f4bfca76378c8c459ca2`
+- **FINAL_HEAD:** `f736370af9ec0ff0d4e3f4bfca76378c8c459ca2`
+- **COMMIT:** Pending docs commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`
+- **TEST_RESULTS:** N/A
+- **DECISIONS:** Designed physical schema for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas`. Resolved cross-midnight shifts, multi-segment breaks, and materialized `ScheduledShift` persistence. Corrected project-control doc facts (JSON queue & `acceso-temporal` ACL).
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.3-A03 Physical Data Model Implementation (when migration execution is authorized).
