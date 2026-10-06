@@ -212,3 +212,21 @@
 - **DECISIONS:** Evaluated pre-freeze physical data model. Outcome: `PHYSICAL_MODEL_REQUIRES_REVISION`. Resolved multi-workplace uniqueness by scoping `uk_v2_jornada_personal_estacion_fecha` to `(id_personal, id_estacion, fecha_jornada_local)`. Established canonical workplace timezone authority. Added template versioning (`clave`, `version`) and assignment audit timestamp (`registrado_at_utc`).
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.3-A03 Physical Model Implementation (SQL migration creation when explicitly authorized).
+
+
+---
+
+### Entry 013
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A02G_SHIFT_SCHEDULING_PHYSICAL_MODEL_FINAL_FREEZE`
+- **PROJECT:** Checador API
+- **TYPE:** ARCHITECTURE_FREEZE
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `b1e8d2fef94c65349ebf40fdf9420067bb2ca3eb`
+- **FINAL_HEAD:** `b1e8d2fef94c65349ebf40fdf9420067bb2ca3eb`
+- **COMMIT:** Pending docs commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` (SHA256: `87c6193c50261f6a81d6eaa9bbb2c05bc68956b593b038cba7618c6c8bb3475a`)
+- **TEST_RESULTS:** N/A
+- **DECISIONS:** Validated consistency and formally froze physical specification `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Verified multi-workplace scoping, canonical workplace timezone, template versioning, and as-recorded auditability. Set active milestone to `V2.3-A03` (pending authorization).
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.3-A03 Physical Model Implementation (creating migration file when explicitly authorized).

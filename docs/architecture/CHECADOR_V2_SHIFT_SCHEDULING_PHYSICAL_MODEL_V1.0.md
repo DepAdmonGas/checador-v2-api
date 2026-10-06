@@ -1,17 +1,22 @@
 # CHECADOR V2 — SHIFT SCHEDULING PHYSICAL DATA MODEL SPECIFICATION V1.0
 
-**Status:** DRAFT FOR FREEZE (REVISED)
+**Status:** FROZEN_V1.0
 **Version:** 1.0
 **Date:** 2026-10-06
+**Freeze Date:** 2026-10-06
+**Freeze Scope:** Shift Scheduling V2 Physical Persistence Model
 **Scope:** Checador V2 API (`/home/silvinol/Proyectos/portal-api-v.1.0.1`)
-**Implementation Authorized:** NO (Physical DDL Design Only)
+**Implementation Authorized:** NO (Physical DDL Specification Only)
 **Database Executed:** NO
 
 ---
 
 ## 1. PURPOSE & ARCHITECTURAL CONTEXT
 
-This document defines the physical MariaDB/MySQL data model for the Shift Scheduling V2 domain as normatively required by **Checador V2 Architecture Freeze V1.0 Section 14** (`docs/architecture/CHECADOR_V2_ARCHITECTURE_FREEZE_V1.0.md`).
+This document defines the frozen physical MariaDB/MySQL data model for the Shift Scheduling V2 domain as normatively required by **Checador V2 Architecture Freeze V1.0 Section 14** (`docs/architecture/CHECADOR_V2_ARCHITECTURE_FREEZE_V1.0.md`).
+
+> [!NOTE]
+> **FROZEN DATA MODEL SPECIFICATION V1.0.** Any future semantic or structural change to these physical table definitions requires an explicit architecture addendum and design revision before implementation.
 
 ### Key Architectural Guarantees:
 1. **Raw Punch Fact Protection:** The shift scheduling domain **never** modifies or overwrites raw biometric punch facts recorded in `op_rh_v2_marcaciones_crudas`. Shifts dictate expected work intervals for derived journey evaluation only.
