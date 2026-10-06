@@ -141,3 +141,21 @@
 - **DECISIONS:** Exposed `resultado.id_estacion` in `GET /acceso-empresa` and created `GET /api/v2/devices/context` returning technical device station ID (`id_estacion`). Closed F-03 API side.
 - **BLOCKERS:** Lector side F-03 enforcement pending
 - **NEXT_STEP:** DOC-2 Project Control Documentation
+
+
+---
+
+### Entry 009
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `CHECADOR_V2_DOC2A_PROJECT_CONTROL_STATE_CORRECTION`
+- **PROJECT:** Checador API & Lector Governance
+- **TYPE:** DOCUMENTATION_CORRECTION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `59b386fa72a1042e0f30b85fada28c67bc484c85`
+- **FINAL_HEAD:** `59b386fa72a1042e0f30b85fada28c67bc484c85`
+- **COMMIT:** N/A (Doc correction commit)
+- **ARTIFACTS:** `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md`
+- **TEST_RESULTS:** N/A
+- **DECISIONS:** Corrected project-control status based on project owner clarification: Lector implementation is COMPLETE, FINAL/FROZEN, and NOT active development. AUTH-3 is CLOSED and AUTH-4 is CLOSED/VERIFIED. F-03 station divergence API side is AVAILABLE (`61e942f55ef59a22a47bb22ba3cd79dceeac7444`) while Lector remediation is DEFERRED_PREPRODUCTION_REVIEW. Reset current active milestone to PENDING_CANONICAL_RESELECTION.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Reselect next unfinished milestone toward 2026-12-31 based on canonical roadmap dependencies.
