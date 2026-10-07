@@ -25,15 +25,16 @@
 | **V2.3-A02G Shift Model Final Freeze** | Formal freeze of physical specification `CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`7fa934b7e12e...`) |
 | **V2.3-A03 Physical Model Implementation** | Create SQL migration files & 20-scenario schema test suite for V2 Shift Scheduling tables | 2026-10-06 | 20 / 20 Schema Tests PASS |
 | **V2.3-A04 Shift Service & API Design** | Design domain services, REST API specification, validation, resolution & materialization | 2026-10-06 | Contract Spec V1.0 (`docs/v2/CHECADOR_V2_...`) |
+| **V2.3-A04F Service & API Contract Freeze** | Pre-freeze validation & formal freeze of `CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`3c155272198f...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.3-A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE
-- **Goal:** Pre-freeze review and formal freeze of `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`.
-- **Prerequisite Status:** A04 Design COMPLETE (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` SHA256: `49efd5989f6e961237d661deaa5587215214345b51b406a759763b52a9615ea7`).
-- **Target Completion:** Pending review and explicit authorization.
+### Milestone: V2.3-A05_SHIFT_SCHEDULING_V2_RUNTIME_IMPLEMENTATION
+- **Goal:** Implement PHP domain services (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API endpoints per frozen contract specification.
+- **Prerequisite Status:** A04F Contract Freeze COMPLETE (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` SHA256: `3c155272198f793e7be19088e04c6b71140ad4a3acd5dc0382385bc6183675a8`).
+- **Target Completion:** Pending explicit runtime implementation authorization.
 
 ---
 

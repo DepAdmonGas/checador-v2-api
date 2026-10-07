@@ -264,3 +264,20 @@
 - **DECISIONS:** Designed service boundary (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API contract for V2 Shift Scheduling. Defined template versioning, effective-dated assignment overlap rules, workplace timezone authority, `SCHEDULED`/`DAY_OFF`/`UNSCHEDULED`/`UNKNOWN` resolution logic, materialization trigger boundary, and error envelope. Reconciled stale A02G SHA typo in project control documentation.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization for pre-freeze review or freeze of Shift Scheduling Service & API contract.
+
+---
+
+### Entry 016
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE_REVIEW`
+- **PROJECT:** Checador API
+- **TYPE:** ARCHITECTURE_FREEZE
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `fc3f44cee26d1661ccdb9e0c2cd2bfe1e7a5f985`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` (SHA256: `3c155272198f793e7be19088e04c6b71140ad4a3acd5dc0382385bc6183675a8`)
+- **TEST_RESULTS:** N/A (Contract Freeze Review)
+- **DECISIONS:** Validated and formally froze Shift Scheduling Service & API specification `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` as FROZEN_V1.0. Enforced strict historical immutability of `op_rh_v2_jornadas_programadas` (no in-place UPDATE or force_re-materialize overwrite), replaced PATCH with `POST /api/v2/shift-assignments/{id}/close` for append-only auditability, confirmed `GET /effective-schedule` is strictly pure read-only without write side effects, bounded materialization and read pagination, and verified reuse of `biometricos` ACL module.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization to begin V2.3-A05 Shift Scheduling V2 Runtime Implementation.

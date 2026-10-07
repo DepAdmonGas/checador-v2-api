@@ -17,10 +17,11 @@ ACTIVITY_LEDGER_SHA256: <sha256 of docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md>
 DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
-CURRENT_PHASE: V2_3_SHIFT_SCHEDULING_SERVICE_API_DESIGNED
-LAST_COMPLETED_ACTIVITY: V2_3_A04_SHIFT_SCHEDULING_SERVICE_API_DESIGN
-CURRENT_ACTIVE_MILESTONE: V2.3-A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE
-A03_EXECUTION_STATE: COMPLETED
+SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
+CURRENT_PHASE: V2_3_SHIFT_SCHEDULING_SERVICE_API_FROZEN
+LAST_COMPLETED_ACTIVITY: V2_3_A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE_REVIEW
+CURRENT_ACTIVE_MILESTONE: V2.3-A05_SHIFT_SCHEDULING_V2_RUNTIME_IMPLEMENTATION
+A04F_FREEZE_STATE: FROZEN_V1.0
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
 TARGET_DATE: 2026-12-31
@@ -35,11 +36,11 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_3_SHIFT_SCHEDULING_SERVICE_API_DESIGNED
+- **Current Phase:** V2_3_SHIFT_SCHEDULING_SERVICE_API_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
-- **Shift Service & API Contract Spec V1.0 Status:** DRAFT_FOR_FREEZE (SHA256: `d6ed2be3bf6cfba2bf8f25dc22bb79ca92e4d9973b3a7a9e5272a707f282355f`)
+- **Shift Service & API Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f`)
 
 ### Operational Architecture Principles:
 1. **Lector Autonomy:** Portal3 is NOT required for physical Lector runtime operations. Lector has its own operational login (`GET /acceso-empresa`), maintains its own active station session, and operates independently.
@@ -57,18 +58,18 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `688114be0c2738b9758778f307849e79b940cfd6` (API side)
+- **Current HEAD SHA:** `f7b5d2994a4c585c5bb9c1afb96be272718e00be` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
-- **Worktree Status:** `CLEAN`
+- **Worktree Status:** `MODIFIED_FILES_PENDING_COMMIT`
 
 ---
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_3_A04_SHIFT_SCHEDULING_SERVICE_API_DESIGN`
-- **Type:** DOCUMENTATION_DESIGN
-- **Summary:** Designed the backend service boundaries (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API specification for Checador V2 Shift Scheduling (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). Specified immutable template versioning, effective-dated assignment overlap rules per workplace, workplace timezone authority, `SCHEDULED`/`DAY_OFF`/`UNSCHEDULED`/`UNKNOWN` schedule resolution logic, materialization trigger boundary, error contract, and target test matrix. Reconciled stale A02G SHA typo in project control docs.
+- **Activity ID:** `V2_3_A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE_REVIEW`
+- **Type:** ARCHITECTURE_FREEZE
+- **Summary:** Validated pre-freeze consistency and formally froze `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` as FROZEN_V1.0 (`0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f`). Verified historical immutability of materialized `ScheduledShift` records, strict append-only assignment closing, pure GET schedule resolution without side-effects, bounded query pagination, and reuse of `biometricos` ACL module.
 
 ---
 
@@ -82,7 +83,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **API Level 2 Windowing & Status** | OPERATIONAL | Generation registration, sequence gap detection, telemetry, `acceso-temporal` ACL. |
 | **API Station Context Alignment (F-03 API)** | AVAILABLE | `GET /acceso-empresa` and `GET /api/v2/devices/context` expose canonical `id_estacion`. |
 | **Shift Scheduling V2 Physical Schema (A03)** | IMPLEMENTED | SQL migrations created and validated via 20 schema tests (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`). |
-| **Shift Scheduling V2 Service & API Design (A04)** | DESIGNED (DRAFT_FOR_FREEZE) | Backend service interfaces, REST API contracts, validation, resolution, and materialization specification (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). |
+| **Shift Scheduling V2 Service & API Contract (A04F)** | FROZEN V1.0 | Formally frozen backend service interfaces, REST API contracts, validation, resolution, and materialization specification (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |
@@ -113,7 +114,7 @@ A task is considered **FULLY CLOSED** only when all of the following criteria ar
 
 - **Architecture Freeze V1.0:** `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`
 - **Shift Model Physical Spec V1.0:** `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`
-- **Shift Service & API Contract Spec V1.0:** `d6ed2be3bf6cfba2bf8f25dc22bb79ca92e4d9973b3a7a9e5272a707f282355f`
+- **Shift Service & API Contract Spec V1.0:** `0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f`
 - **Level 1 Contract:** `65e989f2611661fd47c80844ca427fafc146eece8f37025cab3c0917c78f7c3d`
 - **Level 2 Contract:** `7176c45aceb2bb59dba5470cd3b74f729a9bf5e3c797860e1dd752be3fb51a1c`
 - **AUTH-4 Evidence Report:** `117a6c3d72d610882c987ad5b030ae1e374714af164d04f5cc7323583f647924`

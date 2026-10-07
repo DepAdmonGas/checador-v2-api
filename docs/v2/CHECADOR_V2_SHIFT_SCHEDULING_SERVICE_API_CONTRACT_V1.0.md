@@ -1,6 +1,6 @@
 # CHECADOR V2 — SHIFT SCHEDULING SERVICE & API CONTRACT V1.0
 
-**Document Status:** DRAFT_FOR_FREEZE
+**Document Status:** FROZEN_V1.0
 **Governance:** Aligned with `docs/architecture/CHECADOR_V2_ARCHITECTURE_FREEZE_V1.0.md` and `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0 SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`).
 
 ---
@@ -36,11 +36,11 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
 2. `ShiftAssignmentService`
    - Manages effective-dated worker shift assignments.
    - Enforces multi-workplace interval overlap validation (`id_personal`, `id_estacion`, `dia_semana`, `valido_desde`, `valido_hasta`).
-   - Handles assignment closure, supersession, and retroactive historical corrections without destructive updates.
+   - Handles assignment closure, supersession, and retroactive historical corrections without destructive updates to past effective records.
 
 3. `ScheduleResolutionService`
-   - Deterministic engine resolving the effective schedule for a specific worker (`id_personal`) at a specific workplace (`id_estacion`) on a given local calendar date (`fecha_local`).
-   - Evaluates active assignments, checks day-of-week rules, and yields `SCHEDULED`, `DAY_OFF`, `UNSCHEDULED`, or `UNKNOWN` status.
+   - Deterministic read-only engine resolving the effective schedule for a specific worker (`id_personal`) at a specific workplace (`id_estacion`) on a given local calendar date (`fecha_local`).
+   - Evaluates active assignments, checks day-of-week rules, and yields `SCHEDULED`, `DAY_OFF`, `UNSCHEDULED`, or `UNKNOWN` status without hidden database write side-effects.
 
 4. `ScheduledShiftMaterializationService`
    - Materializes concrete daily scheduled shift records into `op_rh_v2_jornadas_programadas`.
@@ -61,7 +61,7 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
 - **Module Key:** `biometricos` (existing functional module key in `modulos_dpto_operativo` & `tb_modulos_config`).
 - **Required Permissions:**
   - Read Endpoints (GET): `biometricos.leer = 1`
-  - Mutation Endpoints (POST, PUT, PATCH, DELETE): `biometricos.editar = 1`
+  - Mutation Endpoints (POST): `biometricos.editar = 1`
 - **Station Scope (Server-Side Filter):**
   - Resolved fresh via user/puesto multi-station configuration (`tb_multiestacion_usuario` / `tb_multiestacion_puesto`) or home station (`tb_usuarios.id_gas`).
   - Intersected with active supported stations in `tb_modulos_config` for `biometricos`.
@@ -128,12 +128,12 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
 #### 2. `POST /api/v2/shift-templates/{clave}/versions`
 - **Summary:** Create a new version for an existing template code (`clave`). Automatically increments version number.
 - **Auth:** Portal3 JWT (`biometricos.editar = 1`).
-- **Behavior:** Reads highest existing version for `clave`, inserts new row with `version = max_version + 1`, and attaches new segment set atomically within a single MySQL transaction. Previous versions remain immutable in DB.
+- **Behavior:** Reads highest existing version for `clave`, inserts new row with `version = max_version + 1`, and attaches new segment set atomically within a single MySQL transaction. Concurrent version creation attempts locking the same `clave` execute within transaction and resolve serialization race conditions cleanly. Previous versions remain immutable in DB.
 
 #### 3. `GET /api/v2/shift-templates`
 - **Summary:** List shift templates (latest active versions by default, or all versions via `include_all_versions=true`).
 - **Auth:** Portal3 JWT (`biometricos.leer = 1`).
-- **Query Params:** `page` (default 1), `per_page` (default 50, max 200), `tipo_turno`, `es_activo`.
+- **Query Params:** `page` (default 1, min 1), `per_page` (default 50, max 200), `tipo_turno`, `es_activo`.
 
 #### 4. `GET /api/v2/shift-templates/{clave}/versions/{version}`
 - **Summary:** Fetch specific shift template version and its segment set.
@@ -164,15 +164,15 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
   - Application-level overlap check (`SELECT ... FOR UPDATE`) verifies no active assignment (`es_activo = 1`) exists for the same (`id_personal`, `id_estacion`, `dia_semana`) with overlapping date intervals `[valido_desde, valido_hasta)`.
 - **Response (201 Created):** Returns assignment detail with server audit timestamps (`creado_at`, `registrado_at_utc`).
 
-#### 6. `PATCH /api/v2/shift-assignments/{id}/close`
-- **Summary:** Close an open-ended assignment by setting `valido_hasta` and/or `es_activo = 0`.
+#### 6. `POST /api/v2/shift-assignments/{id}/close`
+- **Summary:** Close an open-ended assignment effective on a given date by creating a closed revision record or updating `valido_hasta` while preserving as-recorded auditability.
 - **Auth:** Portal3 JWT (`biometricos.editar = 1`).
-- **Behavior:** Does NOT mutate past effective dates. Sets `valido_hasta` to effective closing date.
+- **Behavior:** Does NOT mutate past effective dates prior to closing date. Sets `valido_hasta` to effective closing date with audit timestamp (`registrado_at_utc`).
 
 #### 7. `GET /api/v2/shift-assignments`
 - **Summary:** Query worker assignment history or current active assignments.
 - **Auth:** Portal3 JWT (`biometricos.leer = 1`).
-- **Query Params:** `id_personal` (required), `id_estacion` (optional, must be authorized), `fecha_referencia` (optional `YYYY-MM-DD`).
+- **Query Params:** `id_personal` (required), `id_estacion` (optional, must be authorized), `fecha_referencia` (optional `YYYY-MM-DD`), `page` (default 1), `per_page` (default 50, max 200).
 
 ---
 
@@ -182,6 +182,7 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
 - **Summary:** Resolve effective shift schedule for a worker at a workplace for a given local date.
 - **Auth:** Portal3 JWT (`biometricos.leer = 1`).
 - **Query Params:** `id_estacion` (required), `fecha_local` (required `YYYY-MM-DD`).
+- **Behavior:** Pure read-only resolution. Performs NO database writes or implicit materialization.
 - **Response (200 OK):**
   ```json
   {
@@ -225,11 +226,10 @@ To maintain decoupling, high cohesion, and strict testability, the Shift Schedul
     "id_personal": 105,
     "id_estacion": 12,
     "fecha_desde": "2026-11-01",
-    "fecha_hasta": "2026-11-07",
-    "force_re-materialize": false
+    "fecha_hasta": "2026-11-07"
   }
   ```
-- **Behavior:** Executes resolution, converts local times to UTC using workplace timezone, formats segment JSON snapshot, and performs idempotent `INSERT INTO op_rh_v2_jornadas_programadas` (or updates existing un-locked materialized shift if `force_re-materialize=true`).
+- **Behavior:** Bounded date range (max 31 days). Executes resolution, converts local times to UTC using workplace timezone, formats segment JSON snapshot, and performs idempotent `INSERT INTO op_rh_v2_jornadas_programadas`. Existing materialized shifts for `(id_personal, id_estacion, fecha_jornada_local)` are immutable historical facts; duplicate materialization requests for already materialized dates return 200 OK (idempotent no-op) without overwriting existing records.
 
 ---
 
@@ -259,7 +259,7 @@ All API responses strictly adhere to the established Checador V2 JSON error enve
 - `ASSIGNMENT_OVERLAP_CONFLICT`: Effective date range overlaps existing assignment for worker/station/weekday (409).
 - `INVALID_EFFECTIVE_INTERVAL`: `valido_hasta` is on or before `valido_desde` (400).
 - `UNAUTHORIZED_STATION_ACCESS`: Requested `id_estacion` is outside caller's ACL scope (403).
-- `HISTORICAL_MUTATION_PROHIBITED`: Attempt to perform destructive in-place update on past active template/assignment (422).
+- `HISTORICAL_MUTATION_PROHIBITED`: Attempt to perform destructive in-place update on past active template, assignment, or materialized shift (422).
 - `WORKPLACE_TIMEZONE_UNRESOLVED`: Workplace has no configured canonical timezone in DB (500).
 
 ---
@@ -272,12 +272,12 @@ All API responses strictly adhere to the established Checador V2 JSON error enve
 
 ### 6.2. Effective-Dated Assignment & Correction Model
 - Assignments define validity via `[valido_desde, valido_hasta)`.
-- **Retroactive Correction Rule:** To correct a past assignment error, administrators close the erroneous assignment by setting `valido_hasta` and insert a new superseding assignment with audit timestamps (`registrado_at_utc`). Destructive SQL `DELETE` or silent date range overwrites are forbidden.
+- **Retroactive Correction Rule:** To correct an assignment, administrators close the assignment by setting `valido_hasta` and insert a new superseding assignment with audit timestamps (`registrado_at_utc`). Destructive SQL `DELETE` or silent past date range overwrites are forbidden.
 
 ### 6.3. Assignment Overlap & Multi-Workplace Scoping
 - Overlap validation checks:
   $$\text{Overlap} \iff (A.\text{valido\_desde} < B.\text{valido\_hasta} \lor B.\text{valido\_hasta IS NULL}) \land (B.\text{valido\_desde} < A.\text{valido\_hasta} \lor A.\text{valido\_hasta IS NULL})$$
-- Overlap is evaluated **per workplace (`id_estacion`)**. A worker **MAY** hold simultaneous assignments at different workplaces (`id_estacion = 10` and `id_estacion = 20`) on the same day, provided the daily shift windows do not physically collide.
+- Overlap is evaluated **per workplace (`id_estacion`)**. A worker **MAY** hold assignments at different workplaces (`id_estacion = 10` and `id_estacion = 20`) on the same day. Physical daily shift window collision across workplaces is validated during schedule resolution.
 
 ### 6.4. Concurrency & Transaction Control
 - All assignment creations and materialization routines execute within MySQL InnoDB transactions using strict row locking:
@@ -292,20 +292,19 @@ All API responses strictly adhere to the established Checador V2 JSON error enve
 For a target `(id_personal, id_estacion, fecha_local)`:
 1. Query active assignment in `op_rh_v2_turnos_asignaciones` matching weekday of `fecha_local` where `valido_desde <= fecha_local` and (`valido_hasta > fecha_local` or `valido_hasta IS NULL`).
 2. If matching active assignment exists with assigned template: return `SCHEDULED` with segments.
-3. If matching active assignment exists marked explicitly as day off: return `DAY_OFF`.
+3. If matching active assignment exists marked explicitly as day off (`id_plantilla = NULL` or `DAY_OFF` assignment): return `DAY_OFF`.
 4. If no assignment exists for worker at workplace, but system has explicit worker registration: return `UNSCHEDULED`.
 5. If target date is prior to system cutover or worker is unmapped: return `UNKNOWN` (preserves pre-cutover ambiguity without assuming `DAY_OFF`).
 
 ### 6.6. Workplace Timezone Authority & Gap Audit
-- Workplace timezone is resolved server-side from `op_rh_localidades` / station configuration (e.g., `America/Mexico_City`, `America/Tijuana`).
-- Technical device timezones (`op_rh_v2_dispositivos.timezone`) are hardware metadata and do **NOT** override workplace timezone authority.
+- Workplace timezone is resolved server-side from station configuration (`op_rh_localidades_perfil` / `op_rh_v2_dispositivos.timezone` associated with `op_rh_localidades.id`, defaulting to `America/Mexico_City`).
+- Technical device timezones (`op_rh_v2_dispositivos.timezone`) serve as hardware fallback metadata and do **NOT** override workplace timezone authority.
 - `WORKPLACE_TIMEZONE_RUNTIME_GAP`: `NO` (Workplace timezone is derived from station configuration and explicitly stored in `op_rh_v2_jornadas_programadas.timezone_local`).
 
 ### 6.7. Materialization Boundary & Trigger
 - **Materialization Trigger:** `EXPLICIT_BATCH_OR_ON_DEMAND`
-  - Materialization into `op_rh_v2_jornadas_programadas` occurs via automated night cron (pre-generating 7-14 days ahead) or on-demand via API when resolving schedules for unmaterialized dates.
-- **Idempotency:** Unique key `uk_v2_jornada_personal_estacion_fecha` (`id_personal`, `id_estacion`, `fecha_jornada_local`) prevents duplicate rows.
-- **Retroactive Materialized Shift Rule:** Once materialized, a `ScheduledShift` is immutable unless an explicit administrative re-materialization request is issued with `force_re-materialize = true`. Historical journey calculations always preserve as-recorded materialized facts.
+  - Materialization into `op_rh_v2_jornadas_programadas` occurs via explicit batch API (`POST /api/v2/scheduled-shifts/materialize`) or scheduled cron job.
+- **Idempotency & Immutability:** Unique key `uk_v2_jornada_personal_estacion_fecha` (`id_personal`, `id_estacion`, `fecha_jornada_local`) prevents duplicate rows. Once materialized, `op_rh_v2_jornadas_programadas` records are immutable historical facts. Re-materialization attempts for already materialized dates are idempotent no-ops.
 
 ### 6.8. Arbitrary Segment Model (No Four-Slot Cap)
 - Shift Scheduling supports 1..N segments (`WORK`, `BREAK`, etc.) per template.
