@@ -484,7 +484,24 @@
 - **TEST_RESULTS:** 10 / 10 PASS (covering 52 schema invariants in `tests/v2_administrative_incidences_schema_tests.php`), P2 Calculation Schema (30/30 PASS), P2 Calculation Runtime (14/14 PASS), P1 Pairing Schema (25/25 PASS), P1 Pairing Runtime (16/16 PASS), Shift Scheduling Schema (30/30 PASS), Shift Scheduling Runtime (30/30 PASS), V2 Raw Punch Ingestion (18/18 PASS), SEC-L03 ACL (34/34 PASS), Station Alignment (9/9 PASS), Level 2 API Capabilities (16/16 PASS)
 - **DECISIONS:** Implemented exact physical persistence schema for Checador V2.5 Administrative Incidences & Adjustments strictly per frozen specification `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migration scripts for 5 normalized tables (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`). Implemented database triggers `tg_op_rh_v2_evaluaciones_admin_no_update` and `tg_op_rh_v2_evaluaciones_admin_no_delete` enforcing strict hard immutability on evaluation revisions. Validated FK type compatibility, single master range persistence for multi-day absences, derived daily shift applications, explicit P2 calculation revision FK link (`id_calculo_jornada`), administrative interpreted time isolation (`hora_interpretada_entrada_utc`, `hora_interpretada_salida_utc`) without raw punch masquerading, SHA256 evaluation fingerprints (`uk_v2_eval_fingerprint`), policy version provenance (`version_politica`), evaluation status header flags (`FALTA`, `CONTRADICTION_DETECTED`, `REVIEW_REQUIRED`), `ON DELETE RESTRICT` FK deletion protection, zero payroll monetary columns, and clean UP/DOWN migration idempotency.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** V2.5-MC Administrative Incidences Physical Model Closure Reconciliation (strict read-only verification before authorizing V2.5 administrative runtime).
+- **NEXT_STEP:** V2.5-SA Administrative Incidences Physical Model Provenance & Adjustment Revision Addendum V1.1.
+
+---
+
+### Entry 029
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1_1`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_REMEDIATION_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `99d53ee90d1cb22d5593000032cba8f3aa5c8bed`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (SHA256: `13c624213b9fdd2cad733d802f823e31e8dc287142173f4b80935802dcf670c1`)
+- **TEST_RESULTS:** N/A (Physical Model Addendum Design & Freeze)
+- **DECISIONS:** Designed and formally froze physical persistence addendum `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` as FROZEN_V1.1 to resolve forensic findings from `V2_5_MCP`. Specified 2 normalized append-only link tables (`op_rh_v2_evaluaciones_incidencias` linking evaluation revisions to `op_rh_v2_incidencias_aplicaciones`, and `op_rh_v2_evaluaciones_ajustes` linking evaluation revisions to `op_rh_v2_ajustes_administrativos`) establishing exact, historically reproducible input-set membership where 0 link rows explicitly denote an empty set `[]`. Added explicit logical adjustment lineage columns (`uuid_ajuste_logico`, `revision_numero`, `id_ajuste_anterior`, `estado_ajuste`) to `op_rh_v2_ajustes_administrativos` to support append-only adjustment corrections and cancellations. Established 100% backward data compatibility for Migration 000003 rows. Formulated proposed Migration 000004 DDL and a 40-scenario test matrix. Kept Migration 000003 byte-for-byte unchanged.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.5-MA Administrative Incidences Provenance Additive Schema Implementation (SQL migration 000004 creation when explicitly authorized).
 
 
 

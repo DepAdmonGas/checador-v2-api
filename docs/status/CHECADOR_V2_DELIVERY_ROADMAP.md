@@ -38,15 +38,16 @@
 | **V2.5-D Administrative Incidences Contract** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`94f91abf6d0d...`) |
 | **V2.5-S Administrative Incidences Physical Model** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`9bbffb34e736...`) |
 | **V2.5-M Administrative Incidences Schema Implementation** | Create SQL migration files & 52-scenario schema test suite for V2.5 Administrative Incidences tables | 2026-10-07 | 10 / 10 Schema Tests PASS (`tests/v2_administrative_incidences_schema_tests.php`) |
+| **V2.5-SA Provenance Addendum** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`13c624213b9f...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.5-MC_ADMINISTRATIVE_INCIDENCES_SCHEMA_CLOSURE_RECONCILIATION
-- **Goal:** Perform strict read-only verification of V2.5 physical schema implementation and canonical documentation before authorizing V2.5 administrative runtime implementation.
-- **Prerequisite Status:** V2.5-M Physical Schema Implementation COMPLETED.
-- **Target Completion:** 2026-12-31.
+### Milestone: V2.5-MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
+- **Goal:** Implement additive SQL migration 000004 creating input-set junction tables (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`) and adjustment lineage columns.
+- **Prerequisite Status:** V2.5-SA Physical Model Addendum Spec FROZEN_V1.1.
+- **Target Completion:** Pending explicit task authorization.
 
 
 

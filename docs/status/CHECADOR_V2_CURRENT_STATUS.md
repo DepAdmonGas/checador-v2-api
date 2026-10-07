@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTED
-LAST_COMPLETED_ACTIVITY: V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
-CURRENT_ACTIVE_MILESTONE: V2.5-MC_ADMINISTRATIVE_INCIDENCES_SCHEMA_CLOSURE_RECONCILIATION
+CURRENT_PHASE: V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_FROZEN
+LAST_COMPLETED_ACTIVITY: V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1_1
+CURRENT_ACTIVE_MILESTONE: V2.5-MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTED
+- **Current Phase:** V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -47,6 +47,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 - **Journey Calculation Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `784d22fb9f2450315a841379190c6906bca9c9e88975daa98587356649af313a`)
 - **Administrative Incidences Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `94f91abf6d0ddeee641c736159b922debbadad5fb60db91da1d26827dfac6b7d`)
 - **Administrative Incidences Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `9bbffb34e736fea1cd9dfb433bb1cc1168051af410f34d041fa4bc8ddf6ec29a`)
+- **Administrative Incidences Physical Model V1.1 Addendum Status:** FROZEN_V1.1 (SHA256: `13c624213b9fdd2cad733d802f823e31e8dc287142173f4b80935802dcf670c1`)
 
 
 
@@ -75,9 +76,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION`
-- **Type:** SCHEMA_IMPLEMENTATION
-- **Summary:** Implemented exact physical persistence schema for Checador V2.5 Administrative Incidences & Adjustments (`migraciones/v2/2026_10_07_000003_create_v2_administrative_incidences_tables.sql`, `migraciones/v2/2026_10_07_000003_rollback_v2_administrative_incidences_tables.sql`) and a 52-scenario schema test suite (`tests/v2_administrative_incidences_schema_tests.php`). Validated 5 normalized tables (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`), FK type compatibility, hard immutability database triggers (`tg_op_rh_v2_evaluaciones_admin_no_update`, `tg_op_rh_v2_evaluaciones_admin_no_delete`), single master range incidence persistence, derived daily shift applications, explicit P2 calculation revision FK provenance (`id_calculo_jornada`), administrative interpreted time isolation (`hora_interpretada_entrada_utc`, `hora_interpretada_salida_utc`) without raw punch masquerading, SHA256 evaluation fingerprints (`uk_v2_eval_fingerprint`), policy version provenance (`version_politica`), evaluation status header flags (`FALTA`, `CONTRADICTION_DETECTED`, `REVIEW_REQUIRED`), `ON DELETE RESTRICT` FK deletion protection, zero payroll monetary columns, and clean UP/DOWN migration idempotency (10/10 test blocks PASS).
+- **Activity ID:** `V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1_1`
+- **Type:** PHYSICAL_MODEL_REMEDIATION_DESIGN
+- **Summary:** Formally froze physical persistence addendum `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` as FROZEN_V1.1 to resolve forensic findings from `V2_5_MCP`. Specified 2 normalized append-only link tables (`op_rh_v2_evaluaciones_incidencias` linking evaluation revisions to `op_rh_v2_incidencias_aplicaciones`, and `op_rh_v2_evaluaciones_ajustes` linking evaluation revisions to `op_rh_v2_ajustes_administrativos`) establishing exact, historically reproducible input-set membership where 0 link rows explicitly denote an empty set `[]`. Added explicit logical adjustment lineage columns (`uuid_ajuste_logico`, `revision_numero`, `id_ajuste_anterior`, `estado_ajuste`) to `op_rh_v2_ajustes_administrativos` to support append-only adjustment corrections and cancellations. Established 100% backward data compatibility for Migration 000003 rows. Formulated proposed Migration 000004 DDL and a 40-scenario test matrix. Kept Migration 000003 byte-for-byte unchanged.
 
 ---
 
