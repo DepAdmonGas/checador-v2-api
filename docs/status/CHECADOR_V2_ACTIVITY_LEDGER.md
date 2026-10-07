@@ -348,7 +348,25 @@
 - **TEST_RESULTS:** 25 / 25 PASS (`tests/v2_journey_pairing_schema_tests.php`), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
 - **DECISIONS:** Implemented physical persistence schema for Checador V2 Journey Pairing P1 strictly following frozen specification `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migrations for `op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, and `op_rh_v2_pareos_marcaciones_asociadas`. Implemented append-only triggers (`tg_op_rh_v2_pareos_jornada_no_update`, `tg_op_rh_v2_pareos_jornada_no_delete`). Validated schema creation, FK enforcement (`ON DELETE RESTRICT`), single-consumption constraint within executions (`uk_v2_pareo_revision_marcacion`), historical revision raw-event reuse across executions, arbitrary surplus punch linking, Level 2 completeness provenance, and clean rollback/re-application across 25 schema tests.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** Await project owner authorization before proceeding to V2.4-P1 Runtime Implementation (`MotorDeJornadaService` / `JourneyPairingService`).
+- **NEXT_STEP:** V2.4-P1 Motor de Jornada P1 Pairing Runtime Implementation.
+
+---
+
+### Entry 021
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `3a24f512ce2580a87c7dc49807bcd354dd2311d3`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `modelo/v2/journey/JourneyPairingService.php`, `tests/v2_journey_pairing_runtime_tests.php`
+- **TEST_RESULTS:** 16 / 16 PASS (`tests/v2_journey_pairing_runtime_tests.php`), Pairing Schema (25/25 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented internal domain pairing service `JourneyPairingService` strictly following frozen specifications. Enforced candidate time window evaluation (S_start - 4h, S_end + 4h), deterministic punch sorting, single-consumption within execution revisions, arbitrary surplus punch persistence, night shift post-midnight mapping, workplace alignment verification, Level 2 completeness provenance, SHA256 input fingerprint calculation for idempotent re-runs, and append-only revisioning per ScheduledShift without emitting FALTA or worked-time payroll calculations.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization for downstream milestone V2.4-P2 (Motor de Jornada — Attendance, Overtime & Night Shifts Calculation in Shadow Mode).
+
 
 
 

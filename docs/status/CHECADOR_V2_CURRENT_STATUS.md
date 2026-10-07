@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_4_P1M_PAIRING_PHYSICAL_SCHEMA_IMPLEMENTED
-LAST_COMPLETED_ACTIVITY: V2_4_P1M_MOTOR_DE_JORNADA_PAIRING_SCHEMA_IMPLEMENTATION
-CURRENT_ACTIVE_MILESTONE: V2.4-P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME
+CURRENT_PHASE: V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTED
+LAST_COMPLETED_ACTIVITY: V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTATION
+CURRENT_ACTIVE_MILESTONE: V2.4-P2_MOTOR_DE_JORNADA_ATTENDANCE_OVERTIME
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_4_P1M_PAIRING_PHYSICAL_SCHEMA_IMPLEMENTED
+- **Current Phase:** V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -69,9 +69,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_4_P1M_MOTOR_DE_JORNADA_PAIRING_SCHEMA_IMPLEMENTATION`
-- **Type:** SCHEMA_IMPLEMENTATION
-- **Summary:** Implemented SQL migrations (`migraciones/v2/2026_10_07_000001_create_v2_journey_pairing_tables.sql`, `migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql`) and a 25-scenario focused schema test suite (`tests/v2_journey_pairing_schema_tests.php`) for Checador V2 Journey Pairing P1. Validated physical persistence schema for `op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, and `op_rh_v2_pareos_marcaciones_asociadas`. Verified append-only triggers, FK constraints (`ON DELETE RESTRICT`), single-consumption constraint within execution revisions (`uk_v2_pareo_revision_marcacion`), historical raw-event reuse across executions, arbitrary surplus punch links, Level 2 completeness provenance, and clean rollback/re-application.
+- **Activity ID:** `V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTATION`
+- **Type:** RUNTIME_IMPLEMENTATION
+- **Summary:** Implemented internal domain pairing service `JourneyPairingService` (`modelo/v2/journey/JourneyPairingService.php`) and a 16-scenario focused runtime test suite (`tests/v2_journey_pairing_runtime_tests.php`) for Checador V2 Motor de Jornada P1. Validated deterministic candidate punch allocation within search windows ($S_{\text{start}} - 4\text{h}, S_{\text{end}} + 4\text{h}$), night shift post-midnight mapping, arbitrary surplus punch preservation, single-consumption constraint within execution revisions, workplace alignment verification, Level 2 completeness provenance, SHA256 input fingerprint calculation for idempotent re-runs, and append-only revisioning per ScheduledShift without emitting FALTA or worked-time payroll calculations.
 
 ---
 
@@ -90,6 +90,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **PunchEvent / ScheduledShift Pairing Contract (P1D)** | FROZEN V1.0 | Formally frozen deterministic pairing specification (`docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md`). |
 | **PunchEvent / ScheduledShift Pairing Physical Model (P1S)** | FROZEN V1.0 | Formally frozen physical database model specification (`docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`). |
 | **PunchEvent / ScheduledShift Pairing Physical Schema (P1M)** | IMPLEMENTED | SQL migrations created and validated via 25 schema tests (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`). |
+| **Motor de Jornada P1 Pairing Runtime (P1)** | OPERATIONAL | Domain service `JourneyPairingService` and 16/16 runtime tests PASS (`tests/v2_journey_pairing_runtime_tests.php`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |

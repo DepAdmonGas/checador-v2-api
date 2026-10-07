@@ -37,10 +37,24 @@ class V2TestSuite {
     }
 
     public function setupTestData() {
-        // Ejecutar Rollback e Inserción limpia
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 0");
+
+        // Ejecutar Rollback de tablas dependientes en orden inverso
+        $pairingDown = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql';
+        if (file_exists($pairingDown)) {
+            $this->execSqlFile($pairingDown);
+        }
+        $shiftDown = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_scheduling_tables.sql';
+        if (file_exists($shiftDown)) {
+            $this->execSqlFile($shiftDown);
+        }
+
+        // Ejecutar Rollback e Inserción limpia de marcaciones crudas
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_rollback_v2_raw_punch_tables.sql');
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_create_v2_raw_punch_tables.sql');
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_10_02_000002_add_integrity_seal_to_raw_punches.sql');
+
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 1");
 
         // Insertar Dispositivo de prueba
         $sqlDisp = "INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado)
@@ -49,7 +63,7 @@ class V2TestSuite {
 
         // Insertar Credencial de prueba (Secret: 'SECRET_TEST_123')
         $secretHash = password_hash('SECRET_TEST_123', PASSWORD_BCRYPT);
-        $sqlCred = "INSERT INTO op_rh_v2_dispositivo_credenciales 
+        $sqlCred = "INSERT INTO op_rh_v2_dispositivo_credenciales
                     (id_dispositivo, credential_key, secret_hash, valido_desde, estado, creado_at)
                     VALUES (1, 'CRD-KEY-TEST-01', '$secretHash', '2026-01-01 00:00:00', 'ACTIVE', '2026-01-01 00:00:00')";
         mysqli_query($this->conexion, $sqlCred);
@@ -69,10 +83,15 @@ class V2TestSuite {
 
     public function execSqlFile($filePath) {
         $sql = file_get_contents($filePath);
-        $queries = array_filter(array_map('trim', explode(';', $sql)));
+        $sqlNoComments = preg_replace('/--.*$/m', '', $sql);
+        $queries = array_filter(array_map('trim', explode(';', $sqlNoComments)));
         foreach ($queries as $q) {
             if (!empty($q)) {
-                mysqli_query($this->conexion, $q);
+                try {
+                    mysqli_query($this->conexion, $q);
+                } catch (Throwable $ex) {
+                    throw new RuntimeException("SQL Error in $filePath: " . $ex->getMessage() . "\nQuery: $q");
+                }
             }
         }
     }
@@ -207,6 +226,7 @@ class V2TestSuite {
         $this->assert($resOldPunch['status_code'] === 201, "16. Marcación offline antigua es aceptada e ingresada correctamente");
 
         // 17. testRollbackOnlyDropsV2Structures
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 0");
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_rollback_v2_raw_punch_tables.sql');
         $resV2TableCheck = mysqli_query($this->conexion, "SHOW TABLES LIKE 'op_rh_v2_marcaciones_crudas'");
         $resLegacyTableCheck = mysqli_query($this->conexion, "SHOW TABLES LIKE 'op_rh_personal_asistencia'");
@@ -214,6 +234,7 @@ class V2TestSuite {
 
         // Restaurar tablas V2 para continuar entorno de dev
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_create_v2_raw_punch_tables.sql');
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 1");
 
         echo "\n=== RESUMEN DE PRUEBAS V2 ===";
         echo "\nTOTAL PRUEBAS : " . ($this->passes + $this->fails);
