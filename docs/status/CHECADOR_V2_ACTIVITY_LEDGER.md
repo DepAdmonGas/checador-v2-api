@@ -331,6 +331,24 @@
 - **TEST_RESULTS:** N/A (Physical Model Design & Freeze)
 - **DECISIONS:** Designed and formally froze physical persistence model `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 3-table storage architecture (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`). Enforced append-only revisioning per `id_jornada_programada`, single-consumption DB constraint within execution revisions (`uk_v2_pareo_revision_marcacion`), primary Entry/Exit slot limits, arbitrary surplus punch links, Level 2 completeness provenance, and proposed DDL.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** V2.4-P1M Journey Pairing Physical Schema Implementation (create SQL migration files & schema tests).
+- **NEXT_STEP:** V2.4-P1M Motor de Jornada P1 Pairing Physical Schema Implementation.
+
+---
+
+### Entry 020
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P1M_MOTOR_DE_JORNADA_PAIRING_SCHEMA_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** SCHEMA_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `622b1fe89531787483002c884a18248e63ba3a20`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `migraciones/v2/2026_10_07_000001_create_v2_journey_pairing_tables.sql`, `migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql`, `tests/v2_journey_pairing_schema_tests.php`
+- **TEST_RESULTS:** 25 / 25 PASS (`tests/v2_journey_pairing_schema_tests.php`), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented physical persistence schema for Checador V2 Journey Pairing P1 strictly following frozen specification `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migrations for `op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, and `op_rh_v2_pareos_marcaciones_asociadas`. Implemented append-only triggers (`tg_op_rh_v2_pareos_jornada_no_update`, `tg_op_rh_v2_pareos_jornada_no_delete`). Validated schema creation, FK enforcement (`ON DELETE RESTRICT`), single-consumption constraint within executions (`uk_v2_pareo_revision_marcacion`), historical revision raw-event reuse across executions, arbitrary surplus punch linking, Level 2 completeness provenance, and clean rollback/re-application across 25 schema tests.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.4-P1 Runtime Implementation (`MotorDeJornadaService` / `JourneyPairingService`).
+
 
 
