@@ -297,4 +297,22 @@
 - **TEST_RESULTS:** 30 / 30 PASS (`tests/v2_shift_scheduling_runtime_tests.php`), Schema (20/20 PASS), SEC-L03 (34/34 PASS), V2 Raw Ingestion (18/18 PASS), Station Alignment (9/9 PASS)
 - **DECISIONS:** Implemented backend domain services (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`), controller (`ShiftSchedulingV2Controller`), and API routes in `index.php` strictly following frozen specifications. Enforced template versioning, assignment overlap checking per workplace, pure read-only schedule resolution without side-effects, workplace timezone authority, bounded batch materialization, and immutable `ScheduledShift` persistence.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** Await project owner instructions for downstream milestone V2.4-P1 (Motor de Jornada — PunchEvent / ScheduledShift Pairing).
+- **NEXT_STEP:** V2.4-P1D PunchEvent / ScheduledShift Pairing Contract Design & Freeze.
+
+---
+
+### Entry 018
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_4_P1D_JOURNEY_PAIRING_CONTRACT_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** DOMAIN_CONTRACT_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `308a607e7269515f2fb8851b3956b0663802b91e`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md` (SHA256: `7cacdc6ca33cc478b0eb65103002784d95d03865f4cf76f99177dcf2cc4a31d5`)
+- **TEST_RESULTS:** N/A (Domain Contract Design & Freeze)
+- **DECISIONS:** Designed and formally froze `docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md` as FROZEN_V1.0. Defined deterministic pairing of raw `PunchEvent` records with `ScheduledShift` slots and expected segments without calculating lateness, overtime, worked-time payroll effects, FALTA, or incidences. Formulated raw punch immutability, fail-closed ambiguity resolution, candidate search windows, night-shift midnight crossing rules, multi-segment slot allocation, surplus punch handling, Level 2 completeness integration, and canonical test matrix.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before implementing runtime journey pairing algorithm in Phase 1 (P1).
+
