@@ -452,6 +452,24 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.5-S Administrative Incidences Physical Schema Design & Conditional Freeze.
 
+---
+
+### Entry 027
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_5_S_ADMINISTRATIVE_INCIDENCES_PHYSICAL_SCHEMA_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `e0f3d69f8d54382d259ec15d3e14776197506037`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md` (SHA256: `9bbffb34e736fea1cd9dfb433bb1cc1168051af410f34d041fa4bc8ddf6ec29a`)
+- **TEST_RESULTS:** N/A (Physical Model Design & Freeze)
+- **DECISIONS:** Designed and formally froze physical data persistence model `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 5-table storage architecture (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`). Enforced append-only evaluation revisioning (`uk_v2_eval_shift_revision`), database triggers blocking header UPDATE/DELETE operations (`tg_op_rh_v2_evaluaciones_admin_no_update`, `tg_op_rh_v2_evaluaciones_admin_no_delete`), single master range incidence persistence for multi-day Vacation/Disability, derived daily application records linked per ScheduledShift, explicit P2 calculation revision FK provenance (`id_calculo_jornada`), administrative interpreted time storage (`hora_interpretada_entrada_utc`, `hora_interpretada_salida_utc`) without touching raw punch tables, SHA256 evaluation execution fingerprints for idempotency (`uk_v2_eval_fingerprint`), policy version provenance (`version_politica`), `ON DELETE RESTRICT` delete safety across all primary FKs, and proposed DDL with future 52-scenario schema test matrix.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization for downstream milestone V2.5-M (Administrative Incidences Physical Schema Implementation).
+
+
 
 
 
