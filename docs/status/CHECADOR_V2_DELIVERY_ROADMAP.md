@@ -25,30 +25,29 @@
 | **V2.3-A02G Shift Model Final Freeze** | Formal freeze of physical specification `CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`7fa934b7e12e...`) |
 | **V2.3-A03 Physical Model Implementation** | Create SQL migration files & 20-scenario schema test suite for V2 Shift Scheduling tables | 2026-10-06 | 20 / 20 Schema Tests PASS |
 | **V2.3-A04 Shift Service & API Design** | Design domain services, REST API specification, validation, resolution & materialization | 2026-10-06 | Contract Spec V1.0 (`docs/v2/CHECADOR_V2_...`) |
-| **V2.3-A04F Service & API Contract Freeze** | Pre-freeze validation & formal freeze of `CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`3c155272198f...`) |
+| **V2.3-A04F Service & API Contract Freeze** | Pre-freeze validation & formal freeze of `CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`0a3ebc362471...`) |
+| **V2.3-A05 Shift Scheduling V2 Runtime** | Implement PHP domain services, REST routes, controller & 30/30 runtime test suite | 2026-10-06 | 30 / 30 Runtime Tests PASS |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.3-A05_SHIFT_SCHEDULING_V2_RUNTIME_IMPLEMENTATION
-- **Goal:** Implement PHP domain services (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API endpoints per frozen contract specification.
-- **Prerequisite Status:** A04F Contract Freeze COMPLETE (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` SHA256: `3c155272198f793e7be19088e04c6b71140ad4a3acd5dc0382385bc6183675a8`).
-- **Target Completion:** Pending explicit runtime implementation authorization.
+### Milestone: V2.4-P1_MOTOR_DE_JORNADA_PAIRING
+- **Goal:** Implement deterministic pairing algorithm associating raw `PunchEvent` records with `ScheduledShift` expected work intervals.
+- **Prerequisite Status:** V2.3 Shift Scheduling COMPLETE (A01-A05). Physical model and API contract FROZEN.
+- **Target Completion:** Pending explicit task assignment.
 
 ---
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.3-A05..A07 — Shift Scheduling V2 Runtime Implementation & Test Suite:**
-   - Implement `ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`, and REST API endpoints with full test suite execution.
-2. **V2.4-P1 — Motor de Jornada (PunchEvent / ScheduledShift Pairing):**
+1. **V2.4-P1 — Motor de Jornada (PunchEvent / ScheduledShift Pairing):**
    - Implement deterministic pairing algorithm associating raw `PunchEvent` records with `ScheduledShift` expected work intervals.
-3. **V2.4-P2 — Motor de Jornada (Attendance, Overtime & Night Shifts):**
+2. **V2.4-P2 — Motor de Jornada (Attendance, Overtime & Night Shifts):**
    - Calculate worked hours, night-shift premiums, tardiness, and overtime in Shadow Mode.
-4. **V2.5 — Administrative Incidences & Adjustments:**
+3. **V2.5 — Administrative Incidences & Adjustments:**
    - Immutable justification/incidence log explaining derived journey anomalies without modifying raw facts.
-5. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
+4. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
    - Statistical shadow mode comparison between legacy attendance conclusions and V2 Motor results prior to payroll cutover.
 
 ---

@@ -281,3 +281,20 @@
 - **DECISIONS:** Validated and formally froze Shift Scheduling Service & API specification `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` as FROZEN_V1.0. Enforced strict historical immutability of `op_rh_v2_jornadas_programadas` (no in-place UPDATE or force_re-materialize overwrite), replaced PATCH with `POST /api/v2/shift-assignments/{id}/close` for append-only auditability, confirmed `GET /effective-schedule` is strictly pure read-only without write side effects, bounded materialization and read pagination, and verified reuse of `biometricos` ACL module.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization to begin V2.3-A05 Shift Scheduling V2 Runtime Implementation.
+
+---
+
+### Entry 017
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A05_SHIFT_SCHEDULING_V2_RUNTIME_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `29c26e47d7a8fefdddbc711eaa5d13d47789f36c`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `modelo/v2/shift/ShiftTemplateService.php`, `modelo/v2/shift/ShiftAssignmentService.php`, `modelo/v2/shift/ScheduleResolutionService.php`, `modelo/v2/shift/ScheduledShiftMaterializationService.php`, `modelo/v2/shift/ShiftSchedulingV2Controller.php`, `index.php`, `tests/v2_shift_scheduling_runtime_tests.php`
+- **TEST_RESULTS:** 30 / 30 PASS (`tests/v2_shift_scheduling_runtime_tests.php`), Schema (20/20 PASS), SEC-L03 (34/34 PASS), V2 Raw Ingestion (18/18 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented backend domain services (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`), controller (`ShiftSchedulingV2Controller`), and API routes in `index.php` strictly following frozen specifications. Enforced template versioning, assignment overlap checking per workplace, pure read-only schedule resolution without side-effects, workplace timezone authority, bounded batch materialization, and immutable `ScheduledShift` persistence.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner instructions for downstream milestone V2.4-P1 (Motor de Jornada — PunchEvent / ScheduledShift Pairing).

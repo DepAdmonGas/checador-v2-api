@@ -186,6 +186,75 @@ if ($partes_ruta[0] == 'portal-api-v.1.0.1' || $partes_ruta[0] == 'portal-api-v.
         } else {
             include_once $ruta_elegida;
         }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'shift-templates') {
+        include_once "modelo/v2/shift/ShiftSchedulingV2Controller.php";
+        $shiftCtrl = new ShiftSchedulingV2Controller();
+        $count = count($partes_ruta);
+        if ($count == 4 && $server_method === 'POST') {
+            // POST /api/v2/shift-templates
+            $shiftCtrl->handleCreateTemplate();
+            exit;
+        } else if ($count == 4 && $server_method === 'GET') {
+            // GET /api/v2/shift-templates
+            $shiftCtrl->handleListTemplates();
+            exit;
+        } else if ($count == 6 && $partes_ruta[5] === 'versions' && $server_method === 'POST') {
+            // POST /api/v2/shift-templates/{clave}/versions
+            $clave = $partes_ruta[4];
+            $shiftCtrl->handleCreateTemplateVersion($clave);
+            exit;
+        } else if ($count == 7 && $partes_ruta[5] === 'versions' && $server_method === 'GET') {
+            // GET /api/v2/shift-templates/{clave}/versions/{version}
+            $clave = $partes_ruta[4];
+            $version = (int)$partes_ruta[6];
+            $shiftCtrl->handleGetTemplateVersion($clave, $version);
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'shift-assignments') {
+        include_once "modelo/v2/shift/ShiftSchedulingV2Controller.php";
+        $shiftCtrl = new ShiftSchedulingV2Controller();
+        $count = count($partes_ruta);
+        if ($count == 4 && $server_method === 'POST') {
+            // POST /api/v2/shift-assignments
+            $shiftCtrl->handleCreateAssignment();
+            exit;
+        } else if ($count == 4 && $server_method === 'GET') {
+            // GET /api/v2/shift-assignments
+            $shiftCtrl->handleListAssignments();
+            exit;
+        } else if ($count == 6 && $partes_ruta[5] === 'close' && $server_method === 'POST') {
+            // POST /api/v2/shift-assignments/{id}/close
+            $asigId = (int)$partes_ruta[4];
+            $shiftCtrl->handleCloseAssignment($asigId);
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'workers') {
+        include_once "modelo/v2/shift/ShiftSchedulingV2Controller.php";
+        $shiftCtrl = new ShiftSchedulingV2Controller();
+        $count = count($partes_ruta);
+        if ($count == 6 && $partes_ruta[5] === 'effective-schedule' && $server_method === 'GET') {
+            // GET /api/v2/workers/{id_personal}/effective-schedule
+            $idPersonal = (int)$partes_ruta[4];
+            $shiftCtrl->handleGetEffectiveSchedule($idPersonal);
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'scheduled-shifts') {
+        include_once "modelo/v2/shift/ShiftSchedulingV2Controller.php";
+        $shiftCtrl = new ShiftSchedulingV2Controller();
+        $count = count($partes_ruta);
+        if ($count == 5 && $partes_ruta[4] === 'materialize' && $server_method === 'POST') {
+            // POST /api/v2/scheduled-shifts/materialize
+            $shiftCtrl->handleMaterializeScheduledShifts();
+            exit;
+        } else {
+            include_once $ruta_elegida;
+        }
     }
 }
 
