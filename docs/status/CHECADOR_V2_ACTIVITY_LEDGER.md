@@ -365,7 +365,25 @@
 - **TEST_RESULTS:** 16 / 16 PASS (`tests/v2_journey_pairing_runtime_tests.php`), Pairing Schema (25/25 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
 - **DECISIONS:** Implemented internal domain pairing service `JourneyPairingService` strictly following frozen specifications. Enforced candidate time window evaluation (S_start - 4h, S_end + 4h), deterministic punch sorting, single-consumption within execution revisions, arbitrary surplus punch persistence, night shift post-midnight mapping, workplace alignment verification, Level 2 completeness provenance, SHA256 input fingerprint calculation for idempotent re-runs, and append-only revisioning per ScheduledShift without emitting FALTA or worked-time payroll calculations.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** Await project owner authorization for downstream milestone V2.4-P2 (Motor de Jornada — Attendance, Overtime & Night Shifts Calculation in Shadow Mode).
+- **NEXT_STEP:** V2.4-P1C Journey Pairing Runtime Closure Reconciliation.
+
+---
+
+### Entry 022
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P2D_JOURNEY_CALCULATION_CONTRACT_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** DOMAIN_CONTRACT_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `ced3c184608f643e9de429377ca99267eb6f5ff0`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` (SHA256: `9e976213010f6787c05a43b5ebc7d6d2da313c104dda9a2d635e69e88f4d1f96`)
+- **TEST_RESULTS:** N/A (Domain Contract Design & Freeze)
+- **DECISIONS:** Designed and formally froze `docs/v2/CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` as FROZEN_V1.0. Formulated technical attendance calculation rules, duration metrics, signed arrival/departure deltas, multi-segment work aggregation, night shifts crossing midnight, partial pairing fail-closed behavior, non-final pending sync handling, and explicit overtime/incidences/payroll boundary rules. Enforced zero mutation of raw punches, scheduled shifts, or pairing history. Established official business terminology “comparación paralela sin afectar nómina”. Determined that P2 requires append-only result persistence and physical schema design prior to runtime calculation implementation.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.4-P2S Journey Calculation Physical Schema Design & Conditional Freeze.
+
 
 
 
