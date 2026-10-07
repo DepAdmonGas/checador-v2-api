@@ -1,5 +1,19 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.5 Administrative Incidence & Evaluation Runtime Engine Implementation
+- **Activity:** V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION
+- **Estado:** COMPLETE (10/10 Runtime Test Blocks PASS in `tests/v2_administrative_runtime_tests.php`)
+- **Componentes Implementados:**
+  - `modelo/v2/journey/AdministrativeEvaluationService.php`: Servicio de dominio interno para gestión de maestro/revisiones de incidencias (`createIncidenceMaster`, `createIncidenceRevision`), materialización diaria de aplicaciones por turno (`applyIncidenceRevisionToShifts`), registro de linaje inmutable de ajustes administrativos (`createAdjustmentRevision`), y motor de decisiones y persistencia de evaluaciones administrativas (`evaluateCalculationRevision`).
+  - `tests/v2_administrative_runtime_tests.php`: Suite de 10 bloques de prueba validando creación de incidencias, aplicación a turnos, linaje de ajustes, asociación exacta de proveniencia (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`), derivación determinista de FALTA, detección de contradicciones (`CONTRADICTION_DETECTED`), resolución de conflictos por solapamiento (`OVERLAP_CONFLICT`), inmunidad para turnos DAY_OFF/UNSCHEDULED e idempotencia mediante huellas SHA256.
+- **Invariantes Garantizadas:**
+  - Cero controladores o rutas de API REST pública expuestas.
+  - Cero cambios o migraciones de esquemas de base de datos (Las migraciones 000003 y 000004 permanecen 100% inalteradas byte por byte).
+  - Cero cálculos monetarios o efectos de nómina.
+  - Inmutabilidad total de marcaciones crudas, turnos programados, pareos P1 y cálculos P2.
+
+---
+
 ## 2026-10-07 — V2.5-MA Administrative Incidences Provenance Additive Schema Implementation
 - **Activity:** V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
 - **Estado:** COMPLETE (7/7 Test Blocks PASS in `tests/v2_administrative_provenance_schema_tests.php` covering 44 physical addendum invariants)

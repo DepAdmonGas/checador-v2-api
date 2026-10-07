@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTED
-LAST_COMPLETED_ACTIVITY: V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
-CURRENT_ACTIVE_MILESTONE: V2.5_ADMINISTRATIVE_INCIDENCES_AND_EVALUATION_RUNTIME_ENGINE
+CURRENT_PHASE: V2_5_ADMINISTRATIVE_EVALUATION_RUNTIME_IMPLEMENTED
+LAST_COMPLETED_ACTIVITY: V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION
+CURRENT_ACTIVE_MILESTONE: V2.6_LEGACY_AND_PAYROLL_SHADOW_ADAPTER
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTED
+- **Current Phase:** V2_5_ADMINISTRATIVE_EVALUATION_RUNTIME_IMPLEMENTED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -67,7 +67,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `cf84587c69df441c9f456bd84a7541e21b72a6c1` (API side)
+- **Current HEAD SHA:** `c21a8d69fca16933845ee046c46783164b4f35c1` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
 - **Worktree Status:** `MODIFIED_FILES_PENDING_COMMIT`
@@ -76,9 +76,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION`
-- **Type:** SCHEMA_IMPLEMENTATION
-- **Summary:** Implemented additive physical schema for Checador V2.5 Administrative Provenance (`migraciones/v2/2026_10_07_000004_create_v2_administrative_provenance_tables.sql`, `migraciones/v2/2026_10_07_000004_rollback_v2_administrative_provenance_tables.sql`) and a 44-scenario test suite (`tests/v2_administrative_provenance_schema_tests.php`). Created 2 immutable link tables (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`) and adjustment lineage columns (`uuid_ajuste_logico`, `revision_numero`, `estado_ajuste`, `id_ajuste_anterior`). Validated 0-link empty set representation (`[]`), retroactive incidence/adjustment isolation for historical evaluation E1, append-only adjustment revision lineage, `ON DELETE RESTRICT` delete safety, backfill data compatibility for 000003 rows, deterministic SHA256 fingerprint input reconstruction, byte-for-byte immutability of Migration 000003 (`fcac402726488349479b0c95360980ff67d2ca8acb846e9df5f5643ac7b9efbf`), and zero creation of administrative evaluation runtime or REST endpoints (7/7 test blocks PASS).
+- **Activity ID:** `V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION`
+- **Type:** RUNTIME_IMPLEMENTATION
+- **Summary:** Implemented domain runtime service `AdministrativeEvaluationService` (`modelo/v2/journey/AdministrativeEvaluationService.php`) and a 10-block runtime test suite (`tests/v2_administrative_runtime_tests.php`, 10/10 PASS). Consumed explicit immutable ScheduledShifts (`id_jornada_programada`) and P2 calculation revisions (`id_calculo_jornada`), deriving master incidence creation, multi-day shift applications, append-only administrative adjustments, exact provenance link rows (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`), interpretation of worked/excused times without modifying raw punches, deterministic FALTA derivation (SCHEDULED + VERIFIED L2 + UNMATCHED_NO_PUNCHES + zero active incidence/adjustment), contradiction retention (`CONTRADICTION_DETECTED` when punches occur during approved absence), overlap conflict handling (`OVERLAP_CONFLICT` + `PENDING_REVIEW`), DAY_OFF/UNSCHEDULED immunity from FALTA, monotonic revision numbering (`revision_numero`), execution fingerprint SHA256 hashing for idempotent re-runs, and append-only evaluation revision persistence in `op_rh_v2_evaluaciones_administrativas`. Enforced zero public API exposure, zero DB schema/migration changes, zero payroll monetary calculations, and complete non-mutation of raw punches, scheduled shifts, P1 pairing, or P2 calculations.
 
 ---
 
@@ -98,6 +98,16 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **PunchEvent / ScheduledShift Pairing Physical Model (P1S)** | FROZEN V1.0 | Formally frozen physical database model specification (`docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`). |
 | **PunchEvent / ScheduledShift Pairing Physical Schema (P1M)** | IMPLEMENTED | SQL migrations created and validated via 25 schema tests (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`). |
 | **Motor de Jornada P1 Pairing Runtime (P1)** | OPERATIONAL | Domain service `JourneyPairingService` and 16/16 runtime tests PASS (`tests/v2_journey_pairing_runtime_tests.php`). |
+| **Journey Calculation Contract (P2D)** | FROZEN V1.0 | Formally frozen attendance calculation specification (`docs/v2/CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md`). |
+| **Journey Calculation Physical Model (P2S)** | FROZEN V1.0 | Formally frozen calculation physical model (`docs/architecture/CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md`). |
+| **Journey Calculation Schema (P2M)** | IMPLEMENTED | SQL migrations created and validated via 30 schema tests (`op_rh_v2_calculos_jornada`, `op_rh_v2_calculos_segmentos`). |
+| **Motor de Jornada P2 Calculation Runtime (P2)** | OPERATIONAL | Domain service `JourneyCalculationService` and 14/14 runtime tests PASS (`tests/v2_journey_calculation_runtime_tests.php`). |
+| **Administrative Incidences Contract (V2.5-D)** | FROZEN V1.0 | Formally frozen administrative contract (`docs/v2/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md`). |
+| **Administrative Incidences Physical Model (V2.5-S)** | FROZEN V1.0 | Formally frozen administrative physical model (`docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md`). |
+| **Administrative Incidences Schema (V2.5-M)** | IMPLEMENTED | SQL migrations 000003 created and validated via 10/10 schema tests. |
+| **Administrative Provenance Addendum (V2.5-SA)** | FROZEN V1.1 | Formally frozen addendum (`docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md`). |
+| **Administrative Provenance Additive Schema (V2.5-MA)** | IMPLEMENTED | SQL migrations 000004 created and validated via 7/7 schema tests. |
+| **Administrative Evaluation Runtime (V2.5)** | OPERATIONAL | Domain service `AdministrativeEvaluationService` and 10/10 runtime tests PASS (`tests/v2_administrative_runtime_tests.php`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |

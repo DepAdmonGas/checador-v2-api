@@ -1,7 +1,7 @@
 # CHECADOR V2 — DELIVERY ROADMAP & MILESTONE TRACKER
 
 **Document Status:** CANONICAL
-**Last Updated At:** 2026-10-06
+**Last Updated At:** 2026-10-07
 **Target Completion Date:** 2026-12-31
 
 ---
@@ -39,31 +39,26 @@
 | **V2.5-S Administrative Incidences Physical Model** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`9bbffb34e736...`) |
 | **V2.5-M Administrative Incidences Schema Implementation** | Create SQL migration files & 52-scenario schema test suite for V2.5 Administrative Incidences tables | 2026-10-07 | 10 / 10 Schema Tests PASS (`tests/v2_administrative_incidences_schema_tests.php`) |
 | **V2.5-SA Provenance Addendum** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`13c624213b9f...`) |
+| **V2.5-MA Provenance Schema Implementation** | Create SQL migration files for Addendum V1.1 (`000004`) & 44-invariant test suite | 2026-10-07 | 7 / 7 Schema Tests PASS (`tests/v2_administrative_provenance_schema_tests.php`) |
+| **V2.5 Administrative Evaluation Runtime** | Implement `AdministrativeEvaluationService` domain service & 10-block runtime test suite | 2026-10-07 | 10 / 10 Runtime Tests PASS (`tests/v2_administrative_runtime_tests.php`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.5-MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
-- **Goal:** Implement additive SQL migration 000004 creating input-set junction tables (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`) and adjustment lineage columns.
-- **Prerequisite Status:** V2.5-SA Physical Model Addendum Spec FROZEN_V1.1.
+### Milestone: V2.6_LEGACY_AND_PAYROLL_SHADOW_ADAPTER
+- **Goal:** Implement payroll shadow mode comparison adapter comparing V2 Motor outcomes with legacy attendance conclusions without modifying legacy tables or payroll rules.
+- **Prerequisite Status:** V2.5 Administrative Evaluation Runtime COMPLETE.
 - **Target Completion:** Pending explicit task authorization.
-
-
-
 
 ---
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.4-P1 — Motor de Jornada (PunchEvent / ScheduledShift Pairing):**
-   - Implement deterministic pairing algorithm associating raw `PunchEvent` records with `ScheduledShift` expected work intervals.
-2. **V2.4-P2 — Motor de Jornada (Attendance, Overtime & Night Shifts):**
-   - Calculate worked hours, night-shift premiums, tardiness, and overtime in Shadow Mode.
-3. **V2.5 — Administrative Incidences & Adjustments:**
-   - Immutable justification/incidence log explaining derived journey anomalies without modifying raw facts.
-4. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
+1. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
    - Statistical shadow mode comparison between legacy attendance conclusions and V2 Motor results prior to payroll cutover.
+2. **V2.7 — Pre-production Hardening & Cutover Readiness:**
+   - End-to-end security audits, production deployment manifests, and final sign-off.
 
 ---
 

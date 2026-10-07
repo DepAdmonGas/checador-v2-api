@@ -1,7 +1,7 @@
 # CHECADOR V2 — ACTIVITY LEDGER
 
 **Document Status:** CANONICAL APPEND-ONLY LEDGER
-**Last Updated At:** 2026-10-06
+**Last Updated At:** 2026-10-07
 **Project:** Checador V2 API (`/home/silvinol/Proyectos/portal-api-v.1.0.1`)
 
 ---
@@ -142,7 +142,6 @@
 - **BLOCKERS:** Lector side F-03 enforcement pending
 - **NEXT_STEP:** DOC-2 Project Control Documentation
 
-
 ---
 
 ### Entry 009
@@ -159,7 +158,6 @@
 - **DECISIONS:** Corrected project-control status based on project owner clarification: Lector implementation is COMPLETE, FINAL/FROZEN, and NOT active development. AUTH-3 is CLOSED and AUTH-4 is CLOSED/VERIFIED. F-03 station divergence API side is AVAILABLE (`61e942f55ef59a22a47bb22ba3cd79dceeac7444`) while Lector remediation is DEFERRED_PREPRODUCTION_REVIEW. Reset current active milestone to PENDING_CANONICAL_RESELECTION.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Reselect next unfinished milestone toward 2026-12-31 based on canonical roadmap dependencies.
-
 
 ---
 
@@ -195,7 +193,6 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.3-A03 Physical Data Model Implementation (when migration execution is authorized).
 
-
 ---
 
 ### Entry 012
@@ -212,7 +209,6 @@
 - **DECISIONS:** Evaluated pre-freeze physical data model. Outcome: `PHYSICAL_MODEL_REQUIRES_REVISION`. Resolved multi-workplace uniqueness by scoping `uk_v2_jornada_personal_estacion_fecha` to `(id_personal, id_estacion, fecha_jornada_local)`. Established canonical workplace timezone authority. Added template versioning (`clave`, `version`) and assignment audit timestamp (`registrado_at_utc`).
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.3-A03 Physical Model Implementation (SQL migration creation when explicitly authorized).
-
 
 ---
 
@@ -520,12 +516,20 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.5 Administrative Incidence & Evaluation Runtime Implementation (when explicitly authorized by project owner).
 
+---
 
-
-
-
-
-
-
-
+### Entry 031
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `c21a8d69fca16933845ee046c46783164b4f35c1`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `modelo/v2/journey/AdministrativeEvaluationService.php`, `tests/v2_administrative_runtime_tests.php`
+- **TEST_RESULTS:** 10 / 10 PASS (`tests/v2_administrative_runtime_tests.php`), V2.5 Provenance Schema (7/7 PASS), V2.5 Incidence Schema (10/10 PASS), P2 Calculation Schema (30/30 PASS), P2 Calculation Runtime (14/14 PASS), P1 Pairing Schema (25/25 PASS), P1 Pairing Runtime (16/16 PASS), Shift Scheduling Schema (30/30 PASS), Shift Scheduling Runtime (30/30 PASS), V2 Raw Punch Ingestion (18/18 PASS), SEC-L03 ACL (34/34 PASS), Station Alignment (9/9 PASS), Level 2 API Capabilities (16/16 PASS)
+- **DECISIONS:** Implemented domain runtime service `AdministrativeEvaluationService` strictly following frozen specifications (`CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md`, `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md`, and `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md`). Consumed explicit immutable ScheduledShifts (`id_jornada_programada`) and P2 calculation revisions (`id_calculo_jornada`), deriving master incidence creation (`createIncidenceMaster`), multi-day shift applications (`applyIncidenceRevisionToShifts`), append-only administrative adjustments (`createAdjustmentRevision`), exact provenance association (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`), interpretation of worked/excused times without modifying raw punches, deterministic FALTA derivation (SCHEDULED + VERIFIED L2 + UNMATCHED_NO_PUNCHES + zero active incidence/adjustment), contradiction retention (`CONTRADICTION_DETECTED` when punches occur during approved absence), overlap conflict handling (`OVERLAP_CONFLICT` + `PENDING_REVIEW`), DAY_OFF/UNSCHEDULED immunity from FALTA, monotonic revision numbering (`revision_numero`), execution fingerprint SHA256 hashing for idempotent re-runs, and append-only evaluation revision persistence in `op_rh_v2_evaluaciones_administrativas`. Enforced zero public API controllers/routes exposure, zero DB schema/migration changes (Migrations 000003 and 000004 remained byte-for-byte unchanged), zero payroll monetary calculations, and complete non-mutation of raw punches, scheduled shifts, P1 pairing, or P2 calculations.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.6 Legacy & Payroll Shadow Adapter.
 
