@@ -32,15 +32,17 @@
 | **V2.4-P1M Journey Pairing Schema Implementation** | Create SQL migration files & 25-scenario schema test suite for V2 Journey Pairing tables | 2026-10-07 | 25 / 25 Schema Tests PASS |
 | **V2.4-P1 Motor de Jornada P1 Pairing Runtime** | Implement `JourneyPairingService` domain service & 16-scenario runtime test suite | 2026-10-07 | 16 / 16 Runtime Tests PASS |
 | **V2.4-P2D Journey Calculation Contract** | Design & freeze `CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`9e976213010f...`) |
+| **V2.4-P2S Journey Calculation Physical Model** | Design & freeze `CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`784d22fb9f24...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.4-P2S_JOURNEY_CALCULATION_PHYSICAL_SCHEMA_DESIGN
-- **Goal:** Design append-only physical persistence model for V2 P2 Journey Calculation results.
-- **Prerequisite Status:** V2.4-P2D Journey Calculation Contract FROZEN_V1.0.
+### Milestone: V2.4-P2M_JOURNEY_CALCULATION_SCHEMA_IMPLEMENTATION
+- **Goal:** Create SQL migration files and schema test suite for V2 P2 Journey Calculation tables (`op_rh_v2_calculos_jornada`, `op_rh_v2_calculos_segmentos`).
+- **Prerequisite Status:** V2.4-P2S Journey Calculation Physical Model FROZEN_V1.0.
 - **Target Completion:** Pending explicit task authorization.
+
 
 
 ---

@@ -384,6 +384,24 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.4-P2S Journey Calculation Physical Schema Design & Conditional Freeze.
 
+---
+
+### Entry 023
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P2S_JOURNEY_CALCULATION_PHYSICAL_SCHEMA_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `f3b8c6eff16a42cb17d539988f203040acf189eb`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md` (SHA256: `784d22fb9f2450315a841379190c6906bca9c9e88975daa98587356649af313a`)
+- **TEST_RESULTS:** N/A (Physical Model Design & Freeze)
+- **DECISIONS:** Designed and formally froze physical persistence model `docs/architecture/CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 2-table storage architecture (`op_rh_v2_calculos_jornada`, `op_rh_v2_calculos_segmentos`). Enforced append-only calculation revisioning per ScheduledShift (`uk_v2_calculo_jornada_revision`), explicit immutable P1 pairing revision FK (`id_pareo_jornada`), seconds-based technical metrics (`*_segundos`), signed arrival/departure deltas, SHA256 input fingerprint idempotency (`uk_v2_calculo_fingerprint`), database triggers blocking header UPDATE/DELETE operations, and proposed DDL with future schema test matrix.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.4-P2M Motor de Jornada P2 Calculation Physical Schema Implementation.
+
+
 
 
 
