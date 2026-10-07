@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_FROZEN
-LAST_COMPLETED_ACTIVITY: V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1_1
-CURRENT_ACTIVE_MILESTONE: V2.5-MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
+CURRENT_PHASE: V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTED
+LAST_COMPLETED_ACTIVITY: V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
+CURRENT_ACTIVE_MILESTONE: V2.5_ADMINISTRATIVE_INCIDENCES_AND_EVALUATION_RUNTIME_ENGINE
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_FROZEN
+- **Current Phase:** V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -76,9 +76,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_5_SA_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1_1`
-- **Type:** PHYSICAL_MODEL_REMEDIATION_DESIGN
-- **Summary:** Formally froze physical persistence addendum `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` as FROZEN_V1.1 to resolve forensic findings from `V2_5_MCP`. Specified 2 normalized append-only link tables (`op_rh_v2_evaluaciones_incidencias` linking evaluation revisions to `op_rh_v2_incidencias_aplicaciones`, and `op_rh_v2_evaluaciones_ajustes` linking evaluation revisions to `op_rh_v2_ajustes_administrativos`) establishing exact, historically reproducible input-set membership where 0 link rows explicitly denote an empty set `[]`. Added explicit logical adjustment lineage columns (`uuid_ajuste_logico`, `revision_numero`, `id_ajuste_anterior`, `estado_ajuste`) to `op_rh_v2_ajustes_administrativos` to support append-only adjustment corrections and cancellations. Established 100% backward data compatibility for Migration 000003 rows. Formulated proposed Migration 000004 DDL and a 40-scenario test matrix. Kept Migration 000003 byte-for-byte unchanged.
+- **Activity ID:** `V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION`
+- **Type:** SCHEMA_IMPLEMENTATION
+- **Summary:** Implemented additive physical schema for Checador V2.5 Administrative Provenance (`migraciones/v2/2026_10_07_000004_create_v2_administrative_provenance_tables.sql`, `migraciones/v2/2026_10_07_000004_rollback_v2_administrative_provenance_tables.sql`) and a 44-scenario test suite (`tests/v2_administrative_provenance_schema_tests.php`). Created 2 immutable link tables (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`) and adjustment lineage columns (`uuid_ajuste_logico`, `revision_numero`, `estado_ajuste`, `id_ajuste_anterior`). Validated 0-link empty set representation (`[]`), retroactive incidence/adjustment isolation for historical evaluation E1, append-only adjustment revision lineage, `ON DELETE RESTRICT` delete safety, backfill data compatibility for 000003 rows, deterministic SHA256 fingerprint input reconstruction, byte-for-byte immutability of Migration 000003 (`fcac402726488349479b0c95360980ff67d2ca8acb846e9df5f5643ac7b9efbf`), and zero creation of administrative evaluation runtime or REST endpoints (7/7 test blocks PASS).
 
 ---
 

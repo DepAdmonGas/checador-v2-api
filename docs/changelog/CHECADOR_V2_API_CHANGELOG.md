@@ -1,5 +1,20 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.5-MA Administrative Incidences Provenance Additive Schema Implementation
+- **Activity:** V2_5_MA_ADMINISTRATIVE_INCIDENCES_PROVENANCE_ADDITIVE_SCHEMA_IMPLEMENTATION
+- **Estado:** COMPLETE (7/7 Test Blocks PASS in `tests/v2_administrative_provenance_schema_tests.php` covering 44 physical addendum invariants)
+- **Componentes Implementados:**
+  - `migraciones/v2/2026_10_07_000004_create_v2_administrative_provenance_tables.sql`: Migración UP aditiva creando 2 tablas de asociación inmutables (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`) y añadiendo columnas de linaje de revisiones de ajustes (`uuid_ajuste_logico`, `revision_numero`, `estado_ajuste`, `id_ajuste_anterior`) con backfill determinista para filas de 000003.
+  - `migraciones/v2/2026_10_07_000004_rollback_v2_administrative_provenance_tables.sql`: Migración DOWN aditiva eliminando tablas de asociación y columnas de linaje sin eliminar las 5 tablas base de 000003.
+  - `tests/v2_administrative_provenance_schema_tests.php`: Suite de 7 bloques de prueba validando asociación exacta de proveniencia, semántica de conjunto vacío `[]` (0 filas asociadas), invariante de no alteración retroactiva sobre evaluaciones previas E1, linaje de revisiones de ajustes N+1, restricciones `ON DELETE RESTRICT` y reconstrucción determinista de huellas SHA256.
+- **Invariantes Garantizadas:**
+  - Migración 000003 permanece 100% inalterada e idéntica byte por byte (SHA256: `fcac402726488349479b0c95360980ff67d2ca8acb846e9df5f5643ac7b9efbf`).
+  - Cero código de runtime de evaluación administrativa implementado.
+  - Cero endpoints de API pública autorizados o creados.
+  - Cero alteraciones o reescrituras a marcaciones crudas, turnos programados, pareos P1 o cálculos P2.
+
+---
+
 ## 2026-10-07 — V2.5-M Administrative Incidences & Adjustments Physical Schema Implementation
 - **Activity:** V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
 - **Estado:** COMPLETE (10/10 Schema Test Blocks PASS covering 52 physical invariants)
