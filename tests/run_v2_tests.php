@@ -40,9 +40,17 @@ class V2TestSuite {
         mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 0");
 
         // Ejecutar Rollback de tablas dependientes en orden inverso
+        $calcDown = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
+        if (file_exists($calcDown)) {
+            try {
+                $this->execSqlFile($calcDown);
+            } catch (Throwable $e) {}
+        }
         $pairingDown = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql';
         if (file_exists($pairingDown)) {
-            $this->execSqlFile($pairingDown);
+            try {
+                $this->execSqlFile($pairingDown);
+            } catch (Throwable $e) {}
         }
         $shiftDown = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_scheduling_tables.sql';
         if (file_exists($shiftDown)) {

@@ -33,15 +33,17 @@
 | **V2.4-P1 Motor de Jornada P1 Pairing Runtime** | Implement `JourneyPairingService` domain service & 16-scenario runtime test suite | 2026-10-07 | 16 / 16 Runtime Tests PASS |
 | **V2.4-P2D Journey Calculation Contract** | Design & freeze `CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`9e976213010f...`) |
 | **V2.4-P2S Journey Calculation Physical Model** | Design & freeze `CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`784d22fb9f24...`) |
+| **V2.4-P2M Journey Calculation Schema Implementation** | Create SQL migration files & 30-scenario schema test suite for V2 Journey Calculation tables | 2026-10-07 | 30 / 30 Schema Tests PASS |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.4-P2M_JOURNEY_CALCULATION_SCHEMA_IMPLEMENTATION
-- **Goal:** Create SQL migration files and schema test suite for V2 P2 Journey Calculation tables (`op_rh_v2_calculos_jornada`, `op_rh_v2_calculos_segmentos`).
-- **Prerequisite Status:** V2.4-P2S Journey Calculation Physical Model FROZEN_V1.0.
+### Milestone: V2.4-P2_MOTOR_DE_JORNADA_CALCULATION_RUNTIME
+- **Goal:** Implement P2 journey calculation runtime service deriving technical attendance metrics and signed timestamp deltas in Shadow Mode.
+- **Prerequisite Status:** V2.4-P2D Contract FROZEN_V1.0, V2.4-P2S Physical Model FROZEN_V1.0, V2.4-P2M Physical Schema IMPLEMENTED.
 - **Target Completion:** Pending explicit task authorization.
+
 
 
 

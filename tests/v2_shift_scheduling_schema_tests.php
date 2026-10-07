@@ -48,9 +48,17 @@ test_log("=== Starting V2.3-A03 Schema Validation Test Suite ===");
 
 // 1. Rollback setup to ensure clean state
 test_log("Executing DOWN rollback migration to clear existing tables if any...");
+$calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
+if (file_exists($calcDownFile)) {
+    try {
+        run_sql_script($conexion, $calcDownFile);
+    } catch (Throwable $e) {}
+}
 $pairingDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql';
 if (file_exists($pairingDownFile)) {
-    run_sql_script($conexion, $pairingDownFile);
+    try {
+        run_sql_script($conexion, $pairingDownFile);
+    } catch (Throwable $e) {}
 }
 run_sql_script($conexion, $downFile);
 

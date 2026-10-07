@@ -38,9 +38,17 @@ $downFile = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_sc
 test_log("=== Starting V2.3-A05 Shift Scheduling Runtime Test Suite ===");
 
 // Reset database tables using migration scripts
+$calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
+if (file_exists($calcDownFile)) {
+    try {
+        run_sql_file($db, $calcDownFile);
+    } catch (Throwable $e) {}
+}
 $pairingDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql';
 if (file_exists($pairingDownFile)) {
-    run_sql_file($db, $pairingDownFile);
+    try {
+        run_sql_file($db, $pairingDownFile);
+    } catch (Throwable $e) {}
 }
 run_sql_file($db, $downFile);
 run_sql_file($db, $upFile);

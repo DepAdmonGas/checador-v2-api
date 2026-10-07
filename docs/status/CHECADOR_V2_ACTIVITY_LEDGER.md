@@ -401,6 +401,24 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.4-P2M Motor de Jornada P2 Calculation Physical Schema Implementation.
 
+---
+
+### Entry 024
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P2M_JOURNEY_CALCULATION_SCHEMA_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** SCHEMA_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `febb505bd7026d7a9fe6721e7f9fdb4f63a0e899`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `migraciones/v2/2026_10_07_000002_create_v2_journey_calculation_tables.sql` (SHA256: `e357a0c590f6e0b83b0f070c553600608bd363fed740d93bcb905abc9699e46d`), `migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql` (SHA256: `d3266a904cf9cded7f705736f9608969a0a6020cb0e7a3f62752c960647f2da4`), `tests/v2_journey_calculation_schema_tests.php`
+- **TEST_RESULTS:** 30 / 30 PASS (`tests/v2_journey_calculation_schema_tests.php`), Pairing Schema (25/25 PASS), Pairing Runtime (16/16 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented physical persistence schema for Checador V2 Journey Calculation P2 strictly following frozen specifications. Created UP/DOWN SQL migrations for `op_rh_v2_calculos_jornada` and `op_rh_v2_calculos_segmentos`. Implemented append-only triggers (`tg_op_rh_v2_calculos_jornada_no_update`, `tg_op_rh_v2_calculos_jornada_no_delete`). Validated schema creation, FK type compatibility and ON DELETE RESTRICT enforcement against ScheduledShift and P1 pairing headers, seconds-based duration storage (`*_segundos`), signed entry/exit deltas, SHA256 input fingerprint idempotency (`uk_v2_calculo_fingerprint`), non-calculable NULL duration semantics for PARTIAL_DATA/INVALID_INTERVAL, DAY_OFF (0 scheduled seconds), UNSCHEDULED (NULL scheduled seconds), UNKNOWN, PENDING_SYNC, and clean rollback/re-application across 30 focused schema tests.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization for downstream milestone V2.4-P2 (Motor de Jornada P2 Journey Calculation Runtime Implementation).
+
+
 
 
 

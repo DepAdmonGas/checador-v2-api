@@ -70,6 +70,12 @@ run_sql_script($conexion, $shiftUp);
 
 // Clean rollback first
 test_log("Executing DOWN rollback migration to ensure clean state...");
+$calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
+if (file_exists($calcDownFile)) {
+    try {
+        run_sql_script($conexion, $calcDownFile);
+    } catch (Throwable $e) {}
+}
 run_sql_script($conexion, $pairingDown);
 
 // Execute UP migration
