@@ -433,7 +433,25 @@
 - **TEST_RESULTS:** 14 / 14 PASS (`tests/v2_journey_calculation_runtime_tests.php`), Calculation Schema (30/30 PASS), Pairing Schema (25/25 PASS), Pairing Runtime (16/16 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
 - **DECISIONS:** Implemented internal domain calculation engine `JourneyCalculationService` strictly following frozen specifications (`CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` & `CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md`). Consumed explicit immutable ScheduledShifts and P1 pairing revisions (`op_rh_v2_pareos_jornada`), deriving seconds-precision technical worked durations (`segundos_trabajados_totales`), signed entry/exit timestamp deltas (`delta_llegada_segundos`, `delta_salida_segundos`), multi-segment split work aggregation (excluding unworked gaps), night shift UTC timestamp math spanning midnight, fail-closed `PARTIAL_DATA` with NULL worked seconds, `DAY_OFF_RECORDED` (0 scheduled seconds), `UNSCHEDULED_RECORDED` (NULL scheduled seconds), `UNMATCHED_NO_PUNCHES` (NULL worked seconds without emitting FALTA), monotonic per-shift revision numbering (`revision_numero`), SHA256 input execution fingerprints for idempotent re-runs, and append-only P2 revision persistence in `op_rh_v2_calculos_jornada` and `op_rh_v2_calculos_segmentos`. Enforced zero public API exposure, zero DB schema/migration changes, zero incidence emission, zero payroll/monetary calculations, and complete non-mutation of raw punches, scheduled shifts, and pairing history.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** V2.4-P2C Journey Calculation Runtime Closure Reconciliation.
+- **NEXT_STEP:** V2.5-D Administrative Incidences & Adjustments Contract Design & Conditional Freeze.
+
+---
+
+### Entry 026
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_5_D_ADMINISTRATIVE_INCIDENCES_CONTRACT_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** DOMAIN_CONTRACT_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `13634c9d78e991b9b1bac811055d3e28800ae8e9`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md` (SHA256: `94f91abf6d0ddeee641c736159b922debbadad5fb60db91da1d26827dfac6b7d`)
+- **TEST_RESULTS:** N/A (Domain Contract Design & Freeze)
+- **DECISIONS:** Designed and formally froze `docs/v2/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md` as FROZEN_V1.0. Formulated administrative incidence master date-range model (Vacation, Disability), shift-specific permissions, daily application derivation, administrative adjustment overrides, contradiction retention (`CONTRADICTION_DETECTED` when punches occur during approved absence), fail-closed handling for incomplete Level 2 sources, strict prerequisites for administrative `FALTA` (scheduled shift, `VERIFIED` Level 2, `UNMATCHED_NO_PUNCHES` P1/P2, and absence of approved incidence/adjustment), seconds-precision preservation without rounding, zero mutation of upstream raw punches/shifts/pairing/P2 calculation records, zero synthetic raw punch creation, zero public API endpoints, and zero payroll monetary calculations (`comparación paralela sin afectar nómina`). Determined that V2.5 requires physical schema design prior to runtime implementation.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.5-S Administrative Incidences Physical Schema Design & Conditional Freeze.
+
 
 
 

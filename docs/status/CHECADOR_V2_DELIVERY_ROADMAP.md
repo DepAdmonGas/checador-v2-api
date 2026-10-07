@@ -35,14 +35,15 @@
 | **V2.4-P2S Journey Calculation Physical Model** | Design & freeze `CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`784d22fb9f24...`) |
 | **V2.4-P2M Journey Calculation Schema Implementation** | Create SQL migration files & 30-scenario schema test suite for V2 Journey Calculation tables | 2026-10-07 | 30 / 30 Schema Tests PASS |
 | **V2.4-P2 Motor de Jornada Calculation Runtime** | Implement `JourneyCalculationService` domain service & 14-scenario runtime test suite | 2026-10-07 | 14 / 14 Runtime Tests PASS |
+| **V2.5-D Administrative Incidences Contract** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`94f91abf6d0d...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.4-P2C_JOURNEY_CALCULATION_CLOSURE_RECONCILIATION
-- **Goal:** Execute strict read-only closure reconciliation of V2.4-P2 runtime implementation before downstream authorization.
-- **Prerequisite Status:** V2.4-P2 Runtime Implementation COMPLETE & VERIFIED.
+### Milestone: V2.5-S_ADMINISTRATIVE_INCIDENCES_PHYSICAL_SCHEMA_DESIGN
+- **Goal:** Design and freeze physical data persistence model for Checador V2.5 Administrative Incidences & Adjustments.
+- **Prerequisite Status:** V2.5-D Contract Spec FROZEN_V1.0.
 - **Target Completion:** 2026-10-07
 
 
