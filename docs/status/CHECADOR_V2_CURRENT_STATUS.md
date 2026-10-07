@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_4_P1D_JOURNEY_PAIRING_CONTRACT_FROZEN
-LAST_COMPLETED_ACTIVITY: V2_4_P1D_JOURNEY_PAIRING_CONTRACT_DESIGN
-CURRENT_ACTIVE_MILESTONE: V2.4-P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME
+CURRENT_PHASE: V2_4_P1S_PAIRING_PHYSICAL_MODEL_FROZEN
+LAST_COMPLETED_ACTIVITY: V2_4_P1S_PAIRING_PHYSICAL_SCHEMA_DESIGN
+CURRENT_ACTIVE_MILESTONE: V2.4-P1M_MOTOR_DE_JORNADA_PAIRING_SCHEMA_IMPLEMENTATION
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,12 +36,13 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_4_P1D_JOURNEY_PAIRING_CONTRACT_FROZEN
+- **Current Phase:** V2_4_P1S_PAIRING_PHYSICAL_MODEL_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
 - **Shift Service & API Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f`)
 - **Journey Pairing Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `7cacdc6ca33cc478b0eb65103002784d95d03865f4cf76f99177dcf2cc4a31d5`)
+- **Journey Pairing Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `b5865e22ce5e2ddfaa505968ec981e735ee82667d58b7ceeec99b81fe4054d6a`)
 
 ### Operational Architecture Principles:
 1. **Lector Autonomy:** Portal3 is NOT required for physical Lector runtime operations. Lector has its own operational login (`GET /acceso-empresa`), maintains its own active station session, and operates independently.
@@ -68,9 +69,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_4_P1D_JOURNEY_PAIRING_CONTRACT_DESIGN`
-- **Type:** DOMAIN_CONTRACT_DESIGN
-- **Summary:** Formally froze `docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md` (FROZEN_V1.0). Specified deterministic pairing of raw `PunchEvent` records with `ScheduledShift` slots and expected segments without calculating lateness, overtime, worked-time payroll effects, FALTA, or incidences. Formulated raw punch immutability, fail-closed ambiguity resolution, candidate search windows, night-shift midnight crossing rules, multi-segment slot allocation, surplus punch handling, Level 2 completeness integration, and canonical test matrix.
+- **Activity ID:** `V2_4_P1S_PAIRING_PHYSICAL_SCHEMA_DESIGN`
+- **Type:** PHYSICAL_MODEL_DESIGN
+- **Summary:** Formally froze `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0). Designed physical persistence model for P1 PunchEvent / ScheduledShift pairing. Defined normalized 3-table storage architecture (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`), append-only revisioning per `id_jornada_programada`, single-consumption DB constraint within execution revisions (`uk_v2_pareo_revision_marcacion`), primary Entry/Exit slot limits, arbitrary surplus punch links, Level 2 completeness provenance, and proposed DDL.
 
 ---
 
@@ -87,6 +88,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **Shift Scheduling V2 Service & API Contract (A04F)** | FROZEN V1.0 | Formally frozen backend service interfaces, REST API contracts, validation, resolution, and materialization specification (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). |
 | **Shift Scheduling V2 Runtime Services & Endpoints (A05)** | OPERATIONAL | Runtime domain services, controller, REST routes, and 30/30 runtime tests PASS (`tests/v2_shift_scheduling_runtime_tests.php`). |
 | **PunchEvent / ScheduledShift Pairing Contract (P1D)** | FROZEN V1.0 | Formally frozen deterministic pairing specification (`docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md`). |
+| **PunchEvent / ScheduledShift Pairing Physical Model (P1S)** | FROZEN V1.0 | Formally frozen physical database model specification (`docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |

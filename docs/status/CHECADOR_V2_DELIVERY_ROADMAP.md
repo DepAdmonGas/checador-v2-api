@@ -28,6 +28,7 @@
 | **V2.3-A04F Service & API Contract Freeze** | Pre-freeze validation & formal freeze of `CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`0a3ebc362471...`) |
 | **V2.3-A05 Shift Scheduling V2 Runtime** | Implement PHP domain services, REST routes, controller & 30/30 runtime test suite | 2026-10-06 | 30 / 30 Runtime Tests PASS |
 | **V2.4-P1D Journey Pairing Contract** | Design & freeze `CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-06 | FROZEN V1.0 (`7cacdc6ca33c...`) |
+| **V2.4-P1S Journey Pairing Physical Model** | Design & freeze `CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`b5865e22ce5e...`) |
 
 ---
 

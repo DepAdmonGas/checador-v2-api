@@ -314,5 +314,23 @@
 - **TEST_RESULTS:** N/A (Domain Contract Design & Freeze)
 - **DECISIONS:** Designed and formally froze `docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md` as FROZEN_V1.0. Defined deterministic pairing of raw `PunchEvent` records with `ScheduledShift` slots and expected segments without calculating lateness, overtime, worked-time payroll effects, FALTA, or incidences. Formulated raw punch immutability, fail-closed ambiguity resolution, candidate search windows, night-shift midnight crossing rules, multi-segment slot allocation, surplus punch handling, Level 2 completeness integration, and canonical test matrix.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** Await project owner authorization before implementing runtime journey pairing algorithm in Phase 1 (P1).
+- **NEXT_STEP:** V2.4-P1S Journey Pairing Physical Schema Design & Conditional Freeze.
+
+---
+
+### Entry 019
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P1S_PAIRING_PHYSICAL_SCHEMA_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `19d5512c83ec374a4acc718d1ae92181a54eefa7`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md` (SHA256: `b5865e22ce5e2ddfaa505968ec981e735ee82667d58b7ceeec99b81fe4054d6a`)
+- **TEST_RESULTS:** N/A (Physical Model Design & Freeze)
+- **DECISIONS:** Designed and formally froze physical persistence model `docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 3-table storage architecture (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`). Enforced append-only revisioning per `id_jornada_programada`, single-consumption DB constraint within execution revisions (`uk_v2_pareo_revision_marcacion`), primary Entry/Exit slot limits, arbitrary surplus punch links, Level 2 completeness provenance, and proposed DDL.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.4-P1M Journey Pairing Physical Schema Implementation (create SQL migration files & schema tests).
+
 
