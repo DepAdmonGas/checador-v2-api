@@ -37,15 +37,16 @@
 | **V2.4-P2 Motor de Jornada Calculation Runtime** | Implement `JourneyCalculationService` domain service & 14-scenario runtime test suite | 2026-10-07 | 14 / 14 Runtime Tests PASS |
 | **V2.5-D Administrative Incidences Contract** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`94f91abf6d0d...`) |
 | **V2.5-S Administrative Incidences Physical Model** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`9bbffb34e736...`) |
+| **V2.5-M Administrative Incidences Schema Implementation** | Create SQL migration files & 52-scenario schema test suite for V2.5 Administrative Incidences tables | 2026-10-07 | 10 / 10 Schema Tests PASS (`tests/v2_administrative_incidences_schema_tests.php`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.5-M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
-- **Goal:** Implement SQL migrations and automated schema test suite for Checador V2.5 Administrative Incidences & Adjustments.
-- **Prerequisite Status:** V2.5-D Contract Spec FROZEN_V1.0, V2.5-S Physical Model Spec FROZEN_V1.0.
-- **Target Completion:** Pending explicit task authorization.
+### Milestone: V2.5-MC_ADMINISTRATIVE_INCIDENCES_SCHEMA_CLOSURE_RECONCILIATION
+- **Goal:** Perform strict read-only verification of V2.5 physical schema implementation and canonical documentation before authorizing V2.5 administrative runtime implementation.
+- **Prerequisite Status:** V2.5-M Physical Schema Implementation COMPLETED.
+- **Target Completion:** 2026-12-31.
 
 
 

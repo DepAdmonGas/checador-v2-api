@@ -47,7 +47,13 @@ $downFile = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_sc
 test_log("=== Starting V2.3-A03 Schema Validation Test Suite ===");
 
 // 1. Rollback setup to ensure clean state
-test_log("Executing DOWN rollback migration to clear existing tables if any...");
+$conexion->query("SET FOREIGN_KEY_CHECKS = 0");
+$adminIncDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000003_rollback_v2_administrative_incidences_tables.sql';
+if (file_exists($adminIncDownFile)) {
+    try {
+        run_sql_script($conexion, $adminIncDownFile);
+    } catch (Throwable $e) {}
+}
 $calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
 if (file_exists($calcDownFile)) {
     try {
@@ -60,7 +66,8 @@ if (file_exists($pairingDownFile)) {
         run_sql_script($conexion, $pairingDownFile);
     } catch (Throwable $e) {}
 }
-run_sql_script($conexion, $downFile);
+try { run_sql_script($conexion, $downFile); } catch (Throwable $e) {}
+$conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
 // 2. Execute UP migration
 test_log("Executing UP migration...");

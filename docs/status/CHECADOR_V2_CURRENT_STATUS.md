@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_5_S_ADMINISTRATIVE_INCIDENCES_PHYSICAL_SCHEMA_FROZEN
-LAST_COMPLETED_ACTIVITY: V2_5_S_ADMINISTRATIVE_INCIDENCES_PHYSICAL_SCHEMA_DESIGN
-CURRENT_ACTIVE_MILESTONE: V2.5-M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
+CURRENT_PHASE: V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTED
+LAST_COMPLETED_ACTIVITY: V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
+CURRENT_ACTIVE_MILESTONE: V2.5-MC_ADMINISTRATIVE_INCIDENCES_SCHEMA_CLOSURE_RECONCILIATION
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_5_S_ADMINISTRATIVE_INCIDENCES_PHYSICAL_SCHEMA_FROZEN
+- **Current Phase:** V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -75,9 +75,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_4_P1_MOTOR_DE_JORNADA_PAIRING_RUNTIME_IMPLEMENTATION`
-- **Type:** RUNTIME_IMPLEMENTATION
-- **Summary:** Implemented internal domain pairing service `JourneyPairingService` (`modelo/v2/journey/JourneyPairingService.php`) and a 16-scenario focused runtime test suite (`tests/v2_journey_pairing_runtime_tests.php`) for Checador V2 Motor de Jornada P1. Validated deterministic candidate punch allocation within search windows ($S_{\text{start}} - 4\text{h}, S_{\text{end}} + 4\text{h}$), night shift post-midnight mapping, arbitrary surplus punch preservation, single-consumption constraint within execution revisions, workplace alignment verification, Level 2 completeness provenance, SHA256 input fingerprint calculation for idempotent re-runs, and append-only revisioning per ScheduledShift without emitting FALTA or worked-time payroll calculations.
+- **Activity ID:** `V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION`
+- **Type:** SCHEMA_IMPLEMENTATION
+- **Summary:** Implemented exact physical persistence schema for Checador V2.5 Administrative Incidences & Adjustments (`migraciones/v2/2026_10_07_000003_create_v2_administrative_incidences_tables.sql`, `migraciones/v2/2026_10_07_000003_rollback_v2_administrative_incidences_tables.sql`) and a 52-scenario schema test suite (`tests/v2_administrative_incidences_schema_tests.php`). Validated 5 normalized tables (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`), FK type compatibility, hard immutability database triggers (`tg_op_rh_v2_evaluaciones_admin_no_update`, `tg_op_rh_v2_evaluaciones_admin_no_delete`), single master range incidence persistence, derived daily shift applications, explicit P2 calculation revision FK provenance (`id_calculo_jornada`), administrative interpreted time isolation (`hora_interpretada_entrada_utc`, `hora_interpretada_salida_utc`) without raw punch masquerading, SHA256 evaluation fingerprints (`uk_v2_eval_fingerprint`), policy version provenance (`version_politica`), evaluation status header flags (`FALTA`, `CONTRADICTION_DETECTED`, `REVIEW_REQUIRED`), `ON DELETE RESTRICT` FK deletion protection, zero payroll monetary columns, and clean UP/DOWN migration idempotency (10/10 test blocks PASS).
 
 ---
 

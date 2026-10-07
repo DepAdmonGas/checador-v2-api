@@ -71,12 +71,14 @@ run_sql_script($conexion, $shiftUp);
 // Clean rollback first
 test_log("Executing DOWN rollback migration to ensure clean state...");
 $calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
+$conexion->query("SET FOREIGN_KEY_CHECKS = 0");
 if (file_exists($calcDownFile)) {
     try {
         run_sql_script($conexion, $calcDownFile);
     } catch (Throwable $e) {}
 }
-run_sql_script($conexion, $pairingDown);
+try { run_sql_script($conexion, $pairingDown); } catch (Throwable $e) {}
+$conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
 // Execute UP migration
 test_log("Executing UP migration...");

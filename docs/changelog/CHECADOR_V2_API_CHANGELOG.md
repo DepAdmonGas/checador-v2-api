@@ -1,5 +1,20 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.5-M Administrative Incidences & Adjustments Physical Schema Implementation
+- **Activity:** V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION
+- **Estado:** COMPLETE (10/10 Schema Test Blocks PASS covering 52 physical invariants)
+- **Componentes Implementados:**
+  - `migraciones/v2/2026_10_07_000003_create_v2_administrative_incidences_tables.sql`: Migración UP creando 5 tablas físicas (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`) y 2 disparadores de inmutabilidad (`tg_op_rh_v2_evaluaciones_admin_no_update`, `tg_op_rh_v2_evaluaciones_admin_no_delete`).
+  - `migraciones/v2/2026_10_07_000003_rollback_v2_administrative_incidences_tables.sql`: Migración DOWN idempotente eliminando disparadores y tablas en orden inverso de claves foráneas.
+  - `tests/v2_administrative_incidences_schema_tests.php`: Suite de pruebas automatizadas que valida la creación de esquemas, compatibilidad exacta de tipos FK, persistencia de rango maestro para incidencias multidía, aplicaciones diarias por turno, horas interpretadas aisladas de marcaciones crudas, evaluaciones administrativas inmutables append-only con huella SHA256 y banderas `FALTA`/`CONTRADICTION_DETECTED`/`REVIEW_REQUIRED`, protección contra eliminación en cascada (`ON DELETE RESTRICT`) e idempotencia de reversión.
+- **Invariantes Garantizadas:**
+  - Cero código de runtime de evaluación administrativa implementado.
+  - Cero endpoints de API pública autorizados o creados.
+  - Cero alteraciones o reescrituras a marcaciones crudas, turnos programados, pareos P1 o cálculos P2.
+  - Cero columnas de cálculos monetarios o de nómina.
+
+---
+
 ## 2026-10-07 — V2.4-P2 Motor de Jornada Journey Calculation Runtime Implementation
 - **Activity:** V2_4_P2_MOTOR_DE_JORNADA_CALCULATION_RUNTIME_IMPLEMENTATION
 - **Estado:** COMPLETE (14/14 Runtime Tests PASS, 30/30 Schema Tests PASS)

@@ -60,6 +60,7 @@ $rawPunchUp  = __DIR__ . '/../migraciones/v2/2026_09_28_000001_create_v2_raw_pun
 $shiftUp     = __DIR__ . '/../migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql';
 $pairingUp   = __DIR__ . '/../migraciones/v2/2026_10_07_000001_create_v2_journey_pairing_tables.sql';
 $calcUp      = __DIR__ . '/../migraciones/v2/2026_10_07_000002_create_v2_journey_calculation_tables.sql';
+$l2Up        = __DIR__ . '/../migraciones/v2/2026_10_05_000002_create_v2_level2_server_tables.sql';
 $shiftDown   = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_scheduling_tables.sql';
 $pairingDown = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journey_pairing_tables.sql';
 $calcDown    = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
@@ -75,6 +76,7 @@ $conexion->query("TRUNCATE TABLE op_rh_v2_marcaciones_crudas");
 $conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
 run_sql_script($conexion, $rawPunchUp);
+run_sql_script($conexion, $l2Up);
 run_sql_script($conexion, $shiftUp);
 run_sql_script($conexion, $pairingUp);
 run_sql_script($conexion, $calcUp);

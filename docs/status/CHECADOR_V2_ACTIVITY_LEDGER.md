@@ -469,6 +469,23 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization for downstream milestone V2.5-M (Administrative Incidences Physical Schema Implementation).
 
+---
+
+### Entry 028
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_5_M_ADMINISTRATIVE_INCIDENCES_SCHEMA_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** SCHEMA_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `0430ec15927ab09a8b9a342b4cda5d52c83d0989`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `migraciones/v2/2026_10_07_000003_create_v2_administrative_incidences_tables.sql` (SHA256: `fcac402726488349479b0c95360980ff67d2ca8acb846e9df5f5643ac7b9efbf`), `migraciones/v2/2026_10_07_000003_rollback_v2_administrative_incidences_tables.sql` (SHA256: `d870048ab15b4971c26176395b058a97fdb5a109a9dbf1e9c5edcdd8d8d3e2ef`), `tests/v2_administrative_incidences_schema_tests.php`
+- **TEST_RESULTS:** 10 / 10 PASS (covering 52 schema invariants in `tests/v2_administrative_incidences_schema_tests.php`), P2 Calculation Schema (30/30 PASS), P2 Calculation Runtime (14/14 PASS), P1 Pairing Schema (25/25 PASS), P1 Pairing Runtime (16/16 PASS), Shift Scheduling Schema (30/30 PASS), Shift Scheduling Runtime (30/30 PASS), V2 Raw Punch Ingestion (18/18 PASS), SEC-L03 ACL (34/34 PASS), Station Alignment (9/9 PASS), Level 2 API Capabilities (16/16 PASS)
+- **DECISIONS:** Implemented exact physical persistence schema for Checador V2.5 Administrative Incidences & Adjustments strictly per frozen specification `docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migration scripts for 5 normalized tables (`op_rh_v2_incidencias_maestro`, `op_rh_v2_incidencias_revisiones`, `op_rh_v2_incidencias_aplicaciones`, `op_rh_v2_ajustes_administrativos`, `op_rh_v2_evaluaciones_administrativas`). Implemented database triggers `tg_op_rh_v2_evaluaciones_admin_no_update` and `tg_op_rh_v2_evaluaciones_admin_no_delete` enforcing strict hard immutability on evaluation revisions. Validated FK type compatibility, single master range persistence for multi-day absences, derived daily shift applications, explicit P2 calculation revision FK link (`id_calculo_jornada`), administrative interpreted time isolation (`hora_interpretada_entrada_utc`, `hora_interpretada_salida_utc`) without raw punch masquerading, SHA256 evaluation fingerprints (`uk_v2_eval_fingerprint`), policy version provenance (`version_politica`), evaluation status header flags (`FALTA`, `CONTRADICTION_DETECTED`, `REVIEW_REQUIRED`), `ON DELETE RESTRICT` FK deletion protection, zero payroll monetary columns, and clean UP/DOWN migration idempotency.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.5-MC Administrative Incidences Physical Model Closure Reconciliation (strict read-only verification before authorizing V2.5 administrative runtime).
+
 
 
 
