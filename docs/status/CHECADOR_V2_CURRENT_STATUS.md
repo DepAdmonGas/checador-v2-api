@@ -17,10 +17,10 @@ ACTIVITY_LEDGER_SHA256: <sha256 of docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md>
 DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
-CURRENT_PHASE: V2_3_SHIFT_SCHEDULING_PHYSICAL_MODEL_IMPLEMENTED
-LAST_COMPLETED_ACTIVITY: V2_3_A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION
-CURRENT_ACTIVE_MILESTONE: V2.3-A04_SHIFT_SCHEDULING_SERVICE_AND_API_DESIGN
-A03_EXECUTION_AUTHORIZED: NO
+CURRENT_PHASE: V2_3_SHIFT_SCHEDULING_SERVICE_API_DESIGNED
+LAST_COMPLETED_ACTIVITY: V2_3_A04_SHIFT_SCHEDULING_SERVICE_API_DESIGN
+CURRENT_ACTIVE_MILESTONE: V2.3-A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE
+A03_EXECUTION_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
 TARGET_DATE: 2026-12-31
@@ -35,10 +35,11 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_3_SHIFT_SCHEDULING_PHYSICAL_MODEL_IMPLEMENTED
+- **Current Phase:** V2_3_SHIFT_SCHEDULING_SERVICE_API_DESIGNED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
+- **Shift Service & API Contract Spec V1.0 Status:** DRAFT_FOR_FREEZE (SHA256: `d6ed2be3bf6cfba2bf8f25dc22bb79ca92e4d9973b3a7a9e5272a707f282355f`)
 
 ### Operational Architecture Principles:
 1. **Lector Autonomy:** Portal3 is NOT required for physical Lector runtime operations. Lector has its own operational login (`GET /acceso-empresa`), maintains its own active station session, and operates independently.
@@ -46,7 +47,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 3. **Authentication Decoupling:**
    - **Legacy REST Endpoints:** Authenticate via station operational session token (`op_rh_localidades_perfil.token`) passed in HTTP `Authorization` header.
    - **V2 Ingestion & L2 Endpoints:** Authenticate via technical device credentials (`X-Device-Id`, `X-Credential-Key`, `Authorization: Bearer <device secret>`).
-   - **Administrative Read Endpoints (Level 1 & Level 2):** Authenticate via Portal3 JWT using module `acceso-temporal` (`authorizeTemporaryAccess`).
+   - **Administrative Read & Shift Scheduling Endpoints:** Authenticate via Portal3 JWT using module `biometricos` ACL.
 4. **Database Write Authority:** The API is the sole write authority for MySQL database storage (`op_rh_v2_marcaciones_crudas`, `op_rh_v2_dispositivos`, `op_rh_v2_dispositivo_identidad_personal`, etc.). The Lector communicates strictly via HTTP API endpoints and requires no direct MySQL connection.
 5. **Raw Punch Event Immutability:** Raw events captured in `op_rh_v2_marcaciones_crudas` are append-only facts sealed via HMAC-SHA256 and protected by database triggers. Administrative shift scheduling models dictate expected work intervals for derived journey evaluation without altering raw punches.
 
@@ -56,7 +57,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `fb473bb2f69485bfa2688002dfca61d5612f0fc9` (API side)
+- **Current HEAD SHA:** `688114be0c2738b9758778f307849e79b940cfd6` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
 - **Worktree Status:** `CLEAN`
@@ -65,9 +66,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_3_A03_SHIFT_SCHEDULING_V2_PHYSICAL_MODEL_IMPLEMENTATION`
-- **Type:** SCHEMA_IMPLEMENTATION
-- **Summary:** Implemented the frozen Checador V2 Shift Scheduling physical data model schema migrations (`migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql` and `migraciones/v2/2026_10_06_000001_rollback_v2_shift_scheduling_tables.sql`) and a 20-scenario schema validation test suite (`tests/v2_shift_scheduling_schema_tests.php`). All 20 schema tests passed (T01-T20), and all pre-existing regression test suites passed cleanly (SEC-L03, V2 Ingestion, Station Alignment).
+- **Activity ID:** `V2_3_A04_SHIFT_SCHEDULING_SERVICE_API_DESIGN`
+- **Type:** DOCUMENTATION_DESIGN
+- **Summary:** Designed the backend service boundaries (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API specification for Checador V2 Shift Scheduling (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). Specified immutable template versioning, effective-dated assignment overlap rules per workplace, workplace timezone authority, `SCHEDULED`/`DAY_OFF`/`UNSCHEDULED`/`UNKNOWN` schedule resolution logic, materialization trigger boundary, error contract, and target test matrix. Reconciled stale A02G SHA typo in project control docs.
 
 ---
 
@@ -81,6 +82,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **API Level 2 Windowing & Status** | OPERATIONAL | Generation registration, sequence gap detection, telemetry, `acceso-temporal` ACL. |
 | **API Station Context Alignment (F-03 API)** | AVAILABLE | `GET /acceso-empresa` and `GET /api/v2/devices/context` expose canonical `id_estacion`. |
 | **Shift Scheduling V2 Physical Schema (A03)** | IMPLEMENTED | SQL migrations created and validated via 20 schema tests (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`). |
+| **Shift Scheduling V2 Service & API Design (A04)** | DESIGNED (DRAFT_FOR_FREEZE) | Backend service interfaces, REST API contracts, validation, resolution, and materialization specification (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |
@@ -111,6 +113,7 @@ A task is considered **FULLY CLOSED** only when all of the following criteria ar
 
 - **Architecture Freeze V1.0:** `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`
 - **Shift Model Physical Spec V1.0:** `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`
+- **Shift Service & API Contract Spec V1.0:** `d6ed2be3bf6cfba2bf8f25dc22bb79ca92e4d9973b3a7a9e5272a707f282355f`
 - **Level 1 Contract:** `65e989f2611661fd47c80844ca427fafc146eece8f37025cab3c0917c78f7c3d`
 - **Level 2 Contract:** `7176c45aceb2bb59dba5470cd3b74f729a9bf5e3c797860e1dd752be3fb51a1c`
 - **AUTH-4 Evidence Report:** `117a6c3d72d610882c987ad5b030ae1e374714af164d04f5cc7323583f647924`

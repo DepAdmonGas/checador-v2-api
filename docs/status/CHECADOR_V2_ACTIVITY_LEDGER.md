@@ -247,3 +247,20 @@
 - **DECISIONS:** Implemented physical persistence schema for Checador V2 Shift Scheduling exactly per frozen specification `docs/architecture/CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md`. Created UP/DOWN SQL migration scripts for `op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, and `op_rh_v2_jornadas_programadas`. Validated schema creation, FK enforcement, UK constraints, overnight shifts, split shifts, multi-workplace dates, and rollback idempotency across 20 test cases.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization before proceeding to V2.3-A04 Shift Scheduling Service & API implementation.
+
+---
+
+### Entry 015
+- **DATE:** 2026-10-06
+- **ACTIVITY_ID:** `V2_3_A04_SHIFT_SCHEDULING_SERVICE_API_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** DOCUMENTATION_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `3d629c5284cf72d2143a4e9279db5892e32f09d4`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` (SHA256: `49efd5989f6e961237d661deaa5587215214345b51b406a759763b52a9615ea7`)
+- **TEST_RESULTS:** N/A (Documentation Design Only)
+- **DECISIONS:** Designed service boundary (`ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`) and REST API contract for V2 Shift Scheduling. Defined template versioning, effective-dated assignment overlap rules, workplace timezone authority, `SCHEDULED`/`DAY_OFF`/`UNSCHEDULED`/`UNKNOWN` resolution logic, materialization trigger boundary, and error envelope. Reconciled stale A02G SHA typo in project control documentation.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization for pre-freeze review or freeze of Shift Scheduling Service & API contract.

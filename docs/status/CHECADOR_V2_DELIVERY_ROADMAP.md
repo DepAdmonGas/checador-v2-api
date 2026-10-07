@@ -24,22 +24,23 @@
 | **V2.3-A02F Physical Model Freeze Review** | Pre-freeze review & revision for multi-workplace scoping, versioning, and auditability | 2026-10-06 | Revised Spec V1.0 |
 | **V2.3-A02G Shift Model Final Freeze** | Formal freeze of physical specification `CHECADOR_V2_SHIFT_SCHEDULING_PHYSICAL_MODEL_V1.0.md` | 2026-10-06 | FROZEN V1.0 (`7fa934b7e12e...`) |
 | **V2.3-A03 Physical Model Implementation** | Create SQL migration files & 20-scenario schema test suite for V2 Shift Scheduling tables | 2026-10-06 | 20 / 20 Schema Tests PASS |
+| **V2.3-A04 Shift Service & API Design** | Design domain services, REST API specification, validation, resolution & materialization | 2026-10-06 | Contract Spec V1.0 (`docs/v2/CHECADOR_V2_...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.3-A04_SHIFT_SCHEDULING_SERVICE_AND_API_DESIGN
-- **Goal:** Design runtime service and API contract for Shift Templates, Shift Segments, and Worker Shift Assignments.
-- **Prerequisite Status:** A03 Physical Model Implementation COMPLETE (`migraciones/v2/2026_10_06_000001_create_v2_shift_scheduling_tables.sql` & `tests/v2_shift_scheduling_schema_tests.php`).
-- **Target Completion:** Pending explicit task assignment.
+### Milestone: V2.3-A04F_SHIFT_SCHEDULING_SERVICE_API_FREEZE
+- **Goal:** Pre-freeze review and formal freeze of `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`.
+- **Prerequisite Status:** A04 Design COMPLETE (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md` SHA256: `49efd5989f6e961237d661deaa5587215214345b51b406a759763b52a9615ea7`).
+- **Target Completion:** Pending review and explicit authorization.
 
 ---
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.3-A04..A07 — Shift Scheduling V2 Service & API Implementation:**
-   - Implement `TurnoV2` service for managing shift templates, segments, and effective-dated worker assignments.
+1. **V2.3-A05..A07 — Shift Scheduling V2 Runtime Implementation & Test Suite:**
+   - Implement `ShiftTemplateService`, `ShiftAssignmentService`, `ScheduleResolutionService`, `ScheduledShiftMaterializationService`, and REST API endpoints with full test suite execution.
 2. **V2.4-P1 — Motor de Jornada (PunchEvent / ScheduledShift Pairing):**
    - Implement deterministic pairing algorithm associating raw `PunchEvent` records with `ScheduledShift` expected work intervals.
 3. **V2.4-P2 — Motor de Jornada (Attendance, Overtime & Night Shifts):**
