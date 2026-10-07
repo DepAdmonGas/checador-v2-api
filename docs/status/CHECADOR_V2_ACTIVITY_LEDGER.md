@@ -416,7 +416,25 @@
 - **TEST_RESULTS:** 30 / 30 PASS (`tests/v2_journey_calculation_schema_tests.php`), Pairing Schema (25/25 PASS), Pairing Runtime (16/16 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
 - **DECISIONS:** Implemented physical persistence schema for Checador V2 Journey Calculation P2 strictly following frozen specifications. Created UP/DOWN SQL migrations for `op_rh_v2_calculos_jornada` and `op_rh_v2_calculos_segmentos`. Implemented append-only triggers (`tg_op_rh_v2_calculos_jornada_no_update`, `tg_op_rh_v2_calculos_jornada_no_delete`). Validated schema creation, FK type compatibility and ON DELETE RESTRICT enforcement against ScheduledShift and P1 pairing headers, seconds-based duration storage (`*_segundos`), signed entry/exit deltas, SHA256 input fingerprint idempotency (`uk_v2_calculo_fingerprint`), non-calculable NULL duration semantics for PARTIAL_DATA/INVALID_INTERVAL, DAY_OFF (0 scheduled seconds), UNSCHEDULED (NULL scheduled seconds), UNKNOWN, PENDING_SYNC, and clean rollback/re-application across 30 focused schema tests.
 - **BLOCKERS:** NONE
-- **NEXT_STEP:** Await project owner authorization for downstream milestone V2.4-P2 (Motor de Jornada P2 Journey Calculation Runtime Implementation).
+- **NEXT_STEP:** V2.4-P2 Motor de Jornada P2 Journey Calculation Runtime Implementation.
+
+---
+
+### Entry 025
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_4_P2_MOTOR_DE_JORNADA_CALCULATION_RUNTIME_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `7e27ddd98619a2843694eace3aef649fbaf7be2e`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `modelo/v2/journey/JourneyCalculationService.php`, `tests/v2_journey_calculation_runtime_tests.php`
+- **TEST_RESULTS:** 14 / 14 PASS (`tests/v2_journey_calculation_runtime_tests.php`), Calculation Schema (30/30 PASS), Pairing Schema (25/25 PASS), Pairing Runtime (16/16 PASS), Shift Schema (20/20 PASS), Shift Runtime (30/30 PASS), V2 Raw Ingestion (18/18 PASS), SEC-L03 (34/34 PASS), Station Alignment (9/9 PASS)
+- **DECISIONS:** Implemented internal domain calculation engine `JourneyCalculationService` strictly following frozen specifications (`CHECADOR_V2_JOURNEY_CALCULATION_CONTRACT_V1.0.md` & `CHECADOR_V2_JOURNEY_CALCULATION_PHYSICAL_MODEL_V1.0.md`). Consumed explicit immutable ScheduledShifts and P1 pairing revisions (`op_rh_v2_pareos_jornada`), deriving seconds-precision technical worked durations (`segundos_trabajados_totales`), signed entry/exit timestamp deltas (`delta_llegada_segundos`, `delta_salida_segundos`), multi-segment split work aggregation (excluding unworked gaps), night shift UTC timestamp math spanning midnight, fail-closed `PARTIAL_DATA` with NULL worked seconds, `DAY_OFF_RECORDED` (0 scheduled seconds), `UNSCHEDULED_RECORDED` (NULL scheduled seconds), `UNMATCHED_NO_PUNCHES` (NULL worked seconds without emitting FALTA), monotonic per-shift revision numbering (`revision_numero`), SHA256 input execution fingerprints for idempotent re-runs, and append-only P2 revision persistence in `op_rh_v2_calculos_jornada` and `op_rh_v2_calculos_segmentos`. Enforced zero public API exposure, zero DB schema/migration changes, zero incidence emission, zero payroll/monetary calculations, and complete non-mutation of raw punches, scheduled shifts, and pairing history.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.4-P2C Journey Calculation Runtime Closure Reconciliation.
+
 
 
 

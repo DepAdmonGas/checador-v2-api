@@ -1,5 +1,19 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.4-P2 Motor de Jornada Journey Calculation Runtime Implementation
+- **Activity:** V2_4_P2_MOTOR_DE_JORNADA_CALCULATION_RUNTIME_IMPLEMENTATION
+- **Estado:** COMPLETE (14/14 Runtime Tests PASS, 30/30 Schema Tests PASS)
+- **Componentes Implementados:**
+  - `modelo/v2/journey/JourneyCalculationService.php`: Servicio interno del dominio para consumo de `ScheduledShift` e historial inmutable de pareos P1 (`op_rh_v2_pareos_jornada`), cálculo de duración trabajada en segundos (`segundos_trabajados_totales`), deltas de llegada/salida (`delta_llegada_segundos`, `delta_salida_segundos`), agregación de jornada dividida (excluyendo intervalos no trabajados), matemática exacta de timestamps UTC para turnos nocturnos que cruzan la medianoche, manejo de `PARTIAL_DATA` sin fabricar marcaciones sintéticas, `DAY_OFF_RECORDED` (0s programados), `UNSCHEDULED_RECORDED` (NULL programados), `UNMATCHED_NO_PUNCHES` (sin emitir FALTA), versionado por turno (`revision_numero`), huellas SHA256 para idempotencia (`fingerprint_ejecucion`) y persistencia append-only en `op_rh_v2_calculos_jornada` y `op_rh_v2_calculos_segmentos`.
+  - `tests/v2_journey_calculation_runtime_tests.php`: Suite de 14 pruebas de runtime en Shadow Mode validando todas las invariantes físicas y de dominio.
+- **Invariantes Garantizadas:**
+  - Cero endpoints de API pública autorizados o creados.
+  - Cero cambios o migraciones de base de datos ejecutados.
+  - Cero emisión de FALTA, RETARDO, SALIDA ANTICIPADA o montos pagables/monetarios de nómina.
+  - Inmutabilidad total de marcaciones crudas, turnos programados e historial de pareos P1.
+
+---
+
 ## 2026-10-01 — V2.2-G8-A2 API Temporary Access Strict Contract Remediation
 - **Slice:** G8-A2_TEMPORARY_ACCESS_STRICT_CONTRACT_REMEDIATION
 - **Estado:** COMPLETE (56/56 Tests PASS, Baseline 18/18 Tests PASS)

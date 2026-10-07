@@ -62,11 +62,14 @@ $pairingDown = __DIR__ . '/../migraciones/v2/2026_10_07_000001_rollback_v2_journ
 
 test_log("=== Starting V2.4-P1 Journey Pairing Runtime Test Suite ===");
 
+$conexion->query("SET FOREIGN_KEY_CHECKS = 0");
+try { run_sql_script($conexion, $pairingDown); } catch (Throwable $e) {}
 run_sql_script($conexion, $rawPunchUp);
 run_sql_script($conexion, $l2Up);
 run_sql_script($conexion, $shiftUp);
-run_sql_script($conexion, $pairingDown);
 run_sql_script($conexion, $pairingUp);
+$conexion->query("TRUNCATE TABLE op_rh_v2_marcaciones_crudas");
+$conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
 $service = new JourneyPairingService($conexion);
 
