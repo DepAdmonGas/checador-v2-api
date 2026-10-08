@@ -44,14 +44,15 @@
 | **V2.6 Parallel Comparison Contract** | Design & freeze `CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`d21a59d79de7...`) |
 | **V2.6-S Parallel Comparison Physical Model** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`cd4e1aee46d9...`) |
 | **V2.6-SA Physical Model Addendum V1.1** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`451179ed195d...`) |
+| **V2.6-M Parallel Comparison Schema Implementation** | Create SQL migration files (`000005`) & 12-block schema test suite for V2.6 Parallel Comparison tables | 2026-10-07 | 12 / 12 Test Blocks PASS (`tests/v2_parallel_comparison_schema_tests.php`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.6_M_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION
-- **Goal:** Create SQL migration files (`000005`) and 40-scenario schema test suite for V2.6 Parallel Comparison tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`).
-- **Prerequisite Status:** V2.6 Physical Model Spec FROZEN_V1.0 (`cd4e1aee46d9...`) & Addendum Spec FROZEN_V1.1 (`451179ed195d...`).
+### Milestone: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER_RUNTIME
+- **Goal:** Implement domain runtime service `ParallelComparisonService` for comparing V2.5 administrative evaluations against legacy attendance snapshots under `comparación paralela sin afectar nómina`.
+- **Prerequisite Status:** V2.6 Schema Implemented (`000005`) & Schema Tests PASS.
 - **Target Completion:** Pending explicit task authorization.
 
 ---

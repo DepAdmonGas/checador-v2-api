@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_6_SA_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_FROZEN
+- **Current Phase:** V2_6_M_PARALLEL_COMPARISON_PHYSICAL_SCHEMA_IMPLEMENTED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -70,7 +70,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `40d505241a5d52c043a07135c7907ff7b4d9114d` (API side)
+- **Current HEAD SHA:** `dd4b13f94fd7e8e15ff58c43eb5e54d3f7d0be2b` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
 - **Worktree Status:** `CLEAN`
@@ -79,9 +79,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_6_SA_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM`
-- **Type:** DOMAIN_PHYSICAL_MODEL_ADDENDUM
-- **Summary:** Formally created and froze physical model addendum `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (SHA256: `451179ed195d6e8f7970f8cf5cb01c6a2a432e07b90f245d338e63197cfa6f66`) as FROZEN_V1.1. Remediated fingerprint collision defect identified in V2.6-SC by embedding captured attendance snapshot hash identity (`snapshot_hash`) into `fingerprint_ejecucion` formula (`hash('sha256', "{$idEvaluacionAdmin}:{$legacyPresenceState}:{$legacyAttendanceSnapshotHash}:{$sortedLegacyIncidenceSnapshotHashes}:{$algorithmVersion}:{$policyVersion}")`). Ensured that mutations of identical legacy source record IDs yield distinct comparison execution fingerprints, enabling multi-revision append-only history. Preserved frozen V1.0 physical tables DDL structure (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`), contract V1.0, and zero-monetary boundaries. V2.6-M is now ready.
+- **Activity ID:** `V2_6_M_LEGACY_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION`
+- **Type:** SCHEMA_IMPLEMENTATION
+- **Summary:** Implemented SQL migration `000005` (`2026_10_07_000005_create_v2_parallel_comparison_tables.sql` and rollback `2026_10_07_000005_rollback_v2_parallel_comparison_tables.sql`) creating 4 normalized parallel comparison tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`). Validated 12 test blocks / 38 physical assertions in `tests/v2_parallel_comparison_schema_tests.php` including monotonic revisioning (`uk_v2_comp_eval_revision`), database triggers (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), Addendum V1.1 same-ID mutation fingerprinting (`uk_v2_comp_fingerprint`), missing record sentinel canonicalization (`MISSING_RECORD`), 0..N legacy incidence set persistence, discrepancy detail evidence logging, zero monetary/payroll fields, and clean UP/DOWN rollback cycle. All V2.5, P2, P1, Shift, Raw Punch, Auth, Station Alignment, and Level 2 API regressions PASS (100% GREEN).
 
 ---
 

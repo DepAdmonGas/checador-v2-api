@@ -584,3 +584,20 @@
 - **DECISIONS:** Created and formally froze physical model addendum `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` as FROZEN_V1.1. Remediated fingerprint collision defect identified in V2.6-SC by embedding captured attendance snapshot hash identity (`snapshot_hash`) into `fingerprint_ejecucion` formula (`hash('sha256', "{$idEvaluacionAdmin}:{$legacyPresenceState}:{$legacyAttendanceSnapshotHash}:{$sortedLegacyIncidenceSnapshotHashes}:{$algorithmVersion}:{$policyVersion}")`). Ensured that mutations of identical legacy source record IDs yield distinct comparison execution fingerprints, enabling multi-revision append-only history. Preserved frozen V1.0 physical tables DDL structure (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`), contract V1.0, and zero-monetary boundaries. V2.6-M is now ready.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.6-M Legacy & Payroll Parallel Comparison Schema Implementation.
+
+---
+
+### Entry 035
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_6_M_LEGACY_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** SCHEMA_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `dd4b13f94fd7e8e15ff58c43eb5e54d3f7d0be2b`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `migraciones/v2/2026_10_07_000005_create_v2_parallel_comparison_tables.sql` (SHA256: `a8f109ec793783100c18c9595d5f3e1a56e9df83e69bc80292aed61a9d589dc1`), `migraciones/v2/2026_10_07_000005_rollback_v2_parallel_comparison_tables.sql` (SHA256: `c3946cc581fe824425cced112ca3c4bb6725c3b4334241359742721016d1f405`), `tests/v2_parallel_comparison_schema_tests.php`
+- **TEST_RESULTS:** 12 / 12 Test Blocks (38 assertions) PASS (`tests/v2_parallel_comparison_schema_tests.php`), V2.5 Runtime (10/10 PASS), V2.5 Provenance Schema (7/7 PASS), V2.5 Incidence Schema (10/10 PASS), P2 Calculation Schema (14/14 PASS), P1 Pairing Schema (25/25 PASS), P1 Pairing Runtime (16/16 PASS), Shift Scheduling Schema (20/20 PASS), Shift Scheduling Runtime (30/30 PASS), V2 Raw Punch Ingestion (18/18 PASS), Station Alignment (9/9 PASS), Level 2 API Server (16/16 PASS).
+- **DECISIONS:** Implemented migration 000005 creating 4 parallel comparison persistence tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`) strictly following frozen specs `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` and Addendum `V1.1`. Persisted explicit FK provenance to immutable V2.5 administrative evaluations (`id_evaluacion_administrativa`), monotonic revisioning (`revision_numero`), SHA256 execution fingerprint (`fingerprint_ejecucion`) incorporating `snapshot_hash` for same-ID mutation distinction, missing-record sentinel canonicalization (`MISSING_RECORD`), 0..N legacy incidence set persistence, discrepancy evidence logging (`valor_v2`, `valor_legacy`), hard immutability database triggers (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), zero monetary/payroll fields, and clean UP/DOWN rollback cycle.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.6 Runtime Engine Implementation.
