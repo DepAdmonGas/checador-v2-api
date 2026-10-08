@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_5_ADMINISTRATIVE_EVALUATION_RUNTIME_IMPLEMENTED
-LAST_COMPLETED_ACTIVITY: V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION
-CURRENT_ACTIVE_MILESTONE: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER
+CURRENT_PHASE: V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_FROZEN
+LAST_COMPLETED_ACTIVITY: V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY
+CURRENT_ACTIVE_MILESTONE: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER_PHYSICAL_MODEL_DESIGN
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_5_ADMINISTRATIVE_EVALUATION_RUNTIME_IMPLEMENTED
+- **Current Phase:** V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -48,6 +48,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 - **Administrative Incidences Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `94f91abf6d0ddeee641c736159b922debbadad5fb60db91da1d26827dfac6b7d`)
 - **Administrative Incidences Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `9bbffb34e736fea1cd9dfb433bb1cc1168051af410f34d041fa4bc8ddf6ec29a`)
 - **Administrative Incidences Physical Model V1.1 Addendum Status:** FROZEN_V1.1 (SHA256: `13c624213b9fdd2cad733d802f823e31e8dc287142173f4b80935802dcf670c1`)
+- **Parallel Comparison Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`)
 
 
 
@@ -76,9 +77,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION`
-- **Type:** RUNTIME_IMPLEMENTATION
-- **Summary:** Implemented domain runtime service `AdministrativeEvaluationService` (`modelo/v2/journey/AdministrativeEvaluationService.php`) and a 10-block runtime test suite (`tests/v2_administrative_runtime_tests.php`, 10/10 PASS). Consumed explicit immutable ScheduledShifts (`id_jornada_programada`) and P2 calculation revisions (`id_calculo_jornada`), deriving master incidence creation, multi-day shift applications, append-only administrative adjustments, exact provenance link rows (`op_rh_v2_evaluaciones_incidencias`, `op_rh_v2_evaluaciones_ajustes`), interpretation of worked/excused times without modifying raw punches, deterministic FALTA derivation (SCHEDULED + VERIFIED L2 + UNMATCHED_NO_PUNCHES + zero active incidence/adjustment), contradiction retention (`CONTRADICTION_DETECTED` when punches occur during approved absence), overlap conflict handling (`OVERLAP_CONFLICT` + `PENDING_REVIEW`), DAY_OFF/UNSCHEDULED immunity from FALTA, monotonic revision numbering (`revision_numero`), execution fingerprint SHA256 hashing for idempotent re-runs, and append-only evaluation revision persistence in `op_rh_v2_evaluaciones_administrativas`. Enforced zero public API exposure, zero DB schema/migration changes, zero payroll monetary calculations, and complete non-mutation of raw punches, scheduled shifts, P1 pairing, or P2 calculations.
+- **Activity ID:** `V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY`
+- **Type:** DOMAIN_CONTRACT_DESIGN
+- **Summary:** Formally froze contract specification `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`) as FROZEN_V1.0. Defined parallel comparison engine boundary comparing V2.5 administrative evaluations (`op_rh_v2_evaluaciones_administrativas`) against legacy attendance records (`op_rh_personal_asistencia`, `op_rh_personal_asistencia_incidencia`) under strict `comparación paralela sin afectar nómina` rules. Enforced zero payroll monetary calculations, zero legacy database mutation, zero public API exposure, zero Lector/Portal3 code modifications, fail-closed handling for missing/incomplete data (`LEVEL2_INCOMPLETE`, `PAIRING_AMBIGUOUS`), deterministic discrepancy categorization (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `OVERTIME_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`), explicit evaluation revision linkage, and SHA256 comparison execution fingerprints. Determined that V2.6 requires physical database model design prior to schema implementation (`NEW_SCHEMA_REQUIRED: YES`).
 
 ---
 
@@ -108,6 +109,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **Administrative Provenance Addendum (V2.5-SA)** | FROZEN V1.1 | Formally frozen addendum (`docs/architecture/CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md`). |
 | **Administrative Provenance Additive Schema (V2.5-MA)** | IMPLEMENTED | SQL migrations 000004 created and validated via 7/7 schema tests. |
 | **Administrative Evaluation Runtime (V2.5)** | OPERATIONAL | Domain service `AdministrativeEvaluationService` and 10/10 runtime tests PASS (`tests/v2_administrative_runtime_tests.php`). |
+| **Parallel Comparison Contract (V2.6)** | FROZEN V1.0 | Formally frozen comparison contract (`docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |

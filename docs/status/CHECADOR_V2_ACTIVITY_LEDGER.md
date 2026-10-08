@@ -533,3 +533,20 @@
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization before proceeding to V2.6 Legacy & Payroll Parallel Comparison Adapter.
 
+
+---
+
+### Entry 032
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY`
+- **PROJECT:** Checador API
+- **TYPE:** DOMAIN_CONTRACT_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `e0ba20716456921d81e77b7313896b0382437088`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`)
+- **TEST_RESULTS:** N/A (Domain Contract Design & Freeze)
+- **DECISIONS:** Designed and formally froze contract specification `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` as FROZEN_V1.0. Defined parallel comparison engine boundary comparing V2.5 administrative evaluations (`op_rh_v2_evaluaciones_administrativas`) against legacy attendance records (`op_rh_personal_asistencia`, `op_rh_personal_asistencia_incidencia`) under strict `comparación paralela sin afectar nómina` rules. Enforced zero payroll monetary calculations, zero legacy database mutation, zero public API exposure, zero Lector/Portal3 code modifications, fail-closed handling for missing/incomplete data (`LEVEL2_INCOMPLETE`, `PAIRING_AMBIGUOUS`), deterministic discrepancy categorization (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `OVERTIME_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`), explicit evaluation revision linkage, and SHA256 comparison execution fingerprints. Determined that V2.6 requires physical database model design prior to schema implementation (`NEW_SCHEMA_REQUIRED: YES`).
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.6-S Legacy & Payroll Parallel Comparison Adapter Physical Schema Design & Conditional Freeze.

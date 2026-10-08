@@ -1,5 +1,19 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.6 Legacy & Payroll Parallel Comparison Adapter Contract Freeze
+- **Activity:** V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY
+- **Estado:** COMPLETE (FROZEN_V1.0 en `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md`, SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`)
+- **Documentación Creada:**
+  - `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md`: Especificación contractual del adaptador de comparación paralela entre evaluaciones administrativas V2.5 (`op_rh_v2_evaluaciones_administrativas`) y registros de asistencia legacy (`op_rh_personal_asistencia`, `op_rh_personal_asistencia_incidencia`) bajo la regla estricta de `comparación paralela sin afectar nómina`.
+- **Invariantes Garantizadas:**
+  - Cero código de runtime, controladores o rutas de API REST pública expuestas.
+  - Cero cambios o migraciones de esquemas de base de datos creados.
+  - Cero cálculos monetarios, montos pagables o alteraciones a nómina.
+  - Cero mutaciones a tablas de base de datos legacy.
+  - Inmutabilidad total de marcaciones crudas, turnos programados, pareos P1, cálculos P2 y evaluaciones V2.5.
+
+---
+
 ## 2026-10-07 — V2.5 Administrative Incidence & Evaluation Runtime Engine Implementation
 - **Activity:** V2_5_ADMINISTRATIVE_INCIDENCE_EVALUATION_RUNTIME_IMPLEMENTATION
 - **Estado:** COMPLETE (10/10 Runtime Test Blocks PASS in `tests/v2_administrative_runtime_tests.php`)
