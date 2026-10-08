@@ -45,14 +45,15 @@
 | **V2.6-S Parallel Comparison Physical Model** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`cd4e1aee46d9...`) |
 | **V2.6-SA Physical Model Addendum V1.1** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`451179ed195d...`) |
 | **V2.6-M Parallel Comparison Schema Implementation** | Create SQL migration files (`000005`) & 12-block schema test suite for V2.6 Parallel Comparison tables | 2026-10-07 | 12 / 12 Test Blocks PASS (`tests/v2_parallel_comparison_schema_tests.php`) |
+| **V2.6 Parallel Comparison Runtime Engine** | Implement `ParallelComparisonService` domain service & 9-block runtime test suite | 2026-10-08 | 9 / 9 Runtime Tests PASS (`tests/v2_parallel_comparison_runtime_tests.php`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER_RUNTIME
-- **Goal:** Implement domain runtime service `ParallelComparisonService` for comparing V2.5 administrative evaluations against legacy attendance snapshots under `comparación paralela sin afectar nómina`.
-- **Prerequisite Status:** V2.6 Schema Implemented (`000005`) & Schema Tests PASS.
+### Milestone: V2.7_PREPRODUCTION_HARDENING_AND_CUTOVER_READINESS
+- **Goal:** End-to-end security audits, production deployment manifests, operational telemetry hardening, and cutover sign-off.
+- **Prerequisite Status:** V2.6 Runtime Engine Implemented & Runtime Tests PASS.
 - **Target Completion:** Pending explicit task authorization.
 
 ---

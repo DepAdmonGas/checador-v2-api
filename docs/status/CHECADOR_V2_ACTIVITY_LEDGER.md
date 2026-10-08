@@ -601,3 +601,20 @@
 - **DECISIONS:** Implemented migration 000005 creating 4 parallel comparison persistence tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`) strictly following frozen specs `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` and Addendum `V1.1`. Persisted explicit FK provenance to immutable V2.5 administrative evaluations (`id_evaluacion_administrativa`), monotonic revisioning (`revision_numero`), SHA256 execution fingerprint (`fingerprint_ejecucion`) incorporating `snapshot_hash` for same-ID mutation distinction, missing-record sentinel canonicalization (`MISSING_RECORD`), 0..N legacy incidence set persistence, discrepancy evidence logging (`valor_v2`, `valor_legacy`), hard immutability database triggers (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), zero monetary/payroll fields, and clean UP/DOWN rollback cycle.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization before proceeding to V2.6 Runtime Engine Implementation.
+
+---
+
+### Entry 036
+- **DATE:** 2026-10-08
+- **ACTIVITY_ID:** `V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_RUNTIME_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_ENGINE_IMPLEMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `8a1b59a3a0d74d57292e20aea3b434f4a43a3b38`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `modelo/v2/journey/ParallelComparisonService.php`, `tests/v2_parallel_comparison_runtime_tests.php`
+- **TEST_RESULTS:** 9 / 9 Test Blocks (29 assertions) PASS (`tests/v2_parallel_comparison_runtime_tests.php`), V2.6 Schema (12/12 PASS), V2.5 Runtime (10/10 PASS), V2.5 Provenance Schema (7/7 PASS), V2.5 Incidence Schema (10/10 PASS), P2 Calculation Schema (14/14 PASS), P1 Pairing Schema (25/25 PASS), P1 Pairing Runtime (16/16 PASS), Shift Scheduling Schema (20/20 PASS), Shift Scheduling Runtime (30/30 PASS), V2 Raw Punch Ingestion (18/18 PASS), Station Alignment (9/9 PASS), Level 2 API Server (16/16 PASS).
+- **DECISIONS:** Implemented domain runtime service `ParallelComparisonService` (`modelo/v2/journey/ParallelComparisonService.php`) consuming explicit immutable V2.5 administrative evaluations (`id_evaluacion_administrativa`), reading legacy attendance/incidence tables in read-only mode, capturing immutable comparison-time attendance snapshots (`snapshot_hash`), persisting 0..N legacy incidence snapshot sets, generating Addendum V1.1 execution fingerprints (`uk_v2_comp_fingerprint`), canonicalizing missing records (`MISSING_RECORD`), executing deterministic fail-closed comparison evaluations (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`, `NOT_COMPARABLE`), persisting normalized discrepancy evidence logs, and allocating monotonic append-only comparison revisions (`revision_numero`). Ensured zero legacy mutations, zero upstream V2 mutations, zero public API exposure, and zero monetary/payroll writes.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.7 Pre-production Hardening & Cutover Readiness.

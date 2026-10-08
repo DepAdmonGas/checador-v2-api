@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_6_M_PARALLEL_COMPARISON_PHYSICAL_SCHEMA_IMPLEMENTED
+- **Current Phase:** V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_RUNTIME_COMPLETED
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -70,7 +70,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `dd4b13f94fd7e8e15ff58c43eb5e54d3f7d0be2b` (API side)
+- **Current HEAD SHA:** `8a1b59a3a0d74d57292e20aea3b434f4a43a3b38` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
 - **Worktree Status:** `CLEAN`
@@ -79,9 +79,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_6_M_LEGACY_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION`
-- **Type:** SCHEMA_IMPLEMENTATION
-- **Summary:** Implemented SQL migration `000005` (`2026_10_07_000005_create_v2_parallel_comparison_tables.sql` and rollback `2026_10_07_000005_rollback_v2_parallel_comparison_tables.sql`) creating 4 normalized parallel comparison tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`). Validated 12 test blocks / 38 physical assertions in `tests/v2_parallel_comparison_schema_tests.php` including monotonic revisioning (`uk_v2_comp_eval_revision`), database triggers (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), Addendum V1.1 same-ID mutation fingerprinting (`uk_v2_comp_fingerprint`), missing record sentinel canonicalization (`MISSING_RECORD`), 0..N legacy incidence set persistence, discrepancy detail evidence logging, zero monetary/payroll fields, and clean UP/DOWN rollback cycle. All V2.5, P2, P1, Shift, Raw Punch, Auth, Station Alignment, and Level 2 API regressions PASS (100% GREEN).
+- **Activity ID:** `V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_RUNTIME_IMPLEMENTATION`
+- **Type:** RUNTIME_ENGINE_IMPLEMENTATION
+- **Summary:** Implemented `ParallelComparisonService` domain runtime service (`modelo/v2/journey/ParallelComparisonService.php`) and 9-block / 29-assertion runtime test suite (`tests/v2_parallel_comparison_runtime_tests.php`). Consumed explicit immutable V2.5 administrative evaluations (`id_evaluacion_administrativa`), read legacy attendance/incidence tables in read-only mode, captured immutable comparison-time attendance snapshots (`snapshot_hash`), persisted 0..N legacy incidence snapshot sets, generated Addendum V1.1 execution fingerprints (`uk_v2_comp_fingerprint`), canonicalized missing records (`MISSING_RECORD`), executed deterministic fail-closed comparison evaluations (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`, `NOT_COMPARABLE`), persisted normalized discrepancy evidence logs, and allocated monotonic append-only comparison revisions (`revision_numero`). Ensured zero legacy mutations, zero upstream V2 mutations, zero public API exposure, and zero monetary/payroll writes. All 13 test suites / regressions PASS (100% GREEN).
 
 ---
 
