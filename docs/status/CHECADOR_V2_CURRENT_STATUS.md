@@ -18,9 +18,9 @@ DELIVERY_ROADMAP_SHA256: <sha256 of docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md>
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
-CURRENT_PHASE: V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_FROZEN
-LAST_COMPLETED_ACTIVITY: V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY
-CURRENT_ACTIVE_MILESTONE: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER_PHYSICAL_MODEL_DESIGN
+CURRENT_PHASE: V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_FROZEN
+LAST_COMPLETED_ACTIVITY: V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_DESIGN
+CURRENT_ACTIVE_MILESTONE: V2.6_M_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_FROZEN
+- **Current Phase:** V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -48,7 +48,8 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 - **Administrative Incidences Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `94f91abf6d0ddeee641c736159b922debbadad5fb60db91da1d26827dfac6b7d`)
 - **Administrative Incidences Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `9bbffb34e736fea1cd9dfb433bb1cc1168051af410f34d041fa4bc8ddf6ec29a`)
 - **Administrative Incidences Physical Model V1.1 Addendum Status:** FROZEN_V1.1 (SHA256: `13c624213b9fdd2cad733d802f823e31e8dc287142173f4b80935802dcf670c1`)
-- **Parallel Comparison Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`)
+- **Parallel Comparison Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `d21a59d79de7fbcca12fe1c43b1b398f9e3bbae9b54e8ef972f0fceacf50bacb`)
+- **Parallel Comparison Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `def2bc34d445c3eb0677a71e9eaefe978cc1c0f2892c8a16516e45df192b6a37`)
 
 
 
@@ -110,6 +111,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **Administrative Provenance Additive Schema (V2.5-MA)** | IMPLEMENTED | SQL migrations 000004 created and validated via 7/7 schema tests. |
 | **Administrative Evaluation Runtime (V2.5)** | OPERATIONAL | Domain service `AdministrativeEvaluationService` and 10/10 runtime tests PASS (`tests/v2_administrative_runtime_tests.php`). |
 | **Parallel Comparison Contract (V2.6)** | FROZEN V1.0 | Formally frozen comparison contract (`docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md`). |
+| **Parallel Comparison Physical Model (V2.6-S)** | FROZEN V1.0 | Formally frozen comparison physical data model (`docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md`). |
 | **Lector Baseline** | COMPLETE / FROZEN | AUTH-3 CLOSED, AUTH-4 CLOSED/VERIFIED. Lector is NOT active development track. |
 | **Portal3 Client Integration** | SUSPENDED | Portal3 is not a runtime consumer required for Lector operation. |
 | **AUTH-4 Cross-Project E2E** | CLOSED / VERIFIED | All 20 E2E scenarios validated. Evidence report consolidated. |

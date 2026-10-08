@@ -41,23 +41,24 @@
 | **V2.5-SA Provenance Addendum** | Design & freeze `CHECADOR_V2_ADMINISTRATIVE_INCIDENCES_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`13c624213b9f...`) |
 | **V2.5-MA Provenance Schema Implementation** | Create SQL migration files for Addendum V1.1 (`000004`) & 44-invariant test suite | 2026-10-07 | 7 / 7 Schema Tests PASS (`tests/v2_administrative_provenance_schema_tests.php`) |
 | **V2.5 Administrative Evaluation Runtime** | Implement `AdministrativeEvaluationService` domain service & 10-block runtime test suite | 2026-10-07 | 10 / 10 Runtime Tests PASS (`tests/v2_administrative_runtime_tests.php`) |
-| **V2.6 Parallel Comparison Contract** | Design & freeze `CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`1e9ec3783b29...`) |
+| **V2.6 Parallel Comparison Contract** | Design & freeze `CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`d21a59d79de7...`) |
+| **V2.6-S Parallel Comparison Physical Model** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` (FROZEN_V1.0) | 2026-10-07 | FROZEN V1.0 (`def2bc34d445...`) |
 
 ---
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER_PHYSICAL_MODEL_DESIGN
-- **Goal:** Design physical persistence data model (`CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md`) for parallel comparison records and discrepancy revision logging prior to SQL migration implementation.
-- **Prerequisite Status:** V2.6 Contract Spec FROZEN_V1.0 (`1e9ec3783b29...`).
+### Milestone: V2.6_M_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_SCHEMA_IMPLEMENTATION
+- **Goal:** Create SQL migration files (`000005`) and 40-scenario schema test suite for V2.6 Parallel Comparison tables (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`).
+- **Prerequisite Status:** V2.6 Physical Model Spec FROZEN_V1.0 (`def2bc34d445...`).
 - **Target Completion:** Pending explicit task authorization.
 
 ---
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.6-S — Legacy & Payroll Parallel Comparison Physical Model Design:**
-   - Physical DDL specification and discrepancy revision schema design.
+1. **V2.6-M — Legacy & Payroll Parallel Comparison Schema Implementation:**
+   - Create SQL migration files & 40-scenario schema test suite for V2.6 Parallel Comparison tables.
 2. **V2.7 — Pre-production Hardening & Cutover Readiness:**
    - End-to-end security audits, production deployment manifests, and final sign-off.
 

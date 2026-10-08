@@ -550,3 +550,20 @@
 - **DECISIONS:** Designed and formally froze contract specification `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` as FROZEN_V1.0. Defined parallel comparison engine boundary comparing V2.5 administrative evaluations (`op_rh_v2_evaluaciones_administrativas`) against legacy attendance records (`op_rh_personal_asistencia`, `op_rh_personal_asistencia_incidencia`) under strict `comparación paralela sin afectar nómina` rules. Enforced zero payroll monetary calculations, zero legacy database mutation, zero public API exposure, zero Lector/Portal3 code modifications, fail-closed handling for missing/incomplete data (`LEVEL2_INCOMPLETE`, `PAIRING_AMBIGUOUS`), deterministic discrepancy categorization (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `OVERTIME_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`), explicit evaluation revision linkage, and SHA256 comparison execution fingerprints. Determined that V2.6 requires physical database model design prior to schema implementation (`NEW_SCHEMA_REQUIRED: YES`).
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** V2.6-S Legacy & Payroll Parallel Comparison Adapter Physical Schema Design & Conditional Freeze.
+
+---
+
+### Entry 033
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_DESIGN`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_DESIGN
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `4b06106227067b702dac87de4e85db11afaf6081`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` (SHA256: `def2bc34d445c3eb0677a71e9eaefe978cc1c0f2892c8a16516e45df192b6a37`)
+- **TEST_RESULTS:** N/A (Physical Model Design & Freeze)
+- **DECISIONS:** Designed and formally froze physical persistence model `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 4-table storage architecture (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`). Established historical reproducibility doctrine: because legacy rows (`op_rh_personal_asistencia`) can be modified, V2.6 persists an immutable comparison-time normalized snapshot of all consumed legacy attendance fields and legacy incidence sets (`op_rh_v2_comparaciones_legacy_incidencias`). Enforced append-only comparison revisioning (`uk_v2_comp_eval_revision`), database triggers blocking header UPDATE/DELETE operations (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), explicit V2.5 administrative evaluation revision FK provenance (`id_evaluacion_administrativa`), SHA256 execution fingerprints (`uk_v2_comp_fingerprint`), normalized value-level discrepancy evidence logging (`valor_v2`, `valor_legacy`), explicit missing-record presence provenance (`MISSING_RECORD`), zero monetary/payroll columns, `ON DELETE RESTRICT` delete safety across all V2 FKs, and proposed DDL with future 40-scenario schema test matrix.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** Await project owner authorization before proceeding to V2.6-M Legacy & Payroll Parallel Comparison Schema Implementation.

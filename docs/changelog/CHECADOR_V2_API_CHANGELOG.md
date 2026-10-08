@@ -1,5 +1,18 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-10-07 — V2.6-S Legacy & Payroll Parallel Comparison Physical Model Design
+- **Activity:** V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_DESIGN
+- **Estado:** COMPLETE (FROZEN_V1.0 en `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md`, SHA256: `def2bc34d445c3eb0677a71e9eaefe978cc1c0f2892c8a16516e45df192b6a37`)
+- **Documentación Creada:**
+  - `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md`: Especificación del diseño de modelo físico para persistencia aditiva de comparaciones en 4 tablas (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`) con capturas de fotos históricas inmutables de registros de asistencia e incidencias legacy.
+- **Invariantes Garantizadas:**
+  - Cero código PHP, SQL o archivos de migración creados o ejecutados.
+  - Cero modificaciones a tablas físicas legacy (`op_rh_personal_asistencia`).
+  - Cero campos de montos pagables, salario o aprobación de tiempo extra incluidos.
+  - Cero alteración a marcaciones crudas, turnos programados, pareos P1, cálculos P2 o evaluaciones V2.5.
+
+---
+
 ## 2026-10-07 — V2.6 Legacy & Payroll Parallel Comparison Adapter Contract Freeze
 - **Activity:** V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY
 - **Estado:** COMPLETE (FROZEN_V1.0 en `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md`, SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`)
