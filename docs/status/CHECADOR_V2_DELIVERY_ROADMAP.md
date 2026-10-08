@@ -46,8 +46,8 @@
 
 ## 2. CURRENT ACTIVE MILESTONE
 
-### Milestone: V2.6_LEGACY_AND_PAYROLL_SHADOW_ADAPTER
-- **Goal:** Implement payroll shadow mode comparison adapter comparing V2 Motor outcomes with legacy attendance conclusions without modifying legacy tables or payroll rules.
+### Milestone: V2.6_LEGACY_AND_PAYROLL_PARALLEL_COMPARISON_ADAPTER
+- **Goal:** Implement payroll parallel comparison adapter comparing V2 Motor outcomes with legacy attendance conclusions without modifying legacy tables or payroll rules (comparación paralela sin afectar nómina).
 - **Prerequisite Status:** V2.5 Administrative Evaluation Runtime COMPLETE.
 - **Target Completion:** Pending explicit task authorization.
 
@@ -55,8 +55,8 @@
 
 ## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.6 — Payroll Adapter & Shadow Mode Parity Validation:**
-   - Statistical shadow mode comparison between legacy attendance conclusions and V2 Motor results prior to payroll cutover.
+1. **V2.6 — Legacy & Payroll Parallel Comparison Adapter:**
+   - Statistical comparación paralela sin afectar nómina comparison between legacy attendance conclusions and V2 Motor results prior to payroll cutover.
 2. **V2.7 — Pre-production Hardening & Cutover Readiness:**
    - End-to-end security audits, production deployment manifests, and final sign-off.
 
@@ -64,7 +64,7 @@
 
 ## 4. PRE-PRODUCTION & KNOWN RISKS LEDGER
 
-- **F-01 (Legacy Offline Queue):** DEFERRED / KNOWN LEGACY LIMITATION. Legacy attendance flow lacks local durable queue. Not a blocker for V2 shadow mode.
+- **F-01 (Legacy Offline Queue):** DEFERRED / KNOWN LEGACY LIMITATION. Legacy attendance flow lacks local durable queue. Not a blocker for V2 comparación paralela sin afectar nómina.
 - **F-02 (Cold-Start Offline Login):** PREPRODUCTION RESILIENCE. Lector cold-start while offline cannot call `GET /acceso-empresa`. Deferred to pre-production resilience review.
 - **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE (`61e942f55ef5...`). Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
 - **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Deferred to pre-production security review.

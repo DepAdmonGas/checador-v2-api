@@ -19,7 +19,7 @@
   - **G4A/G4B/G4C/G4D Authorized Read API:** `GET /api/v2/punch-events` with dynamic integrity status, `biometricos.leer` ACL, fresh station scope, pagination max 200, default 30 days, maximum 31 days UTC window (`400 DATE_RANGE_TOO_LARGE`) (11/11 Read API Tests PASS)
 - **End-to-End Real Integration Test:** PASS
 - **HTTP Routing:** RESOLVED (8 V2 endpoints routed under `/api/v2`)
-- **Shadow Mode:** ACTIVE
+- **Comparación Paralela sin Afectar Nómina:** ACTIVE
 - **Legacy Systems Replaced:** NO (op_rh_personal, op_rh_personal_asistencia intact)
 - **Motor de Jornada V2 & Incidencias:** NOT_STARTED (Next Phase: Portal3 Daily Journey & Incidents)
 - **Payroll Cutover:** NOT_STARTED
@@ -85,7 +85,7 @@
 
 | Component | Status | Test Coverage | Operational Mode |
 | :--- | :--- | :--- | :--- |
-| **API Raw Ingestion Endpoint (`POST /punch-events`)** | COMPLETE | 18 / 18 PASS | Shadow Mode + HMAC Seal |
+| **API Raw Ingestion Endpoint (`POST /punch-events`)** | COMPLETE | 18 / 18 PASS | Comparación Paralela sin Afectar Nómina + HMAC Seal |
 | **Raw Punch Read Endpoint (`GET /punch-events`)** | COMPLETE | 11 / 11 PASS | Supervisor JWT + Dynamic Integrity |
 | **Raw Punch Integrity Service** | COMPLETE | 16 / 16 PASS | Canonical HMAC-SHA256 |
 | **Append-Only DB Hardening (Triggers)** | COMPLETE | 11 / 11 PASS | Database-Enforced Append-Only |
