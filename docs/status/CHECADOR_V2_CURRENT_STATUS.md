@@ -36,7 +36,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 2. CURRENT PHASE & ARCHITECTURE SUMMARY
 
-- **Current Phase:** V2_6_S_LEGACY_PAYROLL_PARALLEL_COMPARISON_PHYSICAL_MODEL_FROZEN
+- **Current Phase:** V2_6_SA_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_FROZEN
 - **Target Project Completion Date:** 2026-12-31
 - **Architecture Freeze V1.0 Status:** FROZEN (SHA256: `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`)
 - **Shift Model Physical Spec V1.0 Status:** FROZEN (SHA256: `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`)
@@ -49,9 +49,10 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 - **Administrative Incidences Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `9bbffb34e736fea1cd9dfb433bb1cc1168051af410f34d041fa4bc8ddf6ec29a`)
 - **Administrative Incidences Physical Model V1.1 Addendum Status:** FROZEN_V1.1 (SHA256: `13c624213b9fdd2cad733d802f823e31e8dc287142173f4b80935802dcf670c1`)
 - **Parallel Comparison Contract Spec V1.0 Status:** FROZEN_V1.0 (SHA256: `d21a59d79de7fbcca12fe1c43b1b398f9e3bbae9b54e8ef972f0fceacf50bacb`)
-- **Parallel Comparison Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `def2bc34d445c3eb0677a71e9eaefe978cc1c0f2892c8a16516e45df192b6a37`)
+- **Parallel Comparison Physical Model V1.0 Status:** FROZEN_V1.0 (SHA256: `cd4e1aee46d9a0f5aa8c5bd175b8ff41aae731e08ed77de144d21e4b013b763f`)
+- **Parallel Comparison Physical Model V1.1 Addendum Status:** FROZEN_V1.1 (SHA256: `451179ed195d6e8f7970f8cf5cb01c6a2a432e07b90f245d338e63197cfa6f66`)
 
-
+---
 
 ### Operational Architecture Principles:
 1. **Lector Autonomy:** Portal3 is NOT required for physical Lector runtime operations. Lector has its own operational login (`GET /acceso-empresa`), maintains its own active station session, and operates independently.
@@ -69,18 +70,18 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 - **Project Path:** `/home/silvinol/Proyectos/portal-api-v.1.0.1`
 - **Branch:** `feature/api-level2-server`
-- **Current HEAD SHA:** `c21a8d69fca16933845ee046c46783164b4f35c1` (API side)
+- **Current HEAD SHA:** `40d505241a5d52c043a07135c7907ff7b4d9114d` (API side)
 - **Git Local:** `YES`
 - **Git Remote Configured:** `NO` (Local commits only; push not performed)
-- **Worktree Status:** `MODIFIED_FILES_PENDING_COMMIT`
+- **Worktree Status:** `CLEAN`
 
 ---
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `V2_6_LEGACY_PAYROLL_PARALLEL_COMPARISON_CONTRACT_DISCOVERY`
-- **Type:** DOMAIN_CONTRACT_DESIGN
-- **Summary:** Formally froze contract specification `docs/v2/CHECADOR_V2_LEGACY_PAYROLL_PARALLEL_COMPARISON_ADAPTER_CONTRACT_V1.0.md` (SHA256: `1e9ec3783b29b09116179168cb45695bf56330ac306bf9cdac81aef49bf09917`) as FROZEN_V1.0. Defined parallel comparison engine boundary comparing V2.5 administrative evaluations (`op_rh_v2_evaluaciones_administrativas`) against legacy attendance records (`op_rh_personal_asistencia`, `op_rh_personal_asistencia_incidencia`) under strict `comparación paralela sin afectar nómina` rules. Enforced zero payroll monetary calculations, zero legacy database mutation, zero public API exposure, zero Lector/Portal3 code modifications, fail-closed handling for missing/incomplete data (`LEVEL2_INCOMPLETE`, `PAIRING_AMBIGUOUS`), deterministic discrepancy categorization (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `OVERTIME_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`), explicit evaluation revision linkage, and SHA256 comparison execution fingerprints. Determined that V2.6 requires physical database model design prior to schema implementation (`NEW_SCHEMA_REQUIRED: YES`).
+- **Activity ID:** `V2_6_SA_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM`
+- **Type:** DOMAIN_PHYSICAL_MODEL_ADDENDUM
+- **Summary:** Formally created and froze physical model addendum `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (SHA256: `451179ed195d6e8f7970f8cf5cb01c6a2a432e07b90f245d338e63197cfa6f66`) as FROZEN_V1.1. Remediated fingerprint collision defect identified in V2.6-SC by embedding captured attendance snapshot hash identity (`snapshot_hash`) into `fingerprint_ejecucion` formula (`hash('sha256', "{$idEvaluacionAdmin}:{$legacyPresenceState}:{$legacyAttendanceSnapshotHash}:{$sortedLegacyIncidenceSnapshotHashes}:{$algorithmVersion}:{$policyVersion}")`). Ensured that mutations of identical legacy source record IDs yield distinct comparison execution fingerprints, enabling multi-revision append-only history. Preserved frozen V1.0 physical tables DDL structure (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`), contract V1.0, and zero-monetary boundaries. V2.6-M is now ready.
 
 ---
 

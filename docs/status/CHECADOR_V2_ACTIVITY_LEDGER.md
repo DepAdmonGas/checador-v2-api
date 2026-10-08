@@ -567,3 +567,20 @@
 - **DECISIONS:** Designed and formally froze physical persistence model `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_V1.0.md` as FROZEN_V1.0. Specified normalized 4-table storage architecture (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`). Established historical reproducibility doctrine: because legacy rows (`op_rh_personal_asistencia`) can be modified, V2.6 persists an immutable comparison-time normalized snapshot of all consumed legacy attendance fields and legacy incidence sets (`op_rh_v2_comparaciones_legacy_incidencias`). Enforced append-only comparison revisioning (`uk_v2_comp_eval_revision`), database triggers blocking header UPDATE/DELETE operations (`tg_op_rh_v2_comparaciones_encabezado_no_update`, `tg_op_rh_v2_comparaciones_encabezado_no_delete`), explicit V2.5 administrative evaluation revision FK provenance (`id_evaluacion_administrativa`), SHA256 execution fingerprints (`uk_v2_comp_fingerprint`), normalized value-level discrepancy evidence logging (`valor_v2`, `valor_legacy`), explicit missing-record presence provenance (`MISSING_RECORD`), zero monetary/payroll columns, `ON DELETE RESTRICT` delete safety across all V2 FKs, and proposed DDL with future 40-scenario schema test matrix.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization before proceeding to V2.6-M Legacy & Payroll Parallel Comparison Schema Implementation.
+
+---
+
+### Entry 034
+- **DATE:** 2026-10-07
+- **ACTIVITY_ID:** `V2_6_SA_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM`
+- **PROJECT:** Checador API
+- **TYPE:** PHYSICAL_MODEL_ADDENDUM
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `40d505241a5d52c043a07135c7907ff7b4d9114d`
+- **FINAL_HEAD:** Pending commit
+- **COMMIT:** Pending commit
+- **ARTIFACTS:** `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (SHA256: `451179ed195d6e8f7970f8cf5cb01c6a2a432e07b90f245d338e63197cfa6f66`)
+- **TEST_RESULTS:** N/A (Physical Model Addendum Design & Freeze)
+- **DECISIONS:** Created and formally froze physical model addendum `docs/architecture/CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` as FROZEN_V1.1. Remediated fingerprint collision defect identified in V2.6-SC by embedding captured attendance snapshot hash identity (`snapshot_hash`) into `fingerprint_ejecucion` formula (`hash('sha256', "{$idEvaluacionAdmin}:{$legacyPresenceState}:{$legacyAttendanceSnapshotHash}:{$sortedLegacyIncidenceSnapshotHashes}:{$algorithmVersion}:{$policyVersion}")`). Ensured that mutations of identical legacy source record IDs yield distinct comparison execution fingerprints, enabling multi-revision append-only history. Preserved frozen V1.0 physical tables DDL structure (`op_rh_v2_comparaciones_encabezado`, `op_rh_v2_comparaciones_legacy_capturas`, `op_rh_v2_comparaciones_legacy_incidencias`, `op_rh_v2_comparaciones_discrepancias`), contract V1.0, and zero-monetary boundaries. V2.6-M is now ready.
+- **BLOCKERS:** NONE
+- **NEXT_STEP:** V2.6-M Legacy & Payroll Parallel Comparison Schema Implementation.
