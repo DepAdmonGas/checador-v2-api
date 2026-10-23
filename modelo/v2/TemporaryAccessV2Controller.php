@@ -29,12 +29,36 @@ class TemporaryAccessV2Controller {
         $idDispositivo = $deviceAuth['id_dispositivo'];
         $idEstacionResuelta = $deviceAuth['id_estacion'];
 
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') === false) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(415, array('code' => 415, 'status' => 'UNSUPPORTED_MEDIA_TYPE', 'message' => 'Content-Type debe ser application/json.'));
+            return;
+        }
+
         $inputRaw = file_get_contents('php://input');
         $body = json_decode($inputRaw, true);
+        if (!is_array($body)) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'BAD_REQUEST', 'message' => 'Cuerpo de solicitud JSON inválido o malformado.'));
+            return;
+        }
 
         $requestUuid = $body['request_uuid'] ?? '';
         $refExternaPersonal = $body['external_worker_reference'] ?? ($body['referencia_externa_personal'] ?? '');
         $reason = $body['reason'] ?? 'FINGERPRINT_NOT_RECOGNIZED';
+
+        if (strlen((string)$refExternaPersonal) > 64) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'BAD_REQUEST', 'message' => 'external_worker_reference excede el máximo permitido de 64 caracteres.'));
+            return;
+        }
+
+        if (strlen((string)$reason) > 100) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'BAD_REQUEST', 'message' => 'reason excede el máximo permitido de 100 caracteres.'));
+            return;
+        }
 
         if (!$this->validateUuidV4($requestUuid)) {
             $this->closeConexion($conexion);
@@ -187,12 +211,30 @@ class TemporaryAccessV2Controller {
         $idDispositivo = $deviceAuth['id_dispositivo'];
         $idEstacionResuelta = $deviceAuth['id_estacion'];
 
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') === false) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(415, array('code' => 415, 'status' => 'UNSUPPORTED_MEDIA_TYPE', 'message' => 'Content-Type debe ser application/json.'));
+            return;
+        }
+
         $inputRaw = file_get_contents('php://input');
         $body = json_decode($inputRaw, true);
+        if (!is_array($body)) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'BAD_REQUEST', 'message' => 'Cuerpo de solicitud JSON inválido o malformado.'));
+            return;
+        }
 
         $refExternaPersonal = $body['external_worker_reference'] ?? ($body['referencia_externa_personal'] ?? '');
         $temporaryPin = $body['temporary_pin'] ?? ($body['pin_code'] ?? '');
         $validationUuid = $body['validation_uuid'] ?? '';
+
+        if (strlen((string)$refExternaPersonal) > 64) {
+            $this->closeConexion($conexion);
+            $this->sendJsonResponse(400, array('code' => 400, 'status' => 'BAD_REQUEST', 'message' => 'external_worker_reference excede el máximo permitido de 64 caracteres.'));
+            return;
+        }
 
         if (!$this->validateUuidV4($validationUuid)) {
             $this->closeConexion($conexion);

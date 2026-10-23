@@ -1,3 +1,17 @@
+<?php
+http_response_code(404);
+
+global $partes_ruta;
+if (isset($partes_ruta[1], $partes_ruta[2]) && $partes_ruta[1] === 'api' && $partes_ruta[2] === 'v2') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        "code" => 404,
+        "status" => "NOT_FOUND",
+        "mensaje" => "Ruta no encontrada."
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+?>
 <html lang="es">
   <head>
   <meta charset="utf-8">

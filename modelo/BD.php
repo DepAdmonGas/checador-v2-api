@@ -6,10 +6,23 @@ class BD
     function conectarBD()
     {
 
-        $server = getenv('DB_HOST') ? getenv('DB_HOST') : "localhost";
-        $user = getenv('DB_USER') ? getenv('DB_USER') : "root";
-        $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : "kimera";
-        $bd = getenv('DB_NAME') ? getenv('DB_NAME') : "bd_admongas";
+        $server = getenv('DB_HOST');
+        $user = getenv('DB_USER');
+        $pass = getenv('DB_PASS');
+        $bd = getenv('DB_NAME');
+
+        if ($server === false || $server === '') {
+            throw new RuntimeException("Database configuration error: DB_HOST is required and not set.");
+        }
+        if ($user === false || $user === '') {
+            throw new RuntimeException("Database configuration error: DB_USER is required and not set.");
+        }
+        if ($pass === false) {
+            throw new RuntimeException("Database configuration error: DB_PASS is required and not set.");
+        }
+        if ($bd === false || $bd === '') {
+            throw new RuntimeException("Database configuration error: DB_NAME is required and not set.");
+        }
 
         $con = mysqli_connect($server, $user, $pass, $bd);
 

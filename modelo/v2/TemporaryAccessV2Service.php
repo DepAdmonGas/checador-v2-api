@@ -125,7 +125,7 @@ class TemporaryAccessV2Service {
                 'success' => false,
                 'code' => 500,
                 'status' => 'INTERNAL_ERROR',
-                'message' => 'Error transaccional al registrar solicitud: ' . $e->getMessage()
+                'message' => 'Error transaccional al registrar solicitud.'
             );
         }
     }
@@ -250,7 +250,7 @@ class TemporaryAccessV2Service {
             );
         } catch (Exception $e) {
             mysqli_rollback($conexion);
-            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error al autorizar: ' . $e->getMessage());
+            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error transaccional al autorizar la solicitud.');
         }
     }
 
@@ -316,7 +316,7 @@ class TemporaryAccessV2Service {
             );
         } catch (Exception $e) {
             mysqli_rollback($conexion);
-            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error al rechazar: ' . $e->getMessage());
+            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error transaccional al rechazar la solicitud.');
         }
     }
 
@@ -377,7 +377,7 @@ class TemporaryAccessV2Service {
             );
         } catch (Exception $e) {
             mysqli_rollback($conexion);
-            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error al cancelar: ' . $e->getMessage());
+            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error transaccional al cancelar la solicitud.');
         }
     }
 
@@ -535,7 +535,7 @@ class TemporaryAccessV2Service {
             );
         } catch (Exception $e) {
             mysqli_rollback($conexion);
-            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error transaccional al validar PIN: ' . $e->getMessage());
+            return array('success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'message' => 'Error transaccional al validar PIN temporal.');
         }
     }
 
