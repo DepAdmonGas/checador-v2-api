@@ -95,20 +95,22 @@ try {
 
     // Insertar datos de autorización y mapeo de estación a localidad
     $conexion->query("INSERT IGNORE INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (999, 'user_snap_999', 1, 10, 0)");
-    $conexion->query("DELETE FROM modulos_dpto_operativo WHERE clave = 'acceso-temporal' OR id = 20");
-    $conexion->query("INSERT INTO modulos_dpto_operativo (id, nombre, clave, activo) VALUES (20, 'Acceso Temporal', 'acceso-temporal', 1)");
+    $conexion->query("DELETE FROM modulos_dpto_operativo WHERE clave IN ('acceso-temporal', 'biometricos') OR id IN (15, 20)");
+    $conexion->query("INSERT INTO modulos_dpto_operativo (id, nombre, clave, activo) VALUES (20, 'Acceso Temporal', 'acceso-temporal', 1), (15, 'Biométricos', 'biometricos', 1)");
     $conexion->query("DELETE FROM modulos_usuarios_do WHERE id_usuario = 999");
-    $conexion->query("INSERT INTO modulos_usuarios_do (id_modulo, id_usuario, leer, crear, editar, eliminar, descargar) VALUES (20, 999, 1, 1, 1, 1, 1)");
-    $conexion->query("DELETE FROM tb_modulos_config WHERE id = 20 OR modulo_key = 'acceso-temporal'");
-    $conexion->query("INSERT INTO tb_modulos_config (id, modulo_key, estaciones_soportadas, tipo_departamento, activo) VALUES (20, 'acceso-temporal', '[1,2,15]', 'localidades', 1)");
+    $conexion->query("INSERT INTO modulos_usuarios_do (id_modulo, id_usuario, leer, crear, editar, eliminar, descargar) VALUES (20, 999, 1, 1, 1, 1, 1), (15, 999, 1, 0, 0, 0, 0)");
+    $conexion->query("DELETE FROM tb_modulos_config WHERE id IN (15, 20) OR modulo_key IN ('acceso-temporal', 'biometricos')");
+    $conexion->query("INSERT INTO tb_modulos_config (id, modulo_key, estaciones_soportadas, tipo_departamento, activo) VALUES (20, 'acceso-temporal', '[1,2,15]', 'localidades', 1), (15, 'biometricos', '[1,2,15]', 'localidades', 1)");
     
     // Configurar tb_estaciones y op_rh_localidades para que Portal3JwtAuthHelper::resolveStationScope mapée numlista 1:1
+    $conexion->query("SET FOREIGN_KEY_CHECKS = 0");
     $conexion->query("DELETE FROM tb_estaciones WHERE id IN (1,2,15)");
     $conexion->query("INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (1, 1, 0), (2, 2, 0), (15, 15, 0)");
     $conexion->query("DELETE FROM op_rh_localidades WHERE id IN (1,2,15)");
-    $conexion->query("INSERT INTO op_rh_localidades (id, numlista) VALUES (1, 1), (2, 2), (15, 15)");
+    $conexion->query("INSERT INTO op_rh_localidades (id, numlista, localidad, recuperacion_vapores) VALUES (1, 1, 'Loc 1', 'NO'), (2, 2, 'Loc 2', 'NO'), (15, 15, 'Loc 15', 'NO')");
     $conexion->query("DELETE FROM tb_multiestacion_usuario WHERE id_usuario = 999");
     $conexion->query("INSERT INTO tb_multiestacion_usuario (id_usuario, estaciones, activo) VALUES (999, '[1,2,15]', 1)");
+    $conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
     // Insertar marcaciones crudas de prueba con campos completos
     $conexion->query("INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, referencia_externa_personal, id_personal_resuelto, source_timestamp_raw, source_timezone_reported, effective_timezone, timezone_fallback_applied, ocurrido_at_utc, recibido_at_utc, metodo_captura, external_event_id, secuencia_dispositivo, processing_status, validation_flags, metadata_json) VALUES 
@@ -123,6 +125,7 @@ try {
 
     $_SERVER['HTTP_AUTHORIZATION'] = $authHeader;
     $_SERVER['HTTP_IDEMPOTENCY_KEY'] = 'idem-test-uuid-001';
+    $_SERVER['CONTENT_TYPE'] = 'application/json';
 
     $_POST = [];
     $inputData = json_encode([
@@ -294,7 +297,6 @@ try {
     // 10. Test de Migración DOWN (Rollback seguro)
     $conexion->query("DROP TRIGGER IF EXISTS tg_op_rh_v2_marcaciones_crudas_no_update");
     $conexion->query("DROP TRIGGER IF EXISTS tg_op_rh_v2_marcaciones_crudas_no_delete");
-    $conexion->query("DELETE FROM op_rh_v2_marcaciones_crudas WHERE event_uuid LIKE 'ev-snap-%'");
     $conexion->query("DELETE FROM tb_usuarios WHERE id IN (888, 999)");
     $conexion->query("DELETE FROM modulos_usuarios_do WHERE id_usuario IN (888, 999)");
     $conexion->query("DELETE FROM tb_multiestacion_usuario WHERE id_usuario IN (888, 999)");
@@ -302,6 +304,8 @@ try {
     $sqlDown = file_get_contents(__DIR__ . "/../migraciones/v2/2026_10_05_000001_rollback_v2_read_snapshot_tables.sql");
     $conexion->multi_query($sqlDown);
     while ($conexion->more_results() && $conexion->next_result()) { ; }
+
+    $conexion->query("DELETE FROM op_rh_v2_marcaciones_crudas WHERE event_uuid LIKE 'ev-snap-%'");
 
     $resTablesRollback = $conexion->query("SHOW TABLES LIKE 'op_rh_v2_read_snapshots'");
     assertTest($resTablesRollback && $resTablesRollback->num_rows === 0, "Migración DOWN eliminó la tabla op_rh_v2_read_snapshots", $failCount, $passCount);

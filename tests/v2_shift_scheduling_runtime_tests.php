@@ -38,6 +38,7 @@ $downFile = __DIR__ . '/../migraciones/v2/2026_10_06_000001_rollback_v2_shift_sc
 test_log("=== Starting V2.3-A05 Shift Scheduling Runtime Test Suite ===");
 
 // Reset database tables using migration scripts
+$db->query("SET FOREIGN_KEY_CHECKS = 0");
 $calcDownFile = __DIR__ . '/../migraciones/v2/2026_10_07_000002_rollback_v2_journey_calculation_tables.sql';
 if (file_exists($calcDownFile)) {
     try {
@@ -52,6 +53,7 @@ if (file_exists($pairingDownFile)) {
 }
 run_sql_file($db, $downFile);
 run_sql_file($db, $upFile);
+$db->query("SET FOREIGN_KEY_CHECKS = 1");
 
 $passCount = 0;
 $failCount = 0;
@@ -276,7 +278,7 @@ try {
     assertTest($countBefore === $countAfter, 'T21', 'Schedule resolution is pure read-only with no write side-effects');
 
     // T22: Workplace Timezone Authority
-    $tz = $resService->getWorkplaceTimezone(10);
+    $tz = $resService->getWorkplaceTimezone(10, '2026-12-07');
     assertTest(!empty($tz), 'T22', 'Workplace canonical timezone resolved');
 
     // T23: Night Shift UTC Conversion

@@ -42,11 +42,13 @@ class TemporaryAccessV2StrictTestSuite {
     }
 
     public function setupTestData() {
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 0");
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_10_01_000001_rollback_v2_temporary_access_tables.sql');
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_rollback_v2_raw_punch_tables.sql');
 
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_09_28_000001_create_v2_raw_punch_tables.sql');
         $this->execSqlFile(__DIR__ . '/../migraciones/v2/2026_10_01_000001_create_v2_temporary_access_tables.sql');
+        mysqli_query($this->conexion, "SET FOREIGN_KEY_CHECKS = 1");
 
         // Dispositivo Estación 1
         $sqlDisp1 = "INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado)

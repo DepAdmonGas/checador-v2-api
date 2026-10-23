@@ -70,12 +70,32 @@ class SecL03FakeConnection {
             return [];
         }
         if (strpos($sql, 'FROM tb_estaciones') !== false) {
+            if (strpos($sql, 'numlista = ?') !== false) {
+                $matched = [];
+                foreach ($d['stations'] ?? [] as $row) {
+                    if ((int) ($row['numlista'] ?? 0) === (int) $params[0] && (int) ($row['estatus'] ?? 0) === 0) {
+                        $matched[] = $row;
+                    }
+                }
+                if (strpos($sql, 'COUNT(*)') !== false) {
+                    return [['cnt' => count($matched)]];
+                }
+                return $matched;
+            }
             foreach ($d['stations'] ?? [] as $row) if ((int) $row['id'] === (int) $params[0] && (int) $row['estatus'] === 0) return [$row];
             return [];
         }
         if (strpos($sql, 'FROM op_rh_localidades') !== false) {
-            foreach ($d['localities'] ?? [] as $row) if ((int) $row['numlista'] === (int) $params[0]) return [$row];
-            return [];
+            $matched = [];
+            foreach ($d['localities'] ?? [] as $row) {
+                if ((int) ($row['numlista'] ?? 0) === (int) $params[0]) {
+                    $matched[] = $row;
+                }
+            }
+            if (strpos($sql, 'COUNT(*)') !== false) {
+                return [['cnt' => count($matched)]];
+            }
+            return $matched;
         }
         throw new RuntimeException('Unexpected query in test fixture: ' . $sql);
     }
