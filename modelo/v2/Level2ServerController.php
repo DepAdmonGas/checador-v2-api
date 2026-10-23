@@ -19,7 +19,7 @@ class Level2ServerController {
             $secret = trim($matches[1]);
         }
 
-        if (empty($deviceIdHeader) || empty($credentialKeyHeader) || empty($secret)) {
+        if (trim((string)$deviceIdHeader) === '' || trim((string)$credentialKeyHeader) === '' || $secret === '') {
             http_response_code(401);
             echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Credenciales de dispositivo ausentes."), JSON_UNESCAPED_UNICODE);
             return;
@@ -34,14 +34,29 @@ class Level2ServerController {
         if (!$authResult['auth']) {
             $classBD->desconectarBD($conexion);
             http_response_code(401);
-            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Autenticación de dispositivo fallida."), JSON_UNESCAPED_UNICODE);
+            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Autenticación de dispositivo fallida.", "error_detail" => $authResult['error']), JSON_UNESCAPED_UNICODE);
             return;
         }
 
         $idDispositivo = (int)$authResult['id_dispositivo'];
 
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') === false) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(415);
+            echo json_encode(array("code" => 415, "status" => "UNSUPPORTED_MEDIA_TYPE", "mensaje" => "Content-Type debe ser application/json."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
         $inputRaw = file_get_contents('php://input');
         $body = json_decode($inputRaw, true);
+        if (!is_array($body)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "Cuerpo de solicitud JSON inválido o malformado."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
         $deviceUuid = trim($body['device_uuid'] ?? '');
         $deviceGeneration = trim($body['device_generation'] ?? '');
 
@@ -49,6 +64,20 @@ class Level2ServerController {
             $classBD->desconectarBD($conexion);
             http_response_code(400);
             echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_uuid y device_generation son obligatorios."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if (strlen($deviceUuid) > 64) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_uuid excede el máximo permitido de 64 caracteres."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if (strlen($deviceGeneration) > 64) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_generation excede el máximo permitido de 64 caracteres."), JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -73,7 +102,7 @@ class Level2ServerController {
             $secret = trim($matches[1]);
         }
 
-        if (empty($deviceIdHeader) || empty($credentialKeyHeader) || empty($secret)) {
+        if (trim((string)$deviceIdHeader) === '' || trim((string)$credentialKeyHeader) === '' || $secret === '') {
             http_response_code(401);
             echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Credenciales de dispositivo ausentes."), JSON_UNESCAPED_UNICODE);
             return;
@@ -88,14 +117,38 @@ class Level2ServerController {
         if (!$authResult['auth']) {
             $classBD->desconectarBD($conexion);
             http_response_code(401);
-            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Autenticación de dispositivo fallida."), JSON_UNESCAPED_UNICODE);
+            echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Autenticación de dispositivo fallida.", "error_detail" => $authResult['error']), JSON_UNESCAPED_UNICODE);
             return;
         }
 
         $idDispositivo = (int)$authResult['id_dispositivo'];
 
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') === false) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(415);
+            echo json_encode(array("code" => 415, "status" => "UNSUPPORTED_MEDIA_TYPE", "mensaje" => "Content-Type debe ser application/json."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
         $inputRaw = file_get_contents('php://input');
         $body = json_decode($inputRaw, true);
+        if (!is_array($body)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "Cuerpo de solicitud JSON inválido o malformado."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if (array_key_exists('device_uuid', $body) && $body['device_uuid'] !== null) {
+            $bodyDeviceUuid = is_string($body['device_uuid']) ? trim($body['device_uuid']) : '';
+            if ($bodyDeviceUuid === '' || $bodyDeviceUuid !== ($authResult['uuid_dispositivo'] ?? '')) {
+                $classBD->desconectarBD($conexion);
+                http_response_code(403);
+                echo json_encode(array("code" => 403, "status" => "DEVICE_MISMATCH", "mensaje" => "El dispositivo autenticado no coincide con el UUID proporcionado."), JSON_UNESCAPED_UNICODE);
+                return;
+            }
+        }
 
         $deviceGeneration = trim($body['device_generation'] ?? '');
         $telemetrySequence = isset($body['telemetry_sequence']) ? (int)$body['telemetry_sequence'] : null;
@@ -109,6 +162,27 @@ class Level2ServerController {
             $classBD->desconectarBD($conexion);
             http_response_code(400);
             echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_generation, telemetry_sequence y observation_timestamp son obligatorios."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if (strlen($deviceGeneration) > 64) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_generation excede el máximo permitido de 64 caracteres."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($networkStatus !== null && strlen($networkStatus) > 32) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "network_status excede el máximo permitido de 32 caracteres."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($clockStatus !== null && strlen($clockStatus) > 32) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "clock_status excede el máximo permitido de 32 caracteres."), JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -133,7 +207,7 @@ class Level2ServerController {
             $secret = trim($matches[1]);
         }
 
-        if (empty($deviceIdHeader) || empty($credentialKeyHeader) || empty($secret)) {
+        if (trim((string)$deviceIdHeader) === '' || trim((string)$credentialKeyHeader) === '' || $secret === '') {
             http_response_code(401);
             echo json_encode(array("code" => 401, "status" => "UNAUTHORIZED", "mensaje" => "Credenciales de dispositivo ausentes."), JSON_UNESCAPED_UNICODE);
             return;
@@ -193,7 +267,7 @@ class Level2ServerController {
         }
 
         // 2. Autorizar permiso funcional 'leer' en módulo 'biometricos' y scope de estación
-        $authz = Portal3JwtAuthHelper::authorizeTemporaryAccess($conexion, $auth, 'leer');
+        $authz = Portal3JwtAuthHelper::authorizeBiometricos($conexion, $auth, 'leer');
         if (!$authz['success']) {
             $classBD->desconectarBD($conexion);
             http_response_code($authz['code']);

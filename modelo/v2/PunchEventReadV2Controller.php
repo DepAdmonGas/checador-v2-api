@@ -332,7 +332,7 @@ class PunchEventReadV2Controller {
 
             return ['success' => true, 'code' => 200, 'status' => 'AUTHORIZED', 'authorized_stations' => $authorizedStations];
         } catch (Throwable $e) {
-            return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error interno al autorizar módulo biométricos: ' . $e->getMessage()];
+            return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error interno al autorizar módulo biométricos.'];
         }
     }
 

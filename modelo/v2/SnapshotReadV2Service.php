@@ -42,9 +42,17 @@ class SnapshotReadV2Service {
         $authorizedStationIds = $authz['authorized_stations'];
         $creatorUserId = (int)$auth['user_id'];
 
-        // Leer payload JSON del body
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         $rawInput = file_get_contents('php://input');
-        $bodyData = json_decode($rawInput, true);
+
+        if (!empty($rawInput) && stripos($contentType, 'application/json') === false) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(415);
+            echo json_encode(array("code" => 415, "status" => "UNSUPPORTED_MEDIA_TYPE", "mensaje" => "Content-Type debe ser application/json."), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $bodyData = !empty($rawInput) ? json_decode($rawInput, true) : [];
         if (!is_array($bodyData)) {
             $bodyData = [];
         }
@@ -185,7 +193,7 @@ class SnapshotReadV2Service {
             $bindTypes = str_repeat('i', count($effectiveStations));
             $bindParams = $effectiveStations;
 
-            $whereClause .= " AND (ocurrido_at_utc >= ? AND ocurrido_at_utc <= ? OR ocurrido_at_utc IS NULL)";
+            $whereClause .= " AND ocurrido_at_utc >= ? AND ocurrido_at_utc <= ?";
             $bindTypes .= "ss";
             $bindParams[] = $fromUtc;
             $bindParams[] = $toUtc;
@@ -326,7 +334,7 @@ class SnapshotReadV2Service {
 
             $classBD->desconectarBD($conexion);
             http_response_code(500);
-            echo json_encode(array("code" => 500, "status" => "INTERNAL_ERROR", "mensaje" => "Error al materializar membresía del snapshot: " . $e->getMessage()), JSON_UNESCAPED_UNICODE);
+            echo json_encode(array("code" => 500, "status" => "INTERNAL_ERROR", "mensaje" => "Error interno al materializar membresía del snapshot."), JSON_UNESCAPED_UNICODE);
             return;
         }
     }
@@ -514,7 +522,7 @@ class SnapshotReadV2Service {
     }
 
     private function autorizarAccesoBiometricos($conexion, array $auth, string $requiredPermission): array {
-        return Portal3JwtAuthHelper::authorizeTemporaryAccess($conexion, $auth, $requiredPermission);
+        return Portal3JwtAuthHelper::authorizeBiometricos($conexion, $auth, $requiredPermission);
     }
 
     private function parseAndFormatIsoUtc(string $val): ?string {

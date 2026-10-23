@@ -119,14 +119,14 @@ class Level2ServerService {
         }
 
         // Verificar si el evento raw ya tiene metadatos Nivel 2 vinculados
-        $stmtRawCheck = $conexion->prepare('SELECT id_dispositivo, device_generation, device_sequence FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_raw_punch = ? LIMIT 1');
+        $stmtRawCheck = $conexion->prepare('SELECT id_dispositivo, device_generation, device_sequence, es_governado_nivel2 FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_raw_punch = ? LIMIT 1');
         $stmtRawCheck->bind_param('i', $idRawPunch);
         $stmtRawCheck->execute();
         $existingRaw = $stmtRawCheck->get_result()->fetch_assoc();
         $stmtRawCheck->close();
 
         if ($existingRaw) {
-            if ((int)$existingRaw['id_dispositivo'] === $idDispositivo && $existingRaw['device_generation'] === $deviceGeneration && (int)$existingRaw['device_sequence'] === $deviceSequence) {
+            if ((int)$existingRaw['id_dispositivo'] === $idDispositivo && $existingRaw['device_generation'] === $deviceGeneration && (int)$existingRaw['device_sequence'] === $deviceSequence && (int)$existingRaw['es_governado_nivel2'] === 1) {
                 return ['success' => true, 'code' => 200, 'status' => 'DUPLICATE_SEQUENCE_SAME_EVENT'];
             } else {
                 return ['success' => false, 'code' => 409, 'status' => 'SEQUENCE_MISMATCH', 'error' => 'El evento ya tiene metadatos Nivel 2 vinculados con diferente secuencia o generación.'];
@@ -134,14 +134,14 @@ class Level2ServerService {
         }
 
         // Verificar si la secuencia ya fue usada para esta generación
-        $stmtSeqCheck = $conexion->prepare('SELECT id_raw_punch FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_dispositivo = ? AND device_generation = ? AND device_sequence = ? LIMIT 1');
+        $stmtSeqCheck = $conexion->prepare('SELECT id_raw_punch, es_governado_nivel2 FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_dispositivo = ? AND device_generation = ? AND device_sequence = ? LIMIT 1');
         $stmtSeqCheck->bind_param('isi', $idDispositivo, $deviceGeneration, $deviceSequence);
         $stmtSeqCheck->execute();
         $existingSeq = $stmtSeqCheck->get_result()->fetch_assoc();
         $stmtSeqCheck->close();
 
         if ($existingSeq) {
-            if ((int)$existingSeq['id_raw_punch'] === $idRawPunch) {
+            if ((int)$existingSeq['id_raw_punch'] === $idRawPunch && (int)$existingSeq['es_governado_nivel2'] === 1) {
                 return ['success' => true, 'code' => 200, 'status' => 'DUPLICATE_SEQUENCE_SAME_EVENT'];
             } else {
                 return ['success' => false, 'code' => 409, 'status' => 'SEQUENCE_COLLISION', 'error' => 'La secuencia ya fue asignada a otro evento diferente dentro de la misma generación.'];
@@ -153,13 +153,62 @@ class Level2ServerService {
         $stmtIns = $conexion->prepare('INSERT INTO op_rh_v2_marcaciones_nivel2_metadata (id_raw_punch, id_dispositivo, device_generation, device_sequence, es_governado_nivel2, creado_at_utc) VALUES (?, ?, ?, ?, 1, ?)');
         $stmtIns->bind_param('iisis', $idRawPunch, $idDispositivo, $deviceGeneration, $deviceSequence, $nowUtc);
         
-        if ($stmtIns->execute()) {
+        $insertErrorCode = 0;
+        try {
+            $inserted = $stmtIns->execute();
+            $insertErrorCode = (int)$stmtIns->errno;
+        } catch (Throwable $exception) {
+            $inserted = false;
+            $insertErrorCode = (int)$stmtIns->errno;
+            if ($insertErrorCode === 0) {
+                $insertErrorCode = (int)$exception->getCode();
+            }
+        }
+
+        if ($inserted) {
             $stmtIns->close();
             return ['success' => true, 'code' => 201, 'status' => 'LEVEL2_METADATA_BOUND'];
-        } else {
-            $stmtIns->close();
-            return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error al registrar metadatos Nivel 2.'];
         }
+
+        $stmtIns->close();
+        if ($insertErrorCode === 1062) {
+            $duplicateResult = $this->resolverDuplicadoSidecar($conexion, $idRawPunch, $idDispositivo, $deviceGeneration, $deviceSequence);
+            if ($duplicateResult !== null) {
+                return $duplicateResult;
+            }
+        }
+
+        return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error al registrar metadatos Nivel 2.'];
+    }
+
+    private function resolverDuplicadoSidecar($conexion, int $idRawPunch, int $idDispositivo, string $deviceGeneration, int $deviceSequence): ?array {
+        $stmtRaw = $conexion->prepare('SELECT id_dispositivo, device_generation, device_sequence, es_governado_nivel2 FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_raw_punch = ? LIMIT 1');
+        $stmtRaw->bind_param('i', $idRawPunch);
+        $stmtRaw->execute();
+        $existingRaw = $stmtRaw->get_result()->fetch_assoc();
+        $stmtRaw->close();
+
+        if ($existingRaw) {
+            if ((int)$existingRaw['id_dispositivo'] === $idDispositivo && $existingRaw['device_generation'] === $deviceGeneration && (int)$existingRaw['device_sequence'] === $deviceSequence && (int)$existingRaw['es_governado_nivel2'] === 1) {
+                return ['success' => true, 'code' => 200, 'status' => 'DUPLICATE_SEQUENCE_SAME_EVENT'];
+            }
+            return ['success' => false, 'code' => 409, 'status' => 'SEQUENCE_MISMATCH', 'error' => 'El evento ya tiene metadatos Nivel 2 vinculados con diferente secuencia o generación.'];
+        }
+
+        $stmtSequence = $conexion->prepare('SELECT id_raw_punch, es_governado_nivel2 FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_dispositivo = ? AND device_generation = ? AND device_sequence = ? LIMIT 1');
+        $stmtSequence->bind_param('isi', $idDispositivo, $deviceGeneration, $deviceSequence);
+        $stmtSequence->execute();
+        $existingSequence = $stmtSequence->get_result()->fetch_assoc();
+        $stmtSequence->close();
+
+        if ($existingSequence) {
+            if ((int)$existingSequence['id_raw_punch'] === $idRawPunch && (int)$existingSequence['es_governado_nivel2'] === 1) {
+                return ['success' => true, 'code' => 200, 'status' => 'DUPLICATE_SEQUENCE_SAME_EVENT'];
+            }
+            return ['success' => false, 'code' => 409, 'status' => 'SEQUENCE_COLLISION', 'error' => 'La secuencia ya fue asignada a otro evento diferente dentro de la misma generación.'];
+        }
+
+        return null;
     }
 
     // 4. Cálculo de Accepted-Through y Detección de Gaps de Secuencia
@@ -218,6 +267,15 @@ class Level2ServerService {
 
     // 6. Evaluación de Ventana Nivel 2 y Generación de Manifiesto
     public function evaluarVentanaNivel2($conexion, int $idEstacion, string $fromUtc, string $toUtc, string $coveragePolicyRef = 'POLICY_V1.0_DEFAULT'): array {
+        try {
+            $dtFrom = new DateTime($fromUtc, new DateTimeZone('UTC'));
+            $fromUtc = $dtFrom->format('Y-m-d H:i:s');
+        } catch (Throwable $e) {}
+        try {
+            $dtTo = new DateTime($toUtc, new DateTimeZone('UTC'));
+            $toUtc = $dtTo->format('Y-m-d H:i:s');
+        } catch (Throwable $e) {}
+
         // A. Consultar Política de Cobertura
         $stmtPol = $conexion->prepare('SELECT max_heartbeat_gap_seconds, max_clock_drift_seconds, require_telemetry_continuity FROM op_rh_v2_coverage_policies WHERE coverage_policy_ref = ? AND es_activo = 1 LIMIT 1');
         $stmtPol->bind_param('s', $coveragePolicyRef);
