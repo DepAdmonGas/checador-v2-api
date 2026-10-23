@@ -32,7 +32,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateTemplate(): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'editar');
+        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'JSON payload required', 400);
@@ -48,10 +48,10 @@ class ShiftSchedulingV2Controller
             if (strpos($e->getMessage(), 'DUPLICATE_TEMPLATE_VERSION') !== false) {
                 $this->sendJsonError('DUPLICATE_TEMPLATE_VERSION', $e->getMessage(), 409);
             } else {
-                $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+                $this->sendJsonError('SERVER_ERROR', 'Error interno al procesar plantilla de turno.', 500);
             }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al procesar plantilla de turno.', 500);
         }
     }
 
@@ -60,7 +60,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateTemplateVersion(string $clave): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'editar');
+        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'JSON payload required', 400);
@@ -76,10 +76,10 @@ class ShiftSchedulingV2Controller
             if (strpos($e->getMessage(), 'DUPLICATE_TEMPLATE_VERSION') !== false) {
                 $this->sendJsonError('DUPLICATE_TEMPLATE_VERSION', $e->getMessage(), 409);
             } else {
-                $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+                $this->sendJsonError('SERVER_ERROR', 'Error interno al procesar versión de plantilla de turno.', 500);
             }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al procesar versión de plantilla de turno.', 500);
         }
     }
 
@@ -88,7 +88,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleListTemplates(): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'leer');
+        $authz = $this->authorizeScheduleRead();
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 50;
         $includeAll = isset($_GET['include_all_versions']) && ($_GET['include_all_versions'] === 'true' || $_GET['include_all_versions'] === '1');
@@ -97,7 +97,7 @@ class ShiftSchedulingV2Controller
             $result = $this->templateService->listTemplates($page, $perPage, $includeAll);
             $this->sendJsonSuccess($result, 200);
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar plantillas de turno.', 500);
         }
     }
 
@@ -106,7 +106,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleGetTemplateVersion(string $clave, int $version): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'leer');
+        $authz = $this->authorizeScheduleRead();
         try {
             $result = $this->templateService->getTemplateVersion($clave, $version);
             if ($result === null) {
@@ -115,7 +115,7 @@ class ShiftSchedulingV2Controller
             }
             $this->sendJsonSuccess($result, 200);
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar versión de plantilla de turno.', 500);
         }
     }
 
@@ -124,7 +124,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateAssignment(): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'editar');
+        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_ASSIGNMENT_SPECIFICATION', 'JSON payload required', 400);
@@ -146,10 +146,10 @@ class ShiftSchedulingV2Controller
             if (strpos($e->getMessage(), 'ASSIGNMENT_OVERLAP_CONFLICT') !== false) {
                 $this->sendJsonError('ASSIGNMENT_OVERLAP_CONFLICT', $e->getMessage(), 409);
             } else {
-                $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+                $this->sendJsonError('SERVER_ERROR', 'Error interno al crear asignación de turno.', 500);
             }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al crear asignación de turno.', 500);
         }
     }
 
@@ -158,7 +158,16 @@ class ShiftSchedulingV2Controller
      */
     public function handleCloseAssignment(int $assignmentId): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'editar');
+        $authz = $this->authorizeScheduleWrite();
+        $assignmentStation = $this->resolveAssignmentStation($assignmentId);
+        if ($assignmentStation === null) {
+            $this->sendJsonError('NOT_FOUND', "Assignment ID {$assignmentId} not found.", 404);
+            return;
+        }
+        if (!in_array($assignmentStation, $authz['authorized_stations'], true)) {
+            $this->sendJsonError('UNAUTHORIZED_STATION_ACCESS', "Assignment ID {$assignmentId} is outside authorized ACL scope.", 403);
+            return;
+        }
         $payload = json_decode(file_get_contents('php://input'), true);
         $closeDate = is_array($payload) && isset($payload['effective_close_date']) ? $payload['effective_close_date'] : null;
 
@@ -172,7 +181,7 @@ class ShiftSchedulingV2Controller
                 $this->sendJsonError('INVALID_EFFECTIVE_INTERVAL', $e->getMessage(), 400);
             }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al cerrar asignación de turno.', 500);
         }
     }
 
@@ -181,10 +190,10 @@ class ShiftSchedulingV2Controller
      */
     public function handleListAssignments(): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'leer');
-        $idPersonal = isset($_GET['id_personal']) ? (int)$_GET['id_personal'] : 0;
-        $idEstacion = isset($_GET['id_estacion']) ? (int)$_GET['id_estacion'] : null;
-        $fechaRef = isset($_GET['fecha_referencia']) ? trim($_GET['fecha_referencia']) : null;
+        $authz = $this->authorizeScheduleRead();
+        $idPersonal = isset($_GET['id_personal']) ? (int)$_GET['id_personal'] : (isset($_GET['worker_id']) ? (int)$_GET['worker_id'] : 0);
+        $idEstacion = isset($_GET['id_estacion']) ? (int)$_GET['id_estacion'] : (isset($_GET['workplace_id']) ? (int)$_GET['workplace_id'] : null);
+        $fechaRef = isset($_GET['fecha_referencia']) ? trim($_GET['fecha_referencia']) : (isset($_GET['date']) ? trim($_GET['date']) : (isset($_GET['reference_date']) ? trim($_GET['reference_date']) : null));
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 50;
 
@@ -202,7 +211,7 @@ class ShiftSchedulingV2Controller
             $result = $this->assignmentService->listAssignments($idPersonal, $idEstacion, $fechaRef, $page, $perPage);
             $this->sendJsonSuccess($result, 200);
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar asignaciones de turno.', 500);
         }
     }
 
@@ -211,9 +220,9 @@ class ShiftSchedulingV2Controller
      */
     public function handleGetEffectiveSchedule(int $idPersonal): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'leer');
-        $idEstacion = isset($_GET['id_estacion']) ? (int)$_GET['id_estacion'] : 0;
-        $fechaLocal = isset($_GET['fecha_local']) ? trim($_GET['fecha_local']) : '';
+        $authz = $this->authorizeScheduleRead();
+        $idEstacion = isset($_GET['id_estacion']) ? (int)$_GET['id_estacion'] : (isset($_GET['workplace_id']) ? (int)$_GET['workplace_id'] : 0);
+        $fechaLocal = isset($_GET['fecha_local']) ? trim($_GET['fecha_local']) : (isset($_GET['date']) ? trim($_GET['date']) : '');
 
         if ($idEstacion <= 0 || empty($fechaLocal)) {
             $this->sendJsonError('INVALID_RESOLUTION_SPECIFICATION', 'id_estacion and fecha_local are required.', 400);
@@ -230,8 +239,14 @@ class ShiftSchedulingV2Controller
             $this->sendJsonSuccess($result, 200);
         } catch (InvalidArgumentException $e) {
             $this->sendJsonError('INVALID_RESOLUTION_SPECIFICATION', $e->getMessage(), 400);
+        } catch (RuntimeException $e) {
+            if (strpos($e->getMessage(), 'AMBIGUOUS_SCHEDULE_ASSIGNMENT') !== false) {
+                $this->sendJsonError('AMBIGUOUS_SCHEDULE_ASSIGNMENT', $e->getMessage(), 409);
+            } else {
+                $this->sendJsonError('SERVER_ERROR', 'Error interno al resolver horario efectivo.', 500);
+            }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al resolver horario efectivo.', 500);
         }
     }
 
@@ -240,7 +255,7 @@ class ShiftSchedulingV2Controller
      */
     public function handleMaterializeScheduledShifts(): void
     {
-        $authz = Portal3JwtAuthHelper::authorizeUser($_SERVER, 'biometricos', 'editar');
+        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_MATERIALIZATION_SPECIFICATION', 'JSON payload required', 400);
@@ -267,7 +282,7 @@ class ShiftSchedulingV2Controller
                 $this->sendJsonError('INVALID_MATERIALIZATION_SPECIFICATION', $e->getMessage(), 400);
             }
         } catch (Throwable $e) {
-            $this->sendJsonError('SERVER_ERROR', $e->getMessage(), 500);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al materializar jornadas programadas.', 500);
         }
     }
 
@@ -280,6 +295,73 @@ class ShiftSchedulingV2Controller
             'data' => $data
         ], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    /**
+     * Authenticate Portal3 and authorize read-only schedule access through
+     * the existing biometricos ACL and canonical workplace scope resolver.
+     */
+    private function authorizeScheduleRead(): array
+    {
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+        $auth = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
+        if (!$auth['valid']) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError($auth['status'], $auth['error'], $auth['code']);
+        }
+
+        $authz = Portal3JwtAuthHelper::authorizeBiometricos($conexion, $auth, 'leer');
+        $classBD->desconectarBD($conexion);
+        if (!$authz['success']) {
+            $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
+        }
+
+        return $authz;
+    }
+
+    /** Authenticate Portal3 and authorize schedule mutations through the
+     * existing biometricos editar ACL and canonical workplace scope resolver.
+     */
+    private function authorizeScheduleWrite(): array
+    {
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+        $auth = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
+        if (!$auth['valid']) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError($auth['status'], $auth['error'], $auth['code']);
+        }
+
+        $authz = Portal3JwtAuthHelper::authorizeBiometricos($conexion, $auth, 'editar');
+        $classBD->desconectarBD($conexion);
+        if (!$authz['success']) {
+            $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
+        }
+
+        return $authz;
+    }
+
+    /** Resolve the assignment workplace before a close mutation is allowed. */
+    private function resolveAssignmentStation(int $assignmentId): ?int
+    {
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+        $stmt = $conexion->prepare('SELECT id_estacion FROM op_rh_v2_turnos_asignaciones WHERE id = ? LIMIT 1');
+        if (!$stmt) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError('SERVER_ERROR', 'Error interno al resolver alcance de asignación.', 500);
+        }
+        $stmt->bind_param('i', $assignmentId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $classBD->desconectarBD($conexion);
+        return $row ? (int)$row['id_estacion'] : null;
     }
 
     private function sendJsonError(string $code, string $message, int $httpCode): void

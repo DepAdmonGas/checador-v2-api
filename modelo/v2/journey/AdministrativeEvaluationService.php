@@ -61,26 +61,32 @@ class AdministrativeEvaluationService {
             throw new InvalidArgumentException("Invalid incidence type: $tipo");
         }
 
+        $estadoActual   = (string)($params['estado_actual'] ?? 'ACTIVE');
+        $estadoRevision = (string)($params['estado_revision'] ?? $estadoActual);
+
         $this->db->begin_transaction();
         try {
             $stmtM = $this->db->prepare("INSERT INTO op_rh_v2_incidencias_maestro 
                 (uuid_incidencia, id_personal, id_estacion, tipo_incidencia, alcance_incidencia, fecha_inicio_local, fecha_fin_local, estado_actual, revision_actual) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 1)");
-            $stmtM->bind_param("siissss", $uuidIncid, $workerId, $stationId, $tipo, $alcance, $fechaStart, $fechaEnd);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)");
+            $stmtM->bind_param("siisssss", $uuidIncid, $workerId, $stationId, $tipo, $alcance, $fechaStart, $fechaEnd, $estadoActual);
             $stmtM->execute();
             $masterId = (int)$stmtM->insert_id;
             $stmtM->close();
 
             $stmtR = $this->db->prepare("INSERT INTO op_rh_v2_incidencias_revisiones 
                 (id_incidencia_maestro, revision_numero, estado_revision, motivo, folio_evidencia, creado_por_usuario_id, aprobado_por_usuario_id) 
-                VALUES (?, 1, 'ACTIVE', ?, ?, ?, ?)");
-            $stmtR->bind_param("issii", $masterId, $motivo, $folio, $creadoPor, $aprobadoPor);
+                VALUES (?, 1, ?, ?, ?, ?, ?)");
+            $stmtR->bind_param("isssii", $masterId, $estadoRevision, $motivo, $folio, $creadoPor, $aprobadoPor);
             $stmtR->execute();
             $revisionId = (int)$stmtR->insert_id;
             $stmtR->close();
 
             // Materialize daily applications for matching ScheduledShifts within inclusive local date range
-            $appIds = $this->applyIncidenceRevisionToShifts($masterId, $revisionId, $workerId, $stationId, $alcance, $fechaStart, $fechaEnd);
+            $appIds = [];
+            if ($estadoRevision === 'ACTIVE') {
+                $appIds = $this->applyIncidenceRevisionToShifts($masterId, $revisionId, $workerId, $stationId, $alcance, $fechaStart, $fechaEnd);
+            }
 
             $this->db->commit();
             return [
@@ -99,7 +105,9 @@ class AdministrativeEvaluationService {
      * Appends a new revision N+1 for an existing incidence master.
      */
     public function createIncidenceRevision(int $masterId, array $params): array {
+        $expectedCurrentRev = isset($params['expected_current_revision']) ? (int)$params['expected_current_revision'] : null;
         $estadoRevision = (string)($params['estado_revision'] ?? 'ACTIVE');
+        $estadoActual   = (string)($params['estado_actual'] ?? $estadoRevision);
         $motivo         = $params['motivo'] ?? null;
         $folio          = $params['folio_evidencia'] ?? null;
         $creadoPor      = (int)($params['creado_por_usuario_id'] ?? 1);
@@ -117,6 +125,10 @@ class AdministrativeEvaluationService {
                 throw new RuntimeException("Incidence master ID $masterId not found.");
             }
 
+            if ($expectedCurrentRev !== null && $expectedCurrentRev !== (int)$master['revision_actual']) {
+                throw new RuntimeException("STALE_REVISION_CONFLICT: Expected revision $expectedCurrentRev but current revision is " . $master['revision_actual']);
+            }
+
             $newRevNum = (int)$master['revision_actual'] + 1;
 
             $stmtR = $this->db->prepare("INSERT INTO op_rh_v2_incidencias_revisiones 
@@ -127,8 +139,11 @@ class AdministrativeEvaluationService {
             $revisionId = (int)$stmtR->insert_id;
             $stmtR->close();
 
-            $stmtUpM = $this->db->prepare("UPDATE op_rh_v2_incidencias_maestro SET revision_actual = ?, estado_actual = ? WHERE id = ?");
-            $stmtUpM->bind_param("isi", $newRevNum, $estadoRevision, $masterId);
+            $fechaStart = !empty($params['fecha_inicio_local']) ? (string)$params['fecha_inicio_local'] : (string)$master['fecha_inicio_local'];
+            $fechaEnd   = !empty($params['fecha_fin_local']) ? (string)$params['fecha_fin_local'] : (string)$master['fecha_fin_local'];
+
+            $stmtUpM = $this->db->prepare("UPDATE op_rh_v2_incidencias_maestro SET revision_actual = ?, estado_actual = ?, fecha_inicio_local = ?, fecha_fin_local = ? WHERE id = ?");
+            $stmtUpM->bind_param("isssi", $newRevNum, $estadoActual, $fechaStart, $fechaEnd, $masterId);
             $stmtUpM->execute();
             $stmtUpM->close();
 
@@ -137,7 +152,7 @@ class AdministrativeEvaluationService {
                 $appIds = $this->applyIncidenceRevisionToShifts(
                     $masterId, $revisionId, (int)$master['id_personal'],
                     $master['id_estacion'] !== null ? (int)$master['id_estacion'] : null,
-                    $master['alcance_incidencia'], $master['fecha_inicio_local'], $master['fecha_fin_local']
+                    $master['alcance_incidencia'], $fechaStart, $fechaEnd
                 );
             }
 
@@ -233,7 +248,7 @@ class AdministrativeEvaluationService {
      * @param int $calculationHeaderId Primary key ID of op_rh_v2_calculos_jornada.
      * @return array Persisted evaluation evaluation header + link arrays.
      */
-    public function evaluateCalculationRevision(int $calculationHeaderId): array {
+    public function evaluateCalculationRevision(int $calculationHeaderId, array $options = []): array {
         if ($calculationHeaderId <= 0) {
             throw new InvalidArgumentException("calculationHeaderId must be a positive integer.");
         }
@@ -319,7 +334,9 @@ class AdministrativeEvaluationService {
             $strAdj = !empty($adjIds) ? implode(',', $adjIds) : 'NONE';
 
             // SHA256 Fingerprint calculation
-            $fpRaw = "{$jornadaId}_{$calculationHeaderId}_{$strInc}_{$strAdj}_{$this->algorithmVersion}_{$this->policyVersion}";
+            $humanAuthorizedFalta = !empty($options['human_authorized_falta']);
+            $fpSuffix = $humanAuthorizedFalta ? '_FALTA_AUTH' : '';
+            $fpRaw = "{$jornadaId}_{$calculationHeaderId}_{$strInc}_{$strAdj}_{$this->algorithmVersion}_{$this->policyVersion}{$fpSuffix}";
             $fingerprint = hash('sha256', $fpRaw);
 
             // 7. Check idempotency: Return existing evaluation revision if fingerprint matches
@@ -399,11 +416,13 @@ class AdministrativeEvaluationService {
                     $evalState = 'REVIEW_REQUIRED';
                     $humanReviewState = 'PENDING_REVIEW';
                 } else if ($p1Status === 'UNMATCHED_NO_PUNCHES' && $p2Status === 'UNMATCHED_NO_PUNCHES') {
-                    if ($l2Status === 'VERIFIED' && empty($applicableAdjs)) {
-                        // Strict FALTA Prerequisites Satisfied
+                    $enforceP3gGate = !empty($options['enforce_p3g_human_falta_gate']);
+                    if ($l2Status === 'VERIFIED' && empty($applicableAdjs) && (!$enforceP3gGate || $humanAuthorizedFalta)) {
+                        // Strict FALTA Prerequisites Satisfied & explicitly authorized by human if gate enforced
                         $evalState = 'FALTA';
+                        $humanReviewState = 'NOT_REQUIRED';
                     } else {
-                        $evalState = 'ADMINISTRATIVE_SIN_MARCACION';
+                        $evalState = $enforceP3gGate ? 'REVIEW_REQUIRED' : 'ADMINISTRATIVE_SIN_MARCACION';
                         $humanReviewState = 'PENDING_REVIEW';
                     }
                 }
@@ -495,5 +514,55 @@ class AdministrativeEvaluationService {
         $stmtS->close();
 
         return $appIds;
+    }
+
+    /**
+     * Resolves the authoritative P2 calculation revision for a given worker, workplace, and workday,
+     * verifies revision concurrency constraints, and executes administrative evaluation.
+     *
+     * @param int $workerId Canonical op_rh_personal.id
+     * @param int $workplaceId Canonical op_rh_localidades.id
+     * @param string $workDate Calendar date YYYY-MM-DD
+     * @param array $options Execution options:
+     *                       - 'expected_calculation_revision_id' (optional int)
+     *                       - 'calculation_revision_id' (optional int)
+     *                       - 'human_authorized_falta' (optional bool)
+     *                       - 'enforce_p3g_human_falta_gate' (optional bool)
+     * @return array Evaluation details matching Contract Section 9.11
+     * @throws InvalidArgumentException On invalid inputs
+     * @throws RuntimeException On calculation missing (404) or stale revision conflict (409)
+     */
+    public function evaluateShiftAdministration(int $workerId, int $workplaceId, string $workDate, array $options = []): array {
+        if ($workerId <= 0 || $workplaceId <= 0 || empty($workDate)) {
+            throw new InvalidArgumentException("Missing or invalid worker_id, workplace_id, or work_date.");
+        }
+
+        // Query active/latest P2 calculation revision for worker + workplace + work_date
+        $stmtC = $this->db->prepare("SELECT id, id_jornada_programada, revision_numero
+            FROM op_rh_v2_calculos_jornada
+            WHERE id_personal = ? AND id_estacion = ? AND fecha_jornada_local = ?
+            ORDER BY revision_numero DESC, id DESC LIMIT 1");
+        if (!$stmtC) {
+            throw new RuntimeException("Database error preparing calculation lookup.");
+        }
+        $stmtC->bind_param("iis", $workerId, $workplaceId, $workDate);
+        $stmtC->execute();
+        $calc = $stmtC->get_result()->fetch_assoc();
+        $stmtC->close();
+
+        if (!$calc) {
+            throw new RuntimeException("CALCULATION_NOT_FOUND: No calculation revision found for worker {$workerId}, workplace {$workplaceId}, date {$workDate}.");
+        }
+
+        $latestCalcId = (int)$calc['id'];
+        $expectedCalcId = isset($options['expected_calculation_revision_id'])
+            ? (int)$options['expected_calculation_revision_id']
+            : (isset($options['calculation_revision_id']) ? (int)$options['calculation_revision_id'] : null);
+
+        if ($expectedCalcId !== null && $expectedCalcId !== $latestCalcId) {
+            throw new RuntimeException("STALE_REVISION_CONFLICT: Expected calculation revision ID {$expectedCalcId} does not match active calculation revision ID {$latestCalcId}.");
+        }
+
+        return $this->evaluateCalculationRevision($latestCalcId, $options);
     }
 }

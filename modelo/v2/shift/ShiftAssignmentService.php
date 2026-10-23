@@ -149,6 +149,39 @@ class ShiftAssignmentService
     }
 
     /**
+     * Cancel / revoke an assignment that was created in error.
+     * Sets es_activo = 0 and acotes valido_hasta = valido_desde so it never resolves for any date.
+     */
+    public function cancelAssignment(int $assignmentId): array
+    {
+        $this->db->begin_transaction();
+        try {
+            $stmt = $this->db->prepare("SELECT id, id_personal, id_estacion, id_plantilla, dia_semana, valido_desde, valido_hasta, es_activo FROM op_rh_v2_turnos_asignaciones WHERE id = ? FOR UPDATE");
+            $stmt->bind_param("i", $assignmentId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res->num_rows === 0) {
+                throw new InvalidArgumentException("NOT_FOUND: Assignment ID {$assignmentId} not found.");
+            }
+            $asig = $res->fetch_assoc();
+
+            $stmtUpd = $this->db->prepare("UPDATE op_rh_v2_turnos_asignaciones SET valido_hasta = valido_desde, es_activo = 0 WHERE id = ?");
+            $stmtUpd->bind_param("i", $assignmentId);
+            $stmtUpd->execute();
+
+            $this->db->commit();
+
+            $asig['id'] = (int)$asig['id'];
+            $asig['valido_hasta'] = $asig['valido_desde'];
+            $asig['es_activo'] = 0;
+            return $asig;
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+
+    /**
      * List worker assignments with bounded pagination.
      */
     public function listAssignments(int $idPersonal, ?int $idEstacion = null, ?string $fechaRef = null, int $page = 1, int $perPage = 50): array
@@ -168,8 +201,13 @@ class ShiftAssignmentService
         }
 
         if ($fechaRef !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaRef)) {
-            $where .= " AND valido_desde <= ? AND (valido_hasta > ? OR valido_hasta IS NULL)";
-            $types .= "ss";
+            $where .= " AND valido_desde <= ? AND (
+                (es_activo = 1 AND (valido_hasta > ? OR valido_hasta IS NULL))
+                OR
+                (es_activo = 0 AND valido_hasta IS NOT NULL AND valido_hasta > valido_desde AND valido_hasta > ?)
+            )";
+            $types .= "sss";
+            $params[] = $fechaRef;
             $params[] = $fechaRef;
             $params[] = $fechaRef;
         }

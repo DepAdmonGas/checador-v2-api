@@ -108,7 +108,7 @@ class ScheduledShiftMaterializationService
             } else if ($estadoJornada === 'DAY_OFF') {
                 $asigId = $res['origen']['id_asignacion'] ?? null;
                 $tplId = null;
-                $tzLocal = $this->resolutionService->getWorkplaceTimezone($idEstacion);
+                $tzLocal = $this->resolutionService->getWorkplaceTimezone($idEstacion, $fechaLocal);
                 $startUtc = null;
                 $endUtc = null;
                 $payloadJson = null;
@@ -116,7 +116,7 @@ class ScheduledShiftMaterializationService
             } else { // UNSCHEDULED or UNKNOWN
                 $asigId = null;
                 $tplId = null;
-                $tzLocal = $this->resolutionService->getWorkplaceTimezone($idEstacion);
+                $tzLocal = $this->resolutionService->getWorkplaceTimezone($idEstacion, $fechaLocal);
                 $startUtc = null;
                 $endUtc = null;
                 $payloadJson = null;

@@ -7,10 +7,12 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../BD.php';
+require_once __DIR__ . '/WorkplaceTimezoneAuthorityService.php';
 
 class ScheduleResolutionService
 {
     private mysqli $db;
+    private WorkplaceTimezoneAuthorityService $timezoneAuthority;
 
     public function __construct(?mysqli $db = null)
     {
@@ -20,6 +22,7 @@ class ScheduleResolutionService
             $bdObj = new BD();
             $this->db = $bdObj->conectarBD();
         }
+        $this->timezoneAuthority = new WorkplaceTimezoneAuthorityService($this->db);
     }
 
     /**
@@ -73,13 +76,30 @@ class ScheduleResolutionService
         ];
         $diaSemana = $daysMap[$isoDay];
 
-        // 3. Query active assignment in op_rh_v2_turnos_asignaciones for matching weekday and date interval
-        $stmtAsig = $this->db->prepare("SELECT id, id_plantilla, valido_desde, valido_hasta FROM op_rh_v2_turnos_asignaciones WHERE id_personal = ? AND id_estacion = ? AND dia_semana = ? AND es_activo = 1 AND valido_desde <= ? AND (valido_hasta > ? OR valido_hasta IS NULL) ORDER BY id DESC LIMIT 1");
-        $stmtAsig->bind_param("iisss", $idPersonal, $idEstacion, $diaSemana, $fechaLocal, $fechaLocal);
+        // 3. Query effective assignment in op_rh_v2_turnos_asignaciones for matching weekday and date interval
+        // Supports both current active assignments and closed historical assignments [valido_desde, valido_hasta).
+        // Excludes cancelled/revoked assignments (es_activo = 0 with NULL or non-positive interval).
+        $sqlAsig = "SELECT id, id_plantilla, valido_desde, valido_hasta, es_activo
+                    FROM op_rh_v2_turnos_asignaciones
+                    WHERE id_personal = ? AND id_estacion = ? AND dia_semana = ?
+                      AND valido_desde <= ?
+                      AND (
+                        (es_activo = 1 AND (valido_hasta > ? OR valido_hasta IS NULL))
+                        OR
+                        (es_activo = 0 AND valido_hasta IS NOT NULL AND valido_hasta > valido_desde AND valido_hasta > ?)
+                      )
+                    ORDER BY id ASC";
+        $stmtAsig = $this->db->prepare($sqlAsig);
+        $stmtAsig->bind_param("iissss", $idPersonal, $idEstacion, $diaSemana, $fechaLocal, $fechaLocal, $fechaLocal);
         $stmtAsig->execute();
         $resAsig = $stmtAsig->get_result();
 
-        if ($resAsig->num_rows === 0) {
+        $matchingAssignments = [];
+        while ($row = $resAsig->fetch_assoc()) {
+            $matchingAssignments[] = $row;
+        }
+
+        if (count($matchingAssignments) === 0) {
             // Check if worker has ANY assignment in system to distinguish UNSCHEDULED from UNKNOWN
             $stmtAny = $this->db->prepare("SELECT id FROM op_rh_v2_turnos_asignaciones WHERE id_personal = ? LIMIT 1");
             $stmtAny->bind_param("i", $idPersonal);
@@ -103,7 +123,11 @@ class ScheduleResolutionService
             }
         }
 
-        $asigRow = $resAsig->fetch_assoc();
+        if (count($matchingAssignments) > 1) {
+            throw new RuntimeException("AMBIGUOUS_SCHEDULE_ASSIGNMENT: Multiple conflicting shift assignments found for worker {$idPersonal} at station {$idEstacion} on {$fechaLocal} ({$diaSemana}).");
+        }
+
+        $asigRow = $matchingAssignments[0];
         $asigId = (int)$asigRow['id'];
         $plantillaId = $asigRow['id_plantilla'] !== null ? (int)$asigRow['id_plantilla'] : null;
 
@@ -143,7 +167,7 @@ class ScheduleResolutionService
         $firstStartUtc = null;
         $lastEndUtc = null;
 
-        $workplaceTz = $this->getWorkplaceTimezone($idEstacion);
+        $workplaceTz = $this->getWorkplaceTimezone($idEstacion, $fechaLocal);
 
         while ($s = $resSeg->fetch_assoc()) {
             $ord = (int)$s['ordinal'];
@@ -152,15 +176,6 @@ class ScheduleResolutionService
             $hFin = $s['hora_fin_local'];
             $offIni = (int)$s['dia_offset_inicio'];
             $offFin = (int)$s['dia_offset_fin'];
-
-            $segmentos[] = [
-                'ordinal' => $ord,
-                'tipo' => $tipo,
-                'hora_inicio_local' => $hIni,
-                'hora_fin_local' => $hFin,
-                'dia_offset_inicio' => $offIni,
-                'dia_offset_fin' => $offFin
-            ];
 
             // Convert to UTC timestamps using workplace timezone authority
             $dtStartStr = date('Y-m-d', strtotime("{$fechaLocal} +{$offIni} days")) . ' ' . $hIni;
@@ -174,6 +189,18 @@ class ScheduleResolutionService
             $dtEnd = new DateTime($dtEndStr, $tz);
             $dtEnd->setTimezone(new DateTimeZone('UTC'));
             $endUtc = $dtEnd->format('Y-m-d H:i:s');
+
+            $segmentos[] = [
+                'ordinal' => $ord,
+                'tipo' => $tipo,
+                'tipo_segmento' => $tipo,
+                'hora_inicio_local' => $hIni,
+                'hora_fin_local' => $hFin,
+                'dia_offset_inicio' => $offIni,
+                'dia_offset_fin' => $offFin,
+                'scheduled_start_utc' => $startUtc,
+                'scheduled_end_utc' => $endUtc
+            ];
 
             if ($firstStartUtc === null || $startUtc < $firstStartUtc) {
                 $firstStartUtc = $startUtc;
@@ -205,21 +232,9 @@ class ScheduleResolutionService
         ];
     }
 
-    /**
-     * Resolve workplace canonical timezone from station configuration or fallback.
-     */
-    public function getWorkplaceTimezone(int $idEstacion): string
+    /** Resolve the canonical effective-dated Workplace timezone. */
+    public function getWorkplaceTimezone(int $idEstacion, string $fechaLocal): string
     {
-        $stmt = $this->db->prepare("SELECT d.timezone FROM op_rh_v2_dispositivos d INNER JOIN op_rh_localidades l ON d.id_estacion = l.id WHERE l.id = ? AND d.timezone IS NOT NULL AND d.timezone != '' LIMIT 1");
-        $stmt->bind_param("i", $idEstacion);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res->num_rows > 0) {
-            $row = $res->fetch_assoc();
-            if (!empty($row['timezone'])) {
-                return $row['timezone'];
-            }
-        }
-        return 'America/Mexico_City';
+        return $this->timezoneAuthority->resolve($idEstacion, $fechaLocal);
     }
 }

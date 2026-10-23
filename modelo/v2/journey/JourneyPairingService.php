@@ -79,6 +79,19 @@ class JourneyPairingService
                 'scheduled_start_utc' => $scheduledStartUtc,
                 'scheduled_end_utc' => $scheduledEndUtc
             ]];
+        } else {
+            foreach ($segments as $idx => &$seg) {
+                if (empty($seg['scheduled_start_utc']) && count($segments) === 1 && $scheduledStartUtc !== null) {
+                    $seg['scheduled_start_utc'] = $scheduledStartUtc;
+                }
+                if (empty($seg['scheduled_end_utc']) && count($segments) === 1 && $scheduledEndUtc !== null) {
+                    $seg['scheduled_end_utc'] = $scheduledEndUtc;
+                }
+                if (empty($seg['tipo_segmento']) && !empty($seg['tipo'])) {
+                    $seg['tipo_segmento'] = $seg['tipo'];
+                }
+            }
+            unset($seg);
         }
 
         // 2. Evaluate Level 2 Completeness
@@ -202,6 +215,15 @@ class JourneyPairingService
 
             $this->db->commit();
 
+            $creadoStmt = $this->db->prepare("SELECT creado_at_utc FROM op_rh_v2_pareos_jornada WHERE id = ?");
+            $creadoStmt->bind_param('i', $headerId);
+            $creadoStmt->execute();
+            $creadoRow = $creadoStmt->get_result()->fetch_assoc();
+            $creadoAtUtc = $creadoRow['creado_at_utc'] ?? gmdate('Y-m-d H:i:s');
+            $creadoStmt->close();
+
+            $evaluatedCandidates = $this->getEvaluatedCandidatesForPairing($headerId);
+
             return [
                 'pairing_id' => $headerId,
                 'scheduled_shift_id' => $scheduledShiftId,
@@ -213,7 +235,9 @@ class JourneyPairingService
                 'completeness_l2' => $l2Status,
                 'algorithm_version' => $this->algorithmVersion,
                 'fingerprint' => $fingerprint,
-                'segments' => $pairingResults['segment_results']
+                'segments' => $pairingResults['segment_results'],
+                'creado_at_utc' => $creadoAtUtc,
+                'evaluated_candidates' => $evaluatedCandidates
             ];
 
         } catch (Throwable $ex) {
@@ -252,7 +276,7 @@ class JourneyPairingService
     private function fetchCandidatePunches(int $workerId, string $windowStart, string $windowEnd): array
     {
         $stmt = $this->db->prepare(
-            "SELECT id, event_uuid, id_dispositivo, id_estacion_resuelta, id_personal_resuelto, ocurrido_at_utc, processing_status, validation_flags
+            "SELECT id, event_uuid, id_dispositivo, id_estacion_resuelta, id_personal_resuelto, ocurrido_at_utc, metodo_captura, processing_status, validation_flags
              FROM op_rh_v2_marcaciones_crudas
              WHERE id_personal_resuelto = ?
                AND ocurrido_at_utc BETWEEN ? AND ?
@@ -269,6 +293,42 @@ class JourneyPairingService
             }
         }
         return $punches;
+    }
+
+    /**
+     * Retrieve the exact evaluated candidate PunchEvent set for an explicit pairing revision.
+     * Guaranteed deterministic ordering (ocurrido_at_utc ASC, id ASC).
+     * Internal raw PK (id) is omitted; public audit identity is preserved.
+     */
+    public function getEvaluatedCandidatesForPairing(int $pairingId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT m.event_uuid, m.id_dispositivo, m.ocurrido_at_utc, m.metodo_captura,
+                    a.rol_marcacion, s.ordinal_segmento
+             FROM op_rh_v2_pareos_marcaciones_asociadas a
+             INNER JOIN op_rh_v2_marcaciones_crudas m ON a.id_marcacion_cruda = m.id
+             LEFT JOIN op_rh_v2_pareos_segmentos s ON a.id_pareo_segmento = s.id
+             WHERE a.id_pareo_jornada = ?
+             ORDER BY m.ocurrido_at_utc ASC, m.id ASC"
+        );
+        $stmt->bind_param('i', $pairingId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $candidates = [];
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $candidates[] = [
+                    'event_uuid' => (string)$row['event_uuid'],
+                    'id_dispositivo' => $row['id_dispositivo'] !== null ? (int)$row['id_dispositivo'] : null,
+                    'ocurrido_at_utc' => (string)$row['ocurrido_at_utc'],
+                    'metodo_captura' => (string)($row['metodo_captura'] ?? ''),
+                    'pairing_role' => isset($row['rol_marcacion']) && $row['rol_marcacion'] !== null ? (string)$row['rol_marcacion'] : null,
+                    'segment_ordinal' => isset($row['ordinal_segmento']) && $row['ordinal_segmento'] !== null ? (int)$row['ordinal_segmento'] : null
+                ];
+            }
+        }
+        $stmt->close();
+        return $candidates;
     }
 
     /**
@@ -290,7 +350,7 @@ class JourneyPairingService
     private function findExistingExecutionByFingerprint(int $shiftId, string $fingerprint): ?array
     {
         $stmt = $this->db->prepare(
-            "SELECT id, revision_numero, id_personal, id_estacion, fecha_jornada_local, estado_pareo, estado_completitud_l2, version_algoritmo, fingerprint_ejecucion
+            "SELECT id, revision_numero, id_personal, id_estacion, fecha_jornada_local, estado_pareo, estado_completitud_l2, version_algoritmo, fingerprint_ejecucion, creado_at_utc
              FROM op_rh_v2_pareos_jornada
              WHERE id_jornada_programada = ? AND fingerprint_ejecucion = ?"
         );
@@ -298,8 +358,54 @@ class JourneyPairingService
         $stmt->execute();
         $res = $stmt->get_result();
         if ($res && $row = $res->fetch_assoc()) {
+            $headerId = (int)$row['id'];
+            $evaluatedCandidates = $this->getEvaluatedCandidatesForPairing($headerId);
+
+            // Reconstruct segments for idempotent reuse
+            $segStmt = $this->db->prepare(
+                "SELECT id, ordinal_segmento, id_marcacion_entrada, id_marcacion_salida, estado_segmento
+                 FROM op_rh_v2_pareos_segmentos
+                 WHERE id_pareo_jornada = ?
+                 ORDER BY ordinal_segmento ASC"
+            );
+            $segStmt->bind_param('i', $headerId);
+            $segStmt->execute();
+            $sRes = $segStmt->get_result();
+            $segments = [];
+            if ($sRes) {
+                while ($sRow = $sRes->fetch_assoc()) {
+                    $segId = (int)$sRow['id'];
+                    $aStmt = $this->db->prepare(
+                        "SELECT id_marcacion_cruda, rol_marcacion
+                         FROM op_rh_v2_pareos_marcaciones_asociadas
+                         WHERE id_pareo_segmento = ?"
+                    );
+                    $aStmt->bind_param('i', $segId);
+                    $aStmt->execute();
+                    $aRes = $aStmt->get_result();
+                    $associated = [];
+                    if ($aRes) {
+                        while ($aRow = $aRes->fetch_assoc()) {
+                            $associated[] = [
+                                'punch_id' => (int)$aRow['id_marcacion_cruda'],
+                                'role' => $aRow['rol_marcacion']
+                            ];
+                        }
+                    }
+                    $aStmt->close();
+                    $segments[] = [
+                        'ordinal' => (int)$sRow['ordinal_segmento'],
+                        'status' => $sRow['estado_segmento'],
+                        'entry_punch_id' => $sRow['id_marcacion_entrada'] !== null ? (int)$sRow['id_marcacion_entrada'] : null,
+                        'exit_punch_id' => $sRow['id_marcacion_salida'] !== null ? (int)$sRow['id_marcacion_salida'] : null,
+                        'associated_punches' => $associated
+                    ];
+                }
+            }
+            $segStmt->close();
+
             return [
-                'pairing_id' => (int)$row['id'],
+                'pairing_id' => $headerId,
                 'scheduled_shift_id' => $shiftId,
                 'revision_numero' => (int)$row['revision_numero'],
                 'worker_id' => (int)$row['id_personal'],
@@ -309,6 +415,9 @@ class JourneyPairingService
                 'completeness_l2' => $row['estado_completitud_l2'],
                 'algorithm_version' => $row['version_algoritmo'],
                 'fingerprint' => $row['fingerprint_ejecucion'],
+                'segments' => $segments,
+                'creado_at_utc' => $row['creado_at_utc'],
+                'evaluated_candidates' => $evaluatedCandidates,
                 'is_idempotent_reuse' => true
             ];
         }
@@ -574,6 +683,15 @@ class JourneyPairingService
 
             $this->db->commit();
 
+            $creadoStmt = $this->db->prepare("SELECT creado_at_utc FROM op_rh_v2_pareos_jornada WHERE id = ?");
+            $creadoStmt->bind_param('i', $headerId);
+            $creadoStmt->execute();
+            $creadoRow = $creadoStmt->get_result()->fetch_assoc();
+            $creadoAtUtc = $creadoRow['creado_at_utc'] ?? gmdate('Y-m-d H:i:s');
+            $creadoStmt->close();
+
+            $evaluatedCandidates = $this->getEvaluatedCandidatesForPairing($headerId);
+
             return [
                 'pairing_id' => $headerId,
                 'scheduled_shift_id' => $shiftId,
@@ -585,7 +703,9 @@ class JourneyPairingService
                 'completeness_l2' => $l2Status,
                 'algorithm_version' => $this->algorithmVersion,
                 'fingerprint' => $fingerprint,
-                'segments' => []
+                'segments' => [],
+                'creado_at_utc' => $creadoAtUtc,
+                'evaluated_candidates' => $evaluatedCandidates
             ];
 
         } catch (Throwable $ex) {
