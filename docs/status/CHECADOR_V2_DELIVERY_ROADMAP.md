@@ -1,7 +1,7 @@
 # CHECADOR V2 — DELIVERY ROADMAP & MILESTONE TRACKER
 
 **Document Status:** CANONICAL
-**Last Updated At:** 2026-10-07
+**Last Updated At:** 2026-10-09
 **Target Completion Date:** 2026-12-31
 
 ---
@@ -46,24 +46,54 @@
 | **V2.6-SA Physical Model Addendum V1.1** | Design & freeze `CHECADOR_V2_PARALLEL_COMPARISON_PHYSICAL_MODEL_ADDENDUM_V1.1.md` (FROZEN_V1.1) | 2026-10-07 | FROZEN V1.1 (`451179ed195d...`) |
 | **V2.6-M Parallel Comparison Schema Implementation** | Create SQL migration files (`000005`) & 12-block schema test suite for V2.6 Parallel Comparison tables | 2026-10-07 | 12 / 12 Test Blocks PASS (`tests/v2_parallel_comparison_schema_tests.php`) |
 | **V2.6 Parallel Comparison Runtime Engine** | Implement `ParallelComparisonService` domain service & 9-block runtime test suite | 2026-10-08 | 9 / 9 Runtime Tests PASS (`tests/v2_parallel_comparison_runtime_tests.php`) |
+| **Level 1 Non-Telegram DEVELOPMENT Closure** | Freeze-compatible event UUID validation plus snapshot event UUID width and raw-reference integrity migrations applied/verified in DEVELOPMENT | 2026-10-09 | Event UUID focused 13/13 PASS; migration 000002 static 21/21 PASS; DEVELOPMENT schema/data final verification CLOSED_VERIFIED; production not authorized |
+| **V2.7-SEC-A DB Fail-Closed Hardening** | Environment variable fail-closed configuration; removal of fallback credentials | 2026-10-12 | 12 / 12 PASS (`tests/v2_db_configuration_fail_closed_tests.php`) |
+| **V2.7-SEC-B Dual-Stack Auth Transport** | Dual-stack POST (JSON + form-urlencoded); query fallback rejected; GET transitional | 2026-10-12 | 15 / 15 PASS (`tests/v2_sec_b_acceso_empresa_transport_tests.php`) |
+| **V2.7-SEC-D1 HTTP Method, Content & Payload Guards** | Standard HTTP 405 with `Allow`, 415 unsupported media types, schema field length boundaries | 2026-10-12 | 20 / 20 PASS (`tests/v2_sec_d1_method_content_payload_tests.php`) |
+| **V2.7 Security Canonical Status Reconciliation** | Reconciled canonical status across SEC-A to SEC-E; separated implementation, spec, lab evidence; verified station identity is not public IP | 2026-10-12 | Canonical reconciliation complete |
+| **Workplace Timezone Read API & Authority** | Effective-dated timezone authority table + REST read endpoint (`GET /api/v2/workplaces/{id}/timezone`) | 2026-10-12 | 23 / 23 PASS (`tests/v2_workplace_timezone_read_endpoint_tests.php`), 25 / 25 PASS (`tests/v2_workplace_timezone_authority_runtime_tests.php`) |
+| **Workplace Timezone Business Mappings (DEV)** | Authorized development mappings for physical workplaces 1–7, 14 -> `America/Mexico_City` | 2026-10-12 | 8 rows inserted in `op_rh_v2_localidades_zonas_horarias`; production not authorized |
+| **Level 1 Snapshot Auth Compliance Remediation** | Aligned snapshot authorization to `biometricos.leer` + authorized workplace scope | 2026-10-12 | 16 / 16 PASS (`tests/v2_snapshot_authorization_compliance_tests.php`) |
+| **Post-Oct 12 Stabilization & Parity Audit** | Reconciled worktree provenance; detected `P1_SNAPSHOT_MEMBERSHIP_INCONSISTENCY` (0 vs 4); stopped runtime changes | 2026-10-13 | Provenance 0 unknown changes; full regression PASS; owner resolution required |
+| **P1 Snapshot Parity & Level 2 Auth Remediation** | Fixed predicate in SnapshotReadV2Service; aligned Level2ServerController to `biometricos.leer` | 2026-10-13 | 14/14 SP PASS; 20/20 L2R PASS; 5-step dev smoke 100% PASS |
 
 ---
 
-## 2. CURRENT ACTIVE MILESTONE
+## 2. CANONICAL PORTAL3 INTEGRATION SEQUENCE MAPPING
+
+To resolve the naming collision between early product roadmaps and technical dependency sequencing, the canonical sequence is defined as follows:
+
+| Canonical ID | Technical Milestone | Scope / Feature Description | Development Status |
+| :--- | :--- | :--- | :--- |
+| **PORTAL3-P03** | Daily Punch Consultation | Query raw observed PunchEvents via `GET /api/v2/punch-events` | CLOSED_VERIFIED_DEVELOPMENT |
+| **PORTAL3-P04A / P3-A** | Level 1 Snapshot Read | Point-in-time durable read snapshot creation & consumption | CLOSED_VERIFIED_DEVELOPMENT |
+| **PORTAL3-P04B / P3-B** | Level 2 Window Completeness | Query window completeness via `GET /api/v2/level2/window-status` | READY_FOR_INTEGRATION (API Remediated & Verified) |
+| **PORTAL3-P04C / P3-C+D**| Schedule & Timezone Prerequisites | Authoritative workplace timezone + effective shift schedule | CLOSED_VERIFIED_DEVELOPMENT |
+| **PORTAL3-P04D / P3-E** | On-Demand Journey Processing | Dynamic pairing and calculation on demand | PENDING_P04B |
+| **PORTAL3-P05** | Administrative Evaluation | Append-only administrative evaluation and incidence resolution | PENDING_P04D |
+| **PORTAL3-P06** | Parallel Comparison | Non-disruptive shadow comparison against legacy attendance | PENDING_P05 |
+
+---
+
+## 3. CURRENT ACTIVE MILESTONE
 
 ### Milestone: V2.7_PREPRODUCTION_HARDENING_AND_CUTOVER_READINESS
-- **Goal:** End-to-end security audits, production deployment manifests, operational telemetry hardening, and cutover sign-off.
-- **Prerequisite Status:** V2.6 Runtime Engine Implemented & Runtime Tests PASS.
-- **Target Completion:** Pending explicit task authorization.
+- **Goal:** Pre-production security controls, database least-privilege, logging redaction, fleet authentication transition, and operational cutover sign-off.
+- **Current Hardening State:** SEC-A CLOSED_VERIFIED; SEC-B OPEN_TRANSITION (1/8 stations tested locally, 7/8 remote stations pending); SEC-C OPEN (pending pre-production target); SEC-D1 CLOSED_VERIFIED; SEC-D3/D4 SPECIFICATION_ONLY; SEC-D8 NOT_REQUIRED_FOR_NORMAL_ARCHITECTURE; SEC-E AUDIT_COMPLETE (specification only; root@localhost runtime); Lector 429 recovery VERIFIED_SAFE_LOCAL_LAB.
+- **Numeric Thresholds:** NOT_APPROVED. Ingest 20 req/s, burst 60 is MODELING_CANDIDATE_FOR_PREPRODUCTION.
+- **Target Completion:** Pending explicit operational authorization.
 
 ---
 
-## 3. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
+## 4. NEXT PLANNED MILESTONES (SCHEDULED FOR 2026-12-31 TARGET)
 
-1. **V2.6-M — Legacy & Payroll Parallel Comparison Schema Implementation:**
-   - Create SQL migration files & 40-scenario schema test suite for V2.6 Parallel Comparison tables.
-2. **V2.7 — Pre-production Hardening & Cutover Readiness:**
-   - End-to-end security audits, production deployment manifests, and final sign-off.
+1. **V2.7 — Pre-production Hardening & Cutover Readiness:**
+   - SEC-B remote physical terminal cutover (7 stations).
+   - SEC-C pre-production deployment target and perimeter TLS validation.
+   - SEC-E database least-privilege role separation on staging/production.
+   - SEC-F error logging and sensitive data redaction review.
+   - SEC-G security evidence and documentation alignment.
+   - Formal sign-off on rate-limiting and burst parameters before edge configuration (SEC-D).
 
 ---
 
@@ -72,7 +102,12 @@
 - **F-01 (Legacy Offline Queue):** DEFERRED / KNOWN LEGACY LIMITATION. Legacy attendance flow lacks local durable queue. Not a blocker for V2 comparación paralela sin afectar nómina.
 - **F-02 (Cold-Start Offline Login):** PREPRODUCTION RESILIENCE. Lector cold-start while offline cannot call `GET /acceso-empresa`. Deferred to pre-production resilience review.
 - **F-03 (Station Consistency):** KNOWN_PREPRODUCTION_OPERATIONAL_RISK. API side support AVAILABLE (`61e942f55ef5...`). Lector side remediation NOT authorized / DEFERRED_PREPRODUCTION_REVIEW.
-- **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Deferred to pre-production security review.
-- [ ] Infrastructure TLS certificate verification
-- [ ] Database trigger installation on staging/production MySQL
+- **F-04 (Legacy Login URL Parameters):** PREPRODUCTION SECURITY. Legacy `GET /acceso-empresa` passes user/password in query parameters. Controlled via SEC-B transition.
+- **SEC-DEBT-01 (Legacy Reversible Encryption):** Legacy user/station passwords use two-way symmetric encryption (`Encriptar::encrypt`) instead of one-way cryptographic hashing (Bcrypt/Argon2id). Risk: MEDIUM; Pre-production required: NO; Protocol remediation: Requires migration design.
+- **SEC-DEBT-02 (Plaintext Session Token):** Active operational tokens stored plaintext in `op_rh_localidades_perfil.token`. Risk: MEDIUM; Pre-production required: NO; Protocol remediation: Can be remediated without protocol change.
+- **SEC-DEBT-03 (Non-Parameterized Legacy SQL):** Legacy authentication queries in `Acceso.php` concatenate ciphertext variables directly. Risk: LOW (mitigated by ciphertext); Pre-production required: NO; Protocol remediation: Can be remediated without protocol change.
+- **SEC-DEBT-04 (Transitional GET Credential Exposure):** Legacy GET branch exposes credentials in query strings/access logs until all 8 physical terminals cut over to POST. Risk: MEDIUM; Pre-production required: YES (via SEC-B completion); Protocol remediation: Remediated once GET branch is disabled.
+- [ ] Staging/Pre-production deployment target definition (SEC-C)
+- [ ] Database least-privilege principal provisioning (SEC-E)
+- [ ] Edge perimeter rate limiting deployment following operational sign-off (SEC-D4)
 

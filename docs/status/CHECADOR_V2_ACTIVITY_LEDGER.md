@@ -618,3 +618,341 @@
 - **DECISIONS:** Implemented domain runtime service `ParallelComparisonService` (`modelo/v2/journey/ParallelComparisonService.php`) consuming explicit immutable V2.5 administrative evaluations (`id_evaluacion_administrativa`), reading legacy attendance/incidence tables in read-only mode, capturing immutable comparison-time attendance snapshots (`snapshot_hash`), persisting 0..N legacy incidence snapshot sets, generating Addendum V1.1 execution fingerprints (`uk_v2_comp_fingerprint`), canonicalizing missing records (`MISSING_RECORD`), executing deterministic fail-closed comparison evaluations (`MATCH`, `PUNCH_DIFFERENCE`, `SHIFT_DIFFERENCE`, `INCIDENT_DIFFERENCE`, `LEGACY_LIMITATION`, `REVIEW_REQUIRED`, `MISSING_LEGACY_RECORD`, `NOT_COMPARABLE`), persisting normalized discrepancy evidence logs, and allocating monotonic append-only comparison revisions (`revision_numero`). Ensured zero legacy mutations, zero upstream V2 mutations, zero public API exposure, and zero monetary/payroll writes.
 - **BLOCKERS:** NONE
 - **NEXT_STEP:** Await project owner authorization before proceeding to V2.7 Pre-production Hardening & Cutover Readiness.
+
+---
+
+### Entry 037
+- **DATE:** 2026-10-09
+- **ACTIVITY_ID:** `CHECADOR_V2_LEVEL1_DEVELOPMENT_GOVERNANCE_SYNC_20261009_RESUME`
+- **PROJECT:** Checador API
+- **TYPE:** DEVELOPMENT_SCHEMA_VERIFICATION_AND_GOVERNANCE_DOCUMENTATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e` (documentation changes remain uncommitted)
+- **COMMIT:** N/A (no commit authorized or created)
+- **ARTIFACTS:** `migraciones/v2/2026_10_09_000001_widen_snapshot_event_uuid.sql`; `migraciones/v2/2026_10_09_000002_add_snapshot_member_raw_reference_integrity.sql`; Level 1 DEVELOPMENT verification evidence; four canonical status documents.
+- **TEST_RESULTS:** Event UUID focused validation 13 PASS / 0 FAIL; snapshot raw-reference migration static test 21 PASS / 0 FAIL; PHP lint PASS; `git diff --check` PASS. DEVELOPMENT schema/data verification passed: zero snapshot members, orphans, and duplicate groups; raw table count 7; no unexpected raw schema change.
+- **DECISIONS:** Recorded `event_uuid` as FROZEN V1.0 (opaque immutable identifier, 1–64 UTF-8 characters after trim, RFC UUID syntax not required, stored capitalization preserved) and current device-ingestion implementation as complete. Focused validation passed for exact retry, divergent idempotency conflict, non-RFC event UUID, case-variant conflict, same UUID across devices, HMAC sealing, and HMAC fail-closed. Recorded migration 000001 as APPLIED + VERIFIED and migration 000002 as CLOSED_VERIFIED in DEVELOPMENT only. Closed the current Level 1 non-Telegram DEVELOPMENT slice. Preserved Portal + Telegram as FROZEN_DEFERRED; no production authorization, Telegram reactivation, code implementation, or database operation occurred during this documentation sync.
+- **BLOCKERS:** Production verification/execution remains unauthorized and outside this activity.
+- **NEXT_STEP:** V2.7 Pre-production Hardening & Cutover Readiness (only when explicitly authorized).
+
+---
+
+### Entry 038
+- **DATE:** 2026-10-12
+- **ACTIVITY_ID:** `CHECADOR_V2_7_SECURITY_CANONICAL_STATUS_RECONCILIATION`
+- **PROJECT:** Checador API
+- **TYPE:** GOVERNANCE_SECURITY_RECONCILIATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (documentation only; uncommitted)
+- **ARTIFACTS:** `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/status/CHECADOR_V2_IMPLEMENTATION_STATUS.md`, `docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`
+- **TEST_RESULTS:** SEC-A DB Fail-Closed (12/12 PASS), SEC-B Acceso-Empresa Transport (15/15 PASS), SEC-D1 Method/Content/Payload Guards (20/20 PASS).
+- **DECISIONS:** Reconciled canonical status documents with audited V2.7 security truth. Established that station/device identity is authenticated API credentials and internal resolution (`id_estacion`), NOT public IP. Formally recorded SEC-D8 (NAT Discovery) as `NOT_REQUIRED_FOR_NORMAL_ARCHITECTURE` and removed it from the critical path. Reconciled SEC-A as `CLOSED_VERIFIED` (12/12 PASS), SEC-B as `OPEN_TRANSITION` (dual-stack POST implemented, query fallback rejected, 15/15 PASS; 7/8 remote stations pending migration), SEC-C as `OPEN` (preproduction target `NOT_DEFINED`), SEC-D1 as `CLOSED_VERIFIED` (20/20 PASS), SEC-D3 as `SPECIFICATION_ONLY`, SEC-D4 as `CLOSED_SPECIFICATION_VERIFIED` (runtime `NOT_IMPLEMENTED`), SEC-E as `AUDIT_COMPLETE` / `SPECIFICATION_ONLY` (local runtime uses overprivileged `root@localhost`; zero grants executed). Confirmed that NO rate-limiting numerical thresholds are approved (ingest 20 req/s, burst 60 remains `MODELING_CANDIDATE_FOR_PREPRODUCTION`; auth 5 req/s, burst 15 is `NOT_APPROVED`; body limit 64 KB is `CANDIDATE_NOT_APPROVED` without batching justification). Reconciled Lector HTTP 429 recovery as `VERIFIED_SAFE_LOCAL_LAB` via durable atomic JSON disk queue (`%AppData%\AdmonGasLector\v2_punch_queue.json`). Cataloged legacy auth security debt (reversible encryption, plaintext session tokens, non-parameterized SQL, transitional GET).
+- **BLOCKERS:** Pre-production target definition (SEC-C); project owner authorization for remote fleet cutover (SEC-B).
+- **NEXT_STEP:** Await operational authorization before proceeding to SEC-B remote fleet cutover or SEC-C pre-production target definition.
+
+---
+
+### Entry 039
+- **DATE:** 2026-10-12
+- **ACTIVITY_ID:** `CHECADOR_V2_7_SEC_G_SECURITY_EVIDENCE_AND_DOCUMENTATION_ALIGNMENT`
+- **PROJECT:** Checador API
+- **TYPE:** GOVERNANCE_ALIGNMENT_AND_REGRESSION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (documentation only; uncommitted)
+- **ARTIFACTS:** `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`
+- **TEST_RESULTS:** SEC-L03 (34/34 PASS), SEC-A (12/12 PASS), SEC-B (15/15 PASS), SEC-D1 (20/20 PASS), SEC-F01 (12/12 PASS).
+- **DECISIONS:** Formally aligned canonical governance documents with verified V2.7 security truth. Clarified that SEC-G canonically means `SECURITY_EVIDENCE_AND_DOCUMENTATION_ALIGNMENT`, distinct from rate-limit approval. Reran and verified SEC-L03 Portal3 supervisor authorization test suite (34 / 34 PASS in `tests/sec_l03_authorization_regression.php`). Reconciled full security control matrix across SEC-L03, SEC-A, SEC-B, SEC-C, SEC-D1, SEC-D3, SEC-D4, SEC-E, SEC-F01, SEC-F02, SEC-F03, SEC-F04. Confirmed zero rate-limiting numerical thresholds are approved (Candidate B: 20 req/s, burst 60 remains MODELING_CANDIDATE_FOR_PREPRODUCTION; auth candidate 5 req/s, burst 15 is NOT_APPROVED). Recorded remaining pre-production blockers: SEC-B remote terminal rollout (7 stations), SEC-C pre-production target definition, SEC-E least-privilege DB principal provisioning, SEC-F02 pre-production PHP error configuration verification, and SEC-F04 perimeter access log query string scrubbing.
+- **BLOCKERS:** Pre-production target definition (SEC-C); project owner authorization for remote fleet cutover (SEC-B).
+- **NEXT_STEP:** Execute SEC-B Fleet Cutover plan for the 7 remote physical terminals upon project owner authorization.
+
+---
+
+### Entry 040
+- **DATE:** 2026-10-13
+- **ACTIVITY_ID:** `CHECADOR_V2_API_POST_OCT12_STABILIZATION_AND_LEVEL2_READ_CONTINUATION`
+- **PROJECT:** Checador API
+- **TYPE:** CONTROLLED_STABILIZATION_AND_LEVEL2_READ_CONTINUATION
+- **STATUS:** CLOSED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted)
+- **ARTIFACTS:** `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md`, `docs/status/CHECADOR_V2_IMPLEMENTATION_STATUS.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`
+- **TEST_RESULTS:** SRA Suite SRA01-SRA16 (16/16 PASS), Level 1 Snapshot Regression (21/21 PASS), Level 2 Server API (16/16 PASS), Level 2 Punch Integrity Ingestion (9/9 PASS), Punch Read Regression (11/11 PASS), SEC-L03 Authorization (34/34 PASS), Temporary Access Regression (62/62 PASS), Workplace Timezone Read Endpoint (23/23 PASS), Workplace Timezone Authority Runtime (25/25 PASS), Shift Scheduling Schema (20/20 PASS), PHP Lint (PASS).
+- **DECISIONS:** Reconciled worktree provenance across 19 modified and 28 untracked files (zero unknown changes). Executed raw vs snapshot parity verification for user 999, workplace 1, local date 2026-10-12: raw read returned 0, snapshot read returned 4 (`RAW_SNAPSHOT_MEMBERSHIP_EQUAL: NO`). Established definitive root cause: predicate discrepancy in `SnapshotReadV2Service.php` (`OR ocurrido_at_utc IS NULL`), which returns all historical events with NULL timestamps for the station regardless of date window, whereas `PunchEventReadV2Controller.php` filters strictly by UTC timestamp range. Classified as `P1_SNAPSHOT_MEMBERSHIP_INCONSISTENCY` and stopped runtime functional progression per instructions. Confirmed snapshot authorization remediation to `biometricos.leer` + authorized workplace scope (SRA01-SRA16 16/16 PASS). Reconciled canonical Portal3 roadmap sequencing (PORTAL3-P03, PORTAL3-P04A/P3-A, PORTAL3-P04B/P3-B, PORTAL3-P04C/P3-C+D, PORTAL3-P04D/P3-E, PORTAL3-P05, PORTAL3-P06). Audited Level 2 read boundary `GET /api/v2/level2/window-status`: contract explicitly authorizes human User JWT (`biometricos.leer`), but runtime implementation defect delegates to `authorizeTemporaryAccess` (module `acceso-temporal`). Production remains unauthorized; no staging, commit, push, or schema/ACL changes executed.
+- **BLOCKERS:** Resolution of `P1_SNAPSHOT_MEMBERSHIP_INCONSISTENCY` (predicate fix in `SnapshotReadV2Service.php`) and owner authorization for Level 2 controller remediation.
+- **NEXT_STEP:** Owner authorization to remediate SnapshotReadV2Service predicate and align Level2ServerController authorization to `biometricos.leer`.
+
+---
+
+### Entry 041
+- **DATE:** 2026-10-13
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P1_SNAPSHOT_PARITY_AND_LEVEL2_AUTH_REMEDIATION`
+- **PROJECT:** Checador API
+- **TYPE:** NARROW_CONTRACT_COMPLIANCE_FIX_AND_LEVEL2_AUTH_REMEDIATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/SnapshotReadV2Service.php`, `modelo/v2/Level2ServerController.php`, `modelo/v2/Level2ServerService.php`, `tests/v2_snapshot_parity_tests.php`, `tests/v2_level2_read_authorization_tests.php`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_DELIVERY_ROADMAP.md`, `docs/status/CHECADOR_V2_IMPLEMENTATION_STATUS.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`
+- **TEST_RESULTS:** Snapshot Parity SP01-SP10 (14/14 PASS), Level 2 Read Auth L2R01-L2R20 (20/20 PASS), Snapshot Read Regression (21/21 PASS), Snapshot Auth Compliance SRA01-SRA16 (16/16 PASS), Level 2 Server API (16/16 PASS), Punch Integrity Ingestion (9/9 PASS), Punch Read API (11/11 PASS), SEC-L03 Authorization (34/34 PASS), Temporary Access Regression (62/62 PASS), Workplace Timezone Read Endpoint (23/23 PASS), Workplace Timezone Authority Runtime (25/25 PASS), Portal3 Security Suite (237/237 PASS), Portal3 P04 (32/32 PASS), Portal3 P03 (30/30 PASS), Portal3 Foundation (22/22 PASS), PHP Lint (PASS).
+- **DECISIONS:**
+  1. Defect 1 (P1): Removed `OR ocurrido_at_utc IS NULL` predicate from `SnapshotReadV2Service.php`, restoring exact 1:1 event membership parity between Level 1 Snapshots and Raw Punch Reads across arbitrary date windows. Excluded NULL timestamp rows from bounded snapshots per Contract §7.3. Verified live on `bd_admongas`: 0 raw events = 0 snapshot events.
+  2. Defect 2: Changed authorization delegation in `Level2ServerController::handleGetWindowStatus()` from `authorizeTemporaryAccess()` to `authorizeBiometricos()` (`biometricos.leer`), aligning with the frozen contract (`docs/v2/LEVEL2_LECTOR_IMPLEMENTATION_HANDOFF_V1.0.md`).
+  3. Normalized input UTC datetime strings in `Level2ServerService::evaluarVentanaNivel2()` to ensure MariaDB DATETIME compatibility.
+  4. Preserved all invariant governance: Architecture Freeze SHA-256 intact, Level 1 Snapshot Contract SHA-256 intact, Level 2 Ingestion Contract SHA-256 intact. Zero persistent schema or ACL alterations. Zero production changes. Zero staging, commits, or push.
+- **BLOCKERS:** None for Level 2 Window Status read. Next Portal3 integration slice (PORTAL3-P04B / P3-B) is unblocked. Remote fleet cutover (SEC-B) pending project owner authorization.
+- **NEXT_STEP:** Owner authorization for PORTAL3-P04B / P3-B Level 2 Window Completeness UI/Read Integration in Portal3.
+
+---
+
+### Entry 042
+- **DATE:** 2026-10-13
+- **ACTIVITY_ID:** `CHECADOR_V2_API_SCHEDULING_AUTH_FINAL_REGRESSION_AND_WRITE_ROUTE_RECONCILIATION`
+- **PROJECT:** Checador API
+- **TYPE:** FINAL_REGRESSION_CLOSURE_AND_WRITE_ROUTE_RECONCILIATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/shift/ShiftSchedulingV2Controller.php`, `tests/v2_schedule_write_authorization_contract_tests.php`, `tests/v2_shift_scheduling_runtime_tests.php`, `tests/run_v2_temporary_access_tests.php`, `tests/v2_sec_d1_method_content_payload_tests.php`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`
+- **TEST_RESULTS:** Shift Scheduling Schema (20/20 PASS), Shift Scheduling Runtime (30/30 PASS), Timezone Authority Runtime (25/25 PASS), Timezone Read Endpoint (23/23 PASS), SEC-L03 Authorization (34/34 PASS), Snapshot Auth Compliance SRA01-SRA16 (16/16 PASS), Level 2 Read Authorization (20/20 PASS), Punch Read API (11/11 PASS), Temporary Access Regression (62/62 PASS), Effective Schedule Authorization (20/20 PASS), Schedule Write Auth Contract SWA01-SWA24 (24/24 PASS), PHP Lint (PASS), Portal3 Security Suite (237/237 PASS), Portal3 P04C Effective Schedule (30/30 PASS), Portal3 P04B Level 2 (30/30 PASS), Portal3 P04A Snapshot (32/32 PASS), Portal3 P03 Daily Read (30/30 PASS), Checador Access Foundation (22/22 PASS), Effective Schedule Real Smoke on `bd_admongas` (200 OK, `UNSCHEDULED`).
+- **DECISIONS:**
+  1. Restored disposable test database (`bd_admongas_v2_test_20261002`) capability and wrapped migration resets with `SET FOREIGN_KEY_CHECKS = 0/1` across tests without mutating persistent business DB `bd_admongas`.
+  2. Reconciled all 5 Shift Scheduling write routes in `ShiftSchedulingV2Controller.php`, removing obsolete calls to nonexistent `Portal3JwtAuthHelper::authorizeUser()` and introducing canonical `authorizeScheduleWrite()` requiring valid Portal3 JWT + `biometricos.editar = 1` + station scope verification where applicable.
+  3. Verified all 5 write routes contractually in `tests/v2_schedule_write_authorization_contract_tests.php` (24/24 PASS).
+  4. Executed all previously deferred regression suites across API and Portal3, verifying 100% pass across all test dimensions.
+  5. Validated effective schedule real smoke against development `bd_admongas` (HTTP 200, `estado_jornada: UNSCHEDULED`).
+  6. Closed final API scheduling gate: `API_SCHEDULING_FINAL_GATE = CLOSED_VERIFIED_DEVELOPMENT`, opening `JOURNEY_GATE = OPEN` for `PORTAL3-P04D / P3-E`.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Proceed immediately to `PORTAL3-P04D / P3-E` ON_DEMAND Journey integration in Portal3.
+
+---
+
+### Entry 043
+- **DATE:** 2026-10-13
+- **ACTIVITY_ID:** `CHECADOR_V2_API_JOURNEY_ON_DEMAND_PORTAL3_BOUNDARY_V1`
+- **PROJECT:** Checador API
+- **TYPE:** MINIMAL_API_BOUNDARY_AND_JOURNEY_ORCHESTRATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_JOURNEY_ON_DEMAND_API_CONTRACT_V1.0.md`, `modelo/v2/journey/JourneyEvaluationV2Controller.php`, `index.php`, `modelo/v2/shift/ScheduleResolutionService.php`, `modelo/v2/journey/JourneyPairingService.php`, `tests/v2_journey_boundary_tests.php`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`
+- **TEST_RESULTS:** Journey Boundary JRB01-JRB30 (30/30 PASS), Journey Pairing Schema (25/25 PASS), Journey Pairing Runtime (16/16 PASS), Journey Calculation Schema (30/30 PASS), Journey Calculation Runtime (14/14 PASS), Shift Scheduling Schema (20/20 PASS), Shift Scheduling Runtime (30/30 PASS), Effective Schedule Authorization (20/20 PASS), Schedule Write Auth Contract (24/24 PASS), Timezone Authority Runtime (25/25 PASS), Timezone Read Endpoint (23/23 PASS), SEC-L03 Authorization (34/34 PASS), Snapshot Auth Compliance SRA01-SRA16 (16/16 PASS), Level 2 Read Authorization (20/20 PASS), Punch Read API (11/11 PASS), Temporary Access Regression (62/62 PASS), PHP Lint (PASS), Controlled Smoke Test on `bd_admongas` (HTTP 200, `evaluated: false`, `estado_jornada: UNSCHEDULED`, `journey_status: UNSCHEDULED_DAY`), Zero Persistent Mutations (0 jornadas programadas, 0 pareos, 0 calculos).
+- **DECISIONS:**
+  1. Authoritative Contract: Authored and froze `docs/v2/CHECADOR_V2_JOURNEY_ON_DEMAND_API_CONTRACT_V1.0.md` (SHA-256: `9eda2b2c7174154d6524f7130ec197678958801df41004925a60928462876c9b`) specifying the server-to-server endpoint `POST /api/v2/journeys/evaluate`.
+  2. Minimal Controller: Implemented `JourneyEvaluationV2Controller` orchestrating existing authoritative domains (`ScheduleResolutionService`, `ScheduledShiftMaterializationService`, `JourneyPairingService` [v2.4-p1], `JourneyCalculationService` [v2.4-p2], `Level2ServerService`, and `WorkplaceTimezoneAuthorityService`) without reimplementing algorithms.
+  3. Security & Scope Enforcement: Enforced canonical Portal3 JWT validation (`iss: portal3_auth`, active human user, `biometricos.leer = 1`, and authorized workplace scope in `op_rh_localidades`). Rejected missing JWT (401), invalid JWT (401), missing permission (403), out-of-scope station (403), and Device Auth (401). Worker resolved strictly against `op_rh_personal.id` (unknown worker returns 404). Timezone resolved strictly from canonical workplace authority, ignoring client overrides.
+  4. Contract Alignment Remediation: Enriched `ScheduleResolutionService.php` to populate `scheduled_start_utc` and `scheduled_end_utc` in resolved segments, and strengthened `JourneyPairingService.php` with defensive fallbacks for single-segment shift bounds and segment types.
+  5. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), zero database schema changes, zero persistent data mutations in `bd_admongas`, zero ACL modifications, zero production deployments, zero git commits or staging.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Proceed to `PORTAL3-P04D / P3-E` ON_DEMAND Journey UI and client integration in Portal3 repository.
+
+---
+
+### Entry 044
+- **DATE:** 2026-10-13
+- **ACTIVITY_ID:** `CHECADOR_V2_API_JOURNEY_PROVENANCE_BOUNDARY_V1_1`
+- **PROJECT:** Checador API
+- **TYPE:** ADDITIVE_CONTRACT_EVOLUTION_AND_PROVENANCE_BOUNDARY
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_JOURNEY_ON_DEMAND_API_CONTRACT_V1.1.md`, `modelo/v2/journey/JourneyPairingService.php`, `modelo/v2/journey/JourneyEvaluationV2Controller.php`, `tests/v2_journey_provenance_boundary_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`
+- **TEST_RESULTS:** Journey Provenance Boundary JPV01-JPV30 + Phase 4/5 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), Journey Pairing Schema (25/25 PASS), Journey Pairing Runtime (16/16 PASS), Journey Calculation Schema (30/30 PASS), Journey Calculation Runtime (14/14 PASS), Shift Scheduling Schema (20/20 PASS), Shift Scheduling Runtime (30/30 PASS), Effective Schedule Authorization (20/20 PASS), Schedule Write Auth Contract (24/24 PASS), Timezone Authority Runtime (25/25 PASS), Timezone Read Endpoint (23/23 PASS), SEC-L03 Authorization (34/34 PASS), Snapshot Auth Compliance (16/16 PASS), Level 2 Read Auth (20/20 PASS), Punch Read API (11/11 PASS), Temporary Access Regression (62/62 PASS), PHP Lint (PASS), Controlled Smoke Test on `bd_admongas` (HTTP 200, `evaluated: false`, `estado_jornada: UNSCHEDULED`, `journey_status: UNSCHEDULED_DAY`), Zero Persistent Mutations (0 jornadas programadas, 0 pareos, 0 calculos).
+- **DECISIONS:**
+  1. Contract V1.1 Frozen: Created additive contract `docs/v2/CHECADOR_V2_JOURNEY_ON_DEMAND_API_CONTRACT_V1.1.md` (SHA-256: `7f71372d9deceb6820e6e71e1be38dadd12e87cd5bb4a5f69bcd250ee85c6f3f`) specifying evaluated candidate membership (`evaluated_raw_events`, `evaluated_raw_event_count`) and technical provenance (`provenance`, `p1_created_at_utc`, `p2_created_at_utc`, segment public event UUID links). V1.0 contract preserved unchanged (SHA-256: `9eda2b2c7174154d6524f7130ec197678958801df41004925a60928462876c9b`).
+  2. Evaluated Candidate Set Implementation: Extended `JourneyPairingService` with `getEvaluatedCandidatesForPairing(int $pairingId): array` querying existing table `op_rh_v2_pareos_marcaciones_asociadas` joined with `op_rh_v2_marcaciones_crudas` (ordered strictly by `m.ocurrido_at_utc ASC, m.id ASC`, omitting internal raw PKs, preserving `id_dispositivo` nullable without forcing to 0). Added segment loading in `findExistingExecutionByFingerprint` for idempotent reuse.
+  3. Controller Provenance Serialization: Updated `JourneyEvaluationV2Controller.php` to enrich segments with `entry_event_uuid` and `exit_event_uuid`, add `creado_at_utc` to pairing and calculation sections, expose `evaluated_raw_events` and `evaluated_raw_event_count` at root and in `provenance`, and return authoritative versions (`p1_algorithm_version: 'v2.4-p1'`, `p2_algorithm_version: 'v2.4-p2'`, `source_completeness_contract_version: 'v2.4'`, `level2_policy_ref: 'POLICY_DEFAULT'`, and `policy_rule_version: null` per strict anti-fabrication rule).
+  4. Reproducibility & Isolation Verified: Verified Phase 4 direct reproducibility against `JourneyPairingService::getEvaluatedCandidatesForPairing()` and Phase 5 late punch isolation (punches arriving after pairing are not included in existing pairing revision's evaluated set).
+  5. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), zero DB schema changes (`DATABASE_SCHEMA_REQUIRED: NO`), zero modifications to Portal3 or Lector repositories, zero mutations in persistent `bd_admongas`, zero git staging, commits, or push.
+- **BLOCKERS:** NONE. PORTAL3-P3F unblocked.
+- **NEXT_STEP:** Proceed to Portal3 P3-F Journey Audit / Provenance integration in Portal3 repository.
+
+---
+
+### Entry 045
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `API_P3G_BOUNDARY_CONTRACT_FREEZE_V1_0`
+- **PROJECT:** Checador API
+- **TYPE:** CONTRACT_FREEZE
+- **STATUS:** CLOSED_FROZEN_OWNER_APPROVED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_P3G_ADMINISTRATIVE_API_BOUNDARY_CONTRACT_V1.0.md` (SHA-256: `e418687501fbdfdf89bcc6f11aab60e49226f265411c4590a39a5fa7799c374a`), `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`
+- **TEST_RESULTS:** N/A (Documentation and Contract Freeze Only; full forensic regression baseline 641 PASS / 0 FAIL / 0 SKIPPED across 32 active test suites; PHP Lint 38/38 PASS).
+- **DECISIONS:**
+  1. Companion Contract Frozen: Authored and froze `docs/v2/CHECADOR_V2_P3G_ADMINISTRATIVE_API_BOUNDARY_CONTRACT_V1.0.md` matching Portal3 companion contract `docs/v2/CHECADOR_V2_PORTAL3_P3G_INCIDENCE_ADMINISTRATIVE_CONTRACT_V1.0.md` (SHA-256: `e26e888015b27f9f1023e19cf4e005795836a99fd81a98c5638589fde5ca234d`).
+  2. Architecture Option B Enforced: V2 is canonical for incidences, revisions, adjustments, and evaluations (`AdministrativeEvaluationService`); legacy vacation and permission sources are read-only evidence adapters; legacy incapacity automated adapter remains strictly BLOCKED (`BLOCKED_BY_SOURCE_AUTHORITY`); zero legacy dual-write (`LEGACY_DUAL_WRITE = NO`); payroll integration deferred (`PAYROLL_INTEGRATION = DEFERRED`).
+  3. Trust & Security Boundary: Dedicated Portal3 backend -> API server-to-server boundary using Portal3 user-delegated JWT (`iss: portal3_auth`, active user, functional permission, multi-station workplace scope in `op_rh_localidades`). Direct browser access FORBIDDEN (`BROWSER_DIRECT_API = NO`); Device Auth FORBIDDEN (`DEVICE_AUTH_ALLOWED = NO`).
+  4. Dedicated ACL Namespaces: Frozen semantics for `checador-v2-incidencias` (READ, CREATE), `checador-v2-incidencias-resolucion` (READ, RESOLVE/REVIEW), `checador-v2-incidencias-autorizacion` (READ, AUTHORIZE, REJECT, REVOKE/CANCEL). Generic `recursos-humanos.editar` has zero authority.
+  5. Minimal API Surface: Defined 10 endpoints for read applicable incidences, single incident history, create incident, append-only revision, conflict resolution, authorization, rejection, append-only revocation/cancellation, read administrative evaluation, and evaluate shift administration.
+  6. Immutability & Conflict Rules: Raw PunchEvent immutability preserved. Mandatory `REVIEW_REQUIRED` default for all conflicts and physical punch contradictions. Zero automatic precedence. Zero automatic `FALTA`; `FALTA` strictly requires human authorization.
+  7. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), zero runtime files modified (`RUNTIME_FILES_MODIFIED: NONE`), zero schema or DB changes (`DATABASE_MODIFIED: NO`, `SCHEMA_PREREQUISITE_REQUIRED: NO`), zero ACL rows created, zero production changes, zero git commits or staging.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Prepare the smallest P3-G implementation slice without reopening P03-P3F when implementation is explicitly authorized.
+
+---
+
+### Entry 046
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3G_A_READ_BOUNDARY_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_READ_BOUNDARY_IMPLEMENTATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/AdministrativeIncidenceV2Controller.php`, `modelo/v2/Portal3JwtAuthHelper.php`, `index.php`, `tests/v2_p3g_administrative_read_boundary_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`
+- **TEST_RESULTS:** P3G-A Read Boundary Suite P3GA01-P3GA32 (32/32 PASS), Journey Provenance Boundary JPV01-JPV30 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), Level 2 Read Auth (20/20 PASS), Snapshot Parity (14/14 PASS), Snapshot Auth Compliance (16/16 PASS), Punch Read API (11/11 PASS), Workplace Timezone Read (23/23 PASS), Effective Schedule Auth (20/20 PASS), Schedule Write Auth (24/24 PASS), Strict Database Non-Mutation Verification (P3GA25 PASS, byte-identical before and after reads), PHP Lint (PASS, zero syntax errors), Real DEV Smoke on `bd_admongas`: `NOT_RUN_MISSING_DEV_ACL_CONFIGURATION` (zero persistent ACL rows created in shared development).
+- **DECISIONS:**
+  1. Smallest Safe Runtime Read Slice: Implemented exclusively the read capabilities frozen in `docs/v2/CHECADOR_V2_P3G_ADMINISTRATIVE_API_BOUNDARY_CONTRACT_V1.0.md` (`GET /api/v2/incidences`, `GET /api/v2/incidences/{uuid_incidencia}`, `GET /api/v2/administrative-evaluations`). Zero write endpoints implemented; all non-GET routes return 405 Method Not Allowed with `Allow: GET`.
+  2. Pure Read Evaluation Boundary: `GET /api/v2/administrative-evaluations` queries persisted evaluations and linked applications/adjustments. If no evaluation exists, it returns `200 OK` with `evaluation_exists: false` and `evaluation: null` without triggering pairing (P1) or calculation (P2).
+  3. Security & Scope Enforcement: Enforced Portal3 JWT authentication (`iss: portal3_auth`, active human user in `tb_usuarios`) and dedicated ACL authorization in `checador-v2-incidencias.leer`. Scoped strictly to authorized workplaces (`op_rh_localidades.id`); fail-closed on empty or out-of-scope stations (403 `STATION_SCOPE_DENIED`). Worker resolved strictly against `op_rh_personal.id` (404 `WORKER_NOT_FOUND`). Device Auth and direct browser access strictly rejected.
+  4. Invariant Preservation: Implemented under Option B without legacy dual-write (`LEGACY_DUAL_WRITE = NO`). Prohibited automatic inference of `FALTA` or `SIN MARCACIÓN`. Preserved append-only history and deterministic ordering (`revision_numero ASC`). Preserved `REVIEW_REQUIRED` without synthetic precedence.
+  5. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), P3-G Contract SHA-256 intact (`e418687501fbdfdf89bcc6f11aab60e49226f265411c4590a39a5fa7799c374a`), zero DB schema changes, zero persistent data mutations in `bd_admongas`, zero ACL modifications in shared development, zero git commits or staging.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Authorize P3G-B Create and Revision Boundary implementation.
+
+---
+
+### Entry 047
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3G_B_CREATE_AND_REVISION_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_MUTATION_BOUNDARY_IMPLEMENTATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/AdministrativeIncidenceV2Controller.php`, `modelo/v2/journey/AdministrativeEvaluationService.php`, `modelo/v2/Portal3JwtAuthHelper.php`, `index.php`, `tests/v2_p3g_b_create_and_revision_tests.php`, `tests/v2_p3g_administrative_read_boundary_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`
+- **TEST_RESULTS:** P3G-B Suite P3GB01-P3GB35 (35/35 PASS), P3G-A Read Boundary Suite P3GA01-P3GA32 (32/32 PASS), Journey Provenance Boundary JPV01-JPV30 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), Level 2 Read Auth (20/20 PASS), Snapshot Parity (14/14 PASS), Snapshot Auth Compliance (16/16 PASS), Punch Read API (11/11 PASS), Workplace Timezone Read (23/23 PASS), Effective Schedule Auth (20/20 PASS), Schedule Write Auth (24/24 PASS). Total: 258 PASS / 0 FAIL / 0 SKIPPED. PHP Lint (PASS, zero syntax errors). Real DEV Smoke on `bd_admongas`: `NOT_RUN_MISSING_DEV_ACL_CONFIGURATION` (zero persistent ACL rows created in shared development).
+- **DECISIONS:**
+  1. Focused P3G-B Implementation: Implemented exclusively the create and append-only revision endpoints frozen in `docs/v2/CHECADOR_V2_P3G_ADMINISTRATIVE_API_BOUNDARY_CONTRACT_V1.0.md` (`POST /api/v2/incidences` and `POST /api/v2/incidences/{uuid_incidencia}/revisions`).
+  2. Idempotency Contract Enforced: Required `Idempotency-Key` header on all mutating endpoints. Stored metadata cleanly in `motivo` without schema changes, stripped via `extractCleanReason` on read views. Identical replays return existing records (201/200); divergent replays fail closed with 409 `IDEMPOTENCY_CONFLICT`.
+  3. Optimistic Concurrency Control: Required `expected_current_revision` on revision creation; mismatches fail closed with 409 `STALE_REVISION_CONFLICT`.
+  4. Append-Only Immutability: Prior revisions in `op_rh_v2_incidencias_revisiones` remain 100% byte-for-byte identical; new revision rows are strictly inserted, never updating or deleting existing revision records.
+  5. Security & Delegation: Derived actor strictly from Portal3 JWT `sub` (`creado_por_usuario_id`). Client-supplied actor IDs are completely ignored. Functional permission enforced via `checador-v2-incidencias.crear = 1` for creation, and `checador-v2-incidencias-resolucion.editar = 1 OR checador-v2-incidencias.crear = 1` for revisions. Multi-station workplace scoping verified. Device Auth and direct browser access strictly rejected.
+  6. Forbidden Lifecycles Protected: Endpoints for resolve, authorize, reject, revoke, and evaluate remain 405 Method Not Allowed. Lifecycle transition attempts via revision creation rejected with 422 `LIFECYCLE_TRANSITION_FORBIDDEN`.
+  7. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), P3-G Contract SHA-256 intact (`e418687501fbdfdf89bcc6f11aab60e49226f265411c4590a39a5fa7799c374a`), zero DDL migrations, zero legacy dual-write (`LEGACY_DUAL_WRITE = NO`), zero punch mutations, zero payroll writes (`PAYROLL_WRITE = NO`), zero automatic `FALTA` (`AUTOMATIC_FALTA = NO`), zero git commits or staging.
+- **BLOCKERS:** P3G-C/D/E (Resolution, Authorization, Revocation, Administrative Evaluation) remain deferred until authorized.
+- **NEXT_STEP:** Report completion of P3G-B Create and Revision Boundary implementation; keep advanced lifecycle endpoints blocked.
+
+---
+
+### Entry 048
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3G_C_ADMINISTRATIVE_LIFECYCLE_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_LIFECYCLE_IMPLEMENTATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/AdministrativeIncidenceV2Controller.php`, `modelo/v2/journey/AdministrativeEvaluationService.php`, `modelo/v2/Portal3JwtAuthHelper.php`, `index.php`, `tests/v2_p3g_c_lifecycle_actions_tests.php`, `tests/v2_p3g_b_create_and_revision_tests.php`, `tests/v2_p3g_administrative_read_boundary_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`
+- **TEST_RESULTS:** P3G-C Suite P3GC01-P3GC35 (35/35 PASS), P3G-B Suite P3GB01-P3GB35 (35/35 PASS), P3G-A Read Boundary Suite P3GA01-P3GA32 (32/32 PASS), Journey Provenance Boundary JPV01-JPV30 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), Level 2 Read Auth (20/20 PASS), Snapshot Parity (14/14 PASS), Snapshot Auth Compliance (16/16 PASS), Punch Read API (11/11 PASS), Workplace Timezone Read (23/23 PASS), Effective Schedule Auth (20/20 PASS), Schedule Write Auth (24/24 PASS). Total: 293 PASS / 0 FAIL. PHP Lint (PASS, zero syntax errors). Real DEV Smoke on `bd_admongas`: `NOT_RUN_MISSING_DEV_ACL_CONFIGURATION` (zero persistent ACL rows created in shared development).
+- **DECISIONS:**
+  1. Focused P3G-C Implementation: Implemented exclusively the 4 lifecycle action endpoints frozen in `docs/v2/CHECADOR_V2_P3G_ADMINISTRATIVE_API_BOUNDARY_CONTRACT_V1.0.md` (`POST /api/v2/incidences/{uuid}/resolve`, `POST /api/v2/incidences/{uuid}/authorize`, `POST /api/v2/incidences/{uuid}/reject`, `POST /api/v2/incidences/{uuid}/revoke`).
+  2. Privilege Separation: Enforced strict privilege separation: `checador-v2-incidencias-resolucion.editar = 1` for resolve (transitions to `RESOLVED_PENDING_AUTHORIZATION`); `checador-v2-incidencias-autorizacion.editar = 1` for authorize (transitions to `ACTIVE`) and reject (transitions to `REJECTED`); `checador-v2-incidencias-autorizacion.eliminar = 1 OR editar = 1` for revoke (transitions to `CANCELLED`). Resolution or creation permissions alone cannot authorize (403 `FUNCTION_PERMISSION_DENIED`).
+  3. Ordered Invariant Checks: Enforced validation order: 1) Idempotency check with semantic hash matching, 2) Optimistic concurrency control via `expected_current_revision` check (409 `STALE_REVISION_CONFLICT`), 3) Lifecycle state transition check (409 `INVALID_LIFECYCLE_TRANSITION`).
+  4. Append-Only Lifecycle History: Every action creates a new revision record in `op_rh_v2_incidencias_revisiones` and updates `revision_actual` / `estado_actual` in `op_rh_v2_incidencias_maestro`. Prior revisions remain completely immutable and visible in history.
+  5. Evaluation Command Blocked: `POST /api/v2/administrative-evaluations/evaluate` remains 405 Method Not Allowed (`Allow: GET`).
+  6. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), P3-G Contract SHA-256 intact (`e418687501fbdfdf89bcc6f11aab60e49226f265411c4590a39a5fa7799c374a`), zero DDL migrations, zero legacy dual-write (`LEGACY_DUAL_WRITE = NO`), zero punch mutations, zero payroll writes (`PAYROLL_WRITE = NO`), zero automatic `FALTA` (`AUTOMATIC_FALTA = NO`), zero git commits or staging.
+- **BLOCKERS:** Administrative Evaluation execution command (`POST /api/v2/administrative-evaluations/evaluate`) remains deferred until authorized.
+- **NEXT_STEP:** Await project owner authorization before proceeding to P3G-D/E administrative evaluation execution slice.
+
+---
+
+### Entry 049
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3G_D_ADMINISTRATIVE_EVALUATION_EXECUTION_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_EXECUTION_BOUNDARY_IMPLEMENTATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/AdministrativeIncidenceV2Controller.php`, `modelo/v2/journey/AdministrativeEvaluationService.php`, `modelo/v2/Portal3JwtAuthHelper.php`, `index.php`, `tests/v2_p3g_d_evaluation_execution_tests.php`, `tests/v2_p3g_c_lifecycle_actions_tests.php`, `tests/v2_p3g_b_create_and_revision_tests.php`, `tests/v2_p3g_administrative_read_boundary_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`
+- **TEST_RESULTS:** P3G-D Suite P3GD01-P3GD40 (40/40 PASS), P3G-C Suite P3GC01-P3GC35 (35/35 PASS), P3G-B Suite P3GB01-P3GB35 (35/35 PASS), P3G-A Read Boundary Suite P3GA01-P3GA32 (32/32 PASS), Journey Provenance Boundary JPV01-JPV30 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), Level 2 Read Auth (20/20 PASS), Snapshot Parity (14/14 PASS), Snapshot Auth Compliance (16/16 PASS), Punch Read API (11/11 PASS), Workplace Timezone Read (23/23 PASS), Effective Schedule Auth (20/20 PASS), Schedule Write Auth (24/24 PASS). Total: 333 PASS / 0 FAIL. PHP Lint (PASS, zero syntax errors). Real DEV Smoke on `bd_admongas`: `NOT_RUN_MISSING_DEV_ACL_CONFIGURATION` (zero persistent ACL rows created in shared development).
+- **DECISIONS:**
+  1. Focused P3G-D Implementation: Activated exclusively the frozen administrative-evaluation execution command (`POST /api/v2/administrative-evaluations/evaluate`) strictly per Contract Section 9.11. Non-POST methods return 405 Method Not Allowed with header `Allow: POST`.
+  2. Consumption of Existing Provenance: The execution consumes existing, immutable P2 journey calculation headers (`op_rh_v2_calculos_jornada`) and active incidence applications (`op_rh_v2_incidencias_aplicaciones`). Zero recomputation of P1 pairing, zero recomputation of P2 calculations, zero alteration of raw punch membership.
+  3. Compuerta Humana para FALTA (AUTOMATIC_FALTA = NO): Enforced contract Section 8.2 invariant that zero punches + scheduled shift + Level 2 VERIFIED + no incidences alone NEVER emits `FALTA`. Emits `REVIEW_REQUIRED` with `human_review_status = 'PENDING_REVIEW'`. Final `FALTA` classification strictly requires `checador-v2-incidencias-autorizacion.editar = 1` and explicit `authorize_falta: true`. Callers with resolution permission alone attempting to authorize FALTA are rejected with 403 `FUNCTION_PERMISSION_DENIED`.
+  4. Idempotency & Immutability: Enforced mandatory `Idempotency-Key` header (max 64 chars). Reused key with identical semantic payload returns cached 200 without duplicate evaluation records; divergent payload returns 409 `IDEMPOTENCY_CONFLICT`. Hard immutability database triggers (`tg_op_rh_v2_evaluaciones_admin_no_update`, `tg_op_rh_v2_evaluaciones_admin_no_delete`) confirmed active and preventing update/delete operations.
+  5. Policy Rule Version Invariant: Returned `policy_rule_version: null` in response payload when no independent policy rule version is defined.
+  6. Invariants Preserved: Architecture Freeze SHA-256 intact (`87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`), P3-G Contract SHA-256 intact (`e418687501fbdfdf89bcc6f11aab60e49226f265411c4590a39a5fa7799c374a`), zero DDL migrations, zero legacy dual-write (`LEGACY_DUAL_WRITE = NO`), zero punch mutations, zero payroll writes (`PAYROLL_WRITE = NO`), zero git commits or staging.
+- **BLOCKERS:** NONE. Core P3-G API boundary slices (P3G-A, P3G-B, P3G-C, P3G-D) are now fully implemented and verified.
+- **NEXT_STEP:** Report completion of P3G-D Administrative Evaluation Execution Implementation to project owner; await next milestone authorization.
+
+---
+
+### Entry 050
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3H_EVENT_CLASSIFICATION_CONTRACT_FREEZE_V1_0`
+- **PROJECT:** Checador API
+- **TYPE:** DOCUMENTATION_CONTRACT_FREEZE
+- **STATUS:** FROZEN_OWNER_APPROVED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.0.md` (SHA-256: `c710165953f455352cf5675b7581a581be03a632a493e6a0c939276865d6658f`), `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`
+- **DECISIONS:**
+  1. Contract Freeze: Formally froze additive public payload contract `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.0.md` at status `FROZEN_OWNER_APPROVED` following explicit Project Owner approval.
+  2. Public Additive Fields: Defined `pairing_role` (string, nullable) and `segment_ordinal` (integer, nullable) inside each item of `data.evaluated_raw_events[]` and mirrored in `data.provenance.evaluated_raw_events[]` of `GET /api/v2/journeys/on-demand`.
+  3. Canonical Values: Allowed values for `pairing_role` strictly restricted to `ENTRY`, `EXIT`, `SURPLUS`, `UNMATCHED`. No punch-level `AMBIGUOUS` role is permitted (`AMBIGUITY_AS_PAIRING_ROLE = NO`).
+  4. Ambiguity Scope: Ambiguity remains strictly scoped at segment and/or Journey level (`AMBIGUOUS_PAIRING`). Punches in an ambiguous segment retain their candidate physical pairing roles.
+  5. Presentation Labels Approved: Portal3 Spanish presentation mapping approved: `ENTRY` -> 'Entrada', `EXIT` -> 'Salida', `SURPLUS` -> 'Marcación adicional', `UNMATCHED` -> 'Sin emparejar'.
+  6. Invariants Preserved: Zero runtime code changes, zero database mutations, zero new schema (`NEW_SCHEMA_REQUIRED = NO`), zero recomputation (`REQUIRES_P1_RECOMPUTATION = NO`, `REQUIRES_P2_RECOMPUTATION = NO`), zero internal database PK exposure (`INTERNAL_RAW_PK_EXPOSED = NO`), multi-segment (3+) and 5+ event support confirmed, four-slot UI confirmed as presentation projection only without automatic FALTA or SIN MARCACIÓN inference.
+- **BLOCKERS:** NONE. `OWNER_DECISION_REQUIRED: NO`. `RUNTIME_IMPLEMENTATION_READY: YES`.
+- **NEXT_STEP:** Reconcile and freeze companion Portal3 contract `docs/v2/CHECADOR_V2_PORTAL3_P3H_PRESENTATION_PROJECTION_CONTRACT_V1.0.md` before authorizing runtime implementation.
+
+---
+
+### Entry 051
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3H_EVENT_CLASSIFICATION_PAYLOAD_IMPLEMENTATION`
+- **PROJECT:** Checador API
+- **TYPE:** RUNTIME_ENRICHMENT_IMPLEMENTATION
+- **STATUS:** CLOSED_VERIFIED_DEVELOPMENT
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `modelo/v2/journey/JourneyPairingService.php`, `tests/v2_p3h_event_classification_payload_tests.php`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`
+- **TEST_RESULTS:** Focused P3-H Suite P3HEC01-P3HEC30 + 2 SHA assertions (32/32 PASS), Journey Provenance Boundary JPV01-JPV30 (33/33 PASS), Journey Boundary JRB01-JRB30 (30/30 PASS), P3G-A Read Boundary (32/32 PASS), P3G-B Create & Revision (35/35 PASS), P3G-C Lifecycle Actions (35/35 PASS), P3G-D Evaluation Execution (40/40 PASS), Level 2 Read Auth (20/20 PASS), Snapshot Parity (14/14 PASS), Snapshot Auth Compliance (16/16 PASS), Punch Read API (11/11 PASS), Workplace Timezone Read (23/23 PASS), Effective Schedule Auth (20/20 PASS), Schedule Write Auth (24/24 PASS), SEC-L03 Auth (34/34 PASS), Temporary Access (62/62 PASS). Total: 467 PASS / 0 FAIL. PHP Lint (0 syntax errors).
+- **DECISIONS:**
+  1. Additive Payload Implementation: Implemented backward-compatible enrichment of evaluated raw events in `POST /api/v2/journeys/evaluate` by adding `pairing_role` (`ENTRY`, `EXIT`, `SURPLUS`, `UNMATCHED`) and `segment_ordinal` (`integer|null`) per frozen contract `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.0.md`.
+  2. Data Extraction via Left Join: Modified `JourneyPairingService::getEvaluatedCandidatesForPairing` to perform `LEFT JOIN op_rh_v2_pareos_segmentos s ON a.id_pareo_segmento = s.id` over `op_rh_v2_pareos_marcaciones_asociadas a` and `op_rh_v2_marcaciones_crudas m`, deterministically ordered by `m.ocurrido_at_utc ASC, m.id ASC`.
+  3. Mirror Parity: Ensured 100% element-by-element and field-by-field parity between primary `data.evaluated_raw_events[]` and provenance `data.provenance.evaluated_raw_events[]`.
+  4. Ambiguity Scope Preserved: Confirmed that ambiguous segments retain candidate physical pairing roles without using `AMBIGUOUS_PAIRING` as a punch-level role (`AMBIGUITY_AS_PAIRING_ROLE = NO`).
+  5. Invariants Preserved: Zero P1/P2 recomputations (`REQUIRES_P1_RECOMPUTATION = NO`, `REQUIRES_P2_RECOMPUTATION = NO`), zero schema modifications (`NEW_SCHEMA_REQUIRED = NO`), zero internal raw database PK exposure (`INTERNAL_RAW_PK_EXPOSED = NO`), zero punch mutations, zero legacy writes, zero automatic FALTA or SIN MARCACIÓN inference.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Ready for Portal3 P3-H UI presentation runtime implementation consuming the enriched API payload.
+
+---
+
+### Entry 052
+- **DATE:** 2026-10-14
+- **ACTIVITY_ID:** `CHECADOR_V2_API_P3H_EVENT_CLASSIFICATION_CONTRACT_FREEZE_V1_1`
+- **PROJECT:** Checador API
+- **TYPE:** DOCUMENTATION_CONTRACT_FREEZE
+- **STATUS:** CLOSED_FROZEN_OWNER_APPROVED
+- **BASE_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **FINAL_HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e`
+- **COMMIT:** N/A (uncommitted per strict instructions)
+- **ARTIFACTS:** `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.1.md` (SHA-256: `df6b0bec7c6977cb0c12bf5409c8243528af145036474aa3adcf237b21f4711c`), `docs/status/CHECADOR_V2_ACTIVITY_LEDGER.md`, `docs/changelog/CHECADOR_V2_API_CHANGELOG.md`, `docs/status/CHECADOR_V2_CURRENT_STATUS.md`
+- **TEST_RESULTS:** N/A (Documentation freeze only; TESTS_RERUN = NO)
+- **DECISIONS:**
+  1. Contract Freeze V1.1: Formally froze API contract amendment `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.1.md` at status `FROZEN_OWNER_APPROVED` following explicit Project Owner approval on 2026-10-14.
+  2. Erroneous Reference Corrected: Reconciled target endpoint reference from erroneous draft value `GET /api/v2/journeys/on-demand` to canonical, pre-existing implemented endpoint `POST /api/v2/journeys/evaluate`.
+  3. Predecessor Contract Preserved: Predecessor contract V1.0 (`docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.0.md`, SHA-256: `c710165953f455352cf5675b7581a581be03a632a493e6a0c939276865d6658f`) preserved byte-for-byte as immutable historical evidence.
+  4. Supersession Scope: V1.1 supersedes V1.0 exclusively in the Journey endpoint reference. All other semantics (`pairing_role` [`ENTRY`, `EXIT`, `SURPLUS`, `UNMATCHED`], `segment_ordinal`, ambiguity scoping, multi-segment 3+ and 5+ punch scaling, zero automatic FALTA or SIN MARCACIÓN) remain 100% identical.
+  5. Invariants Preserved: Zero runtime code changes (`RUNTIME_FILES_MODIFIED: NONE`), zero route changes or aliases (`RUNTIME_ROUTE_CHANGE_REQUIRED: NO`, `NEW_API_ENDPOINT_REQUIRED: NO`), zero database modifications, zero schema changes, zero ACL modifications.
+- **BLOCKERS:** NONE.
+- **NEXT_STEP:** Create and freeze companion Portal3 P3-H contract V1.1 binding `FINAL_API_P3H_V1_1_SHA256` (`df6b0bec7c6977cb0c12bf5409c8243528af145036474aa3adcf237b21f4711c`).

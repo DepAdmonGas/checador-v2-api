@@ -1,6 +1,6 @@
 # CHECADOR V2 — IMPLEMENTATION STATUS
 
-**Current Date:** 2026-10-05
+**Current Date:** 2026-10-13
 **Architecture Freeze Status:** FROZEN
 **Architecture Version:** V1.0
 
@@ -19,20 +19,26 @@
   - **G4A/G4B/G4C/G4D Authorized Read API:** `GET /api/v2/punch-events` with dynamic integrity status, `biometricos.leer` ACL, fresh station scope, pagination max 200, default 30 days, maximum 31 days UTC window (`400 DATE_RANGE_TOO_LARGE`) (11/11 Read API Tests PASS)
 - **End-to-End Real Integration Test:** PASS
 - **HTTP Routing:** RESOLVED (8 V2 endpoints routed under `/api/v2`)
-- **Comparación Paralela sin Afectar Nómina:** ACTIVE
+- **Comparación Paralela sin Afectar Nómina (V2.6):** COMPLETE / OPERATIONAL; this is not payroll cutover.
 - **Legacy Systems Replaced:** NO (op_rh_personal, op_rh_personal_asistencia intact)
-- **Motor de Jornada V2 & Incidencias:** NOT_STARTED (Next Phase: Portal3 Daily Journey & Incidents)
-- **Payroll Cutover:** NOT_STARTED
+- **V2.4 Journey (Pairing / Calculation) & V2.5 Administrative Incidences:** COMPLETE / OPERATIONAL (see canonical Current Status and Activity Ledger for evidence).
+- **Event UUID Contract:** FROZEN V1.0; opaque immutable identifier, 1–64 UTF-8 characters after trim, RFC UUID syntax not required, no case normalization. Current device-ingestion implementation COMPLETE (13 focused PASS / 0 FAIL); exact retry, divergent conflict, non-RFC value, case-variant conflict, cross-device same UUID, HMAC sealing, and HMAC fail-closed regressions PASS.
+- **Level 1 Non-Telegram DEVELOPMENT Slice (P04 / P3-A):** CLOSED_VERIFIED_DEVELOPMENT; snapshot creation & reading governed by `biometricos.leer` + authorized workplace scope (SRA01-SRA16 16/16 PASS). P1 parity defect REMEDIATED and VERIFIED (14/14 SP PASS; exact 1:1 parity with raw punch read).
+- **Workplace Timezone Read Boundary:** CLOSED_VERIFIED_DEVELOPMENT (`GET /api/v2/workplaces/{id}/timezone`, 23/23 PASS; 8 development mappings configured).
+- **Portal3 Server-to-Server Read Boundaries:** APPROVED_AND_IMPLEMENTED_DEVELOPMENT (P03, P04/P3-A verified in DEVELOPMENT with synthetic fixture user 999, workplace 1; P04B/P3-B Level 2 window-status remediated to `biometricos.leer` and verified 20/20 L2R PASS; production NOT_AUTHORIZED).
+- **Portal + Telegram Capture Channel:** FROZEN_DEFERRED.
+- **V2.7 Pre-production Hardening:** NOT_FULLY_CLOSED (SEC-A, SEC-D1 closed; SEC-B open transition; SEC-C, SEC-E, SEC-F pending).
+- **Payroll Cutover:** NOT_STARTED; production deployment and cutover remain unauthorized.
 
 ---
 
 ## 2. GOVERNANCE & SCHEDULE POINTERS
 
-- **Current Phase:** V2.3_RAW_PUNCH_INTEGRITY_AND_READ_API
+- **Current Phase:** LEVEL2_READ_REMEDIATION_COMPLETE; NEXT: PORTAL3_P04B_LEVEL2_WINDOW_COMPLETENESS_INTEGRATION
 - **API V2.3 Code Status:** CLOSED (`API_V2_3_CODE_STATUS: CLOSED`, `API_V2_3_CODE_COMMITTED: YES`)
 - **API V2.3 Production Deployment Ready:** NO (`PRODUCTION_DEPLOYMENT_BLOCKED: YES` - Pending Infrastructure Deployment Gates)
-- **Final Committed HEAD:** `78076de870d821ab92dd9b95f7ddaf424c61ee0a`
-- **Branch:** `main`
+- **Current Local HEAD:** `28c38918c1ac02900cfbc6b0eedd68719b2e128e` (this documentation sync is uncommitted)
+- **Branch:** `feature/api-level2-server`
 - **Push Performed:** NO (`PUSH_PERFORMED: NO`)
 - **Production Modified:** NO (`PRODUCTION_MODIFIED: NO`)
 - **Governance Hashes:**
@@ -92,9 +98,16 @@
 | **Temporary Access V2 & SEC-L03 Authz** | COMPLETE | 62 / 62 PASS (34 SEC-L03) | Supervisor JWT + Device Auth |
 | **Device & Credential Auth** | COMPLETE | PASS | Bearer Secret + Bcrypt |
 | **DeviceWorkerIdentity** | COMPLETE | PASS | Historical Resolution Active |
-| **Lector Durable Queue** | COMPLETE | 22 / 22 PASS | SQLite Local Queue |
-| **Shift Engine V2 (Motor / Jornada)** | NOT_STARTED | N/A | Next Phase: Portal3 Daily Journey |
-| **Incidents & Infractions V2** | NOT_STARTED | N/A | Next Phase: Portal3 Incidents |
+| **Journey Pairing & Calculation (V2.4)** | OPERATIONAL | 16/16 pairing and 14/14 calculation runtime tests PASS | Derived journey processing |
+| **Administrative Incidences & Evaluation (V2.5)** | OPERATIONAL | 10/10 runtime tests PASS | Append-only evaluation; no payroll monetary calculation |
+| **Legacy & Payroll Parallel Comparison (V2.6)** | OPERATIONAL | 9/9 runtime test blocks PASS | Read-only legacy comparison; no payroll cutover |
+| **Level 1 Snapshot Read Endpoint (`POST /api/v2/snapshots`)** | COMPLETE (DEV) | 21 / 21 PASS (16 / 16 SRA) | Portal3 JWT + `biometricos.leer` |
+| **Workplace Timezone Read Endpoint (`GET /api/v2/workplaces/{id}/timezone`)** | COMPLETE (DEV) | 23 / 23 PASS (25 / 25 Authority) | Portal3 JWT + `biometricos.leer` |
+| **Level 1 Non-Telegram DEVELOPMENT Schema** | COMPLETE (DEVELOPMENT) | Event UUID focused validation 13/13; raw-reference migration static 21/21 | Production not authorized |
+| **SEC-A Database Fail-Closed** | COMPLETE | 12 / 12 PASS | Strict env var requirement; fail-closed connection |
+| **SEC-B Acceso-Empresa Dual-Stack POST** | OPEN_TRANSITION | 15 / 15 PASS | Body credentials; no query fallback; 7/8 remote stations pending |
+| **SEC-D1 HTTP Method, Media & Field Guards** | COMPLETE | 20 / 20 PASS | 405 Method Not Allowed + Allow, 415 Media Type, Field Bounds |
+| **Lector Durable Queue & 429 Recovery** | COMPLETE (LOCAL LAB) | 22 / 22 PASS (Queue) / Local Lab (429) | Atomic JSON File (`%AppData%\AdmonGasLector\v2_punch_queue.json`) |
 | **Payroll Adapter (Legacy)** | NOT_STARTED | N/A | Legacy Payroll Unmodified |
 
 ---
@@ -116,11 +129,10 @@ Los siguientes requerimientos de despliegue se encuentran identificados y pendie
 
 ## 8. OUT OF SCOPE & NEXT PHASE POINTERS
 
-### Out of Scope in API V2.3 (Not Implemented Yet):
-- Clasificación de jornada diaria (Entrada, Salida Comer, Regreso Comer, Salida).
-- Generación de incidencias (retardos, faltas, horas extra, vacaciones, incapacidades, permisos).
-- Fabricación de marcaciones faltantes (la API raw devuelve únicamente marcaciones existentes).
-- Resolución administrativa o flujo completo de asignación tardía `PENDING_MATCH`.
+### Historical V2.3 scope boundaries and current disposition:
+- Clasificación, pairing y cálculo de jornada se implementaron en V2.4; la evaluación de incidencias administrativas opera en V2.5.
+- Fabricar marcaciones faltantes continúa prohibido; la API raw devuelve únicamente eventos existentes.
+- La atribución de eventos `PENDING_MATCH` no se fuerza; cualquier resolución futura requiere un flujo aditivo autorizado.
 
-### Next Phase:
-- **PORTAL3 — JORNADA DIARIA + INCIDENCIAS:** Inicio de preflight arquitectónico y especificación candidate para el motor de jornada diaria y gestión de incidencias en Portal3, manteniendo la inmutabilidad y trazabilidad completa hacia los eventos crudos de `op_rh_v2_marcaciones_crudas`.
+### Next Active Milestone:
+- **V2.7 — PRE-PRODUCTION HARDENING & CUTOVER READINESS:** Operational/security hardening and cutover-readiness planning. This is the next active target only; no production deployment, migration, or cutover is authorized by this status update.
