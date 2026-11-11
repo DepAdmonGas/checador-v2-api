@@ -9,6 +9,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/ShiftTemplateService.php';
 require_once __DIR__ . '/ShiftAssignmentService.php';
+require_once __DIR__ . '/ShiftSchedulingAuthorizationService.php';
 require_once __DIR__ . '/ScheduleResolutionService.php';
 require_once __DIR__ . '/ScheduledShiftMaterializationService.php';
 
@@ -32,21 +33,48 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateTemplate(): void
     {
-        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'JSON payload required', 400);
             return;
         }
 
+        $authInfo = $this->authorizeTemplateMutation($payload);
+        $payload['scope'] = $authInfo['scope'];
+        if ($authInfo['scope'] === 'STATION') {
+            $payload['id_estacion'] = $authInfo['station_id'];
+        }
+
         try {
-            $result = $this->templateService->createTemplate($payload);
+            if (isset($payload['derived_from_global'])) {
+                if ((int) ($authInfo['station_id'] ?? 0) === Portal3JwtAuthHelper::AUTOLAVADO_LOCALITY_ID
+                    || $authInfo['scope'] !== 'STATION' || (int) ($authInfo['station_id'] ?? 0) < 1) {
+                    $this->sendJsonError('FUNCTION_PERMISSION_DENIED', 'La personalización local requiere alcance de estación.', 403);
+                    return;
+                }
+                $result = $this->templateService->createStationCustomization(
+                    $payload,
+                    $authInfo['user_id'],
+                    (int) $authInfo['station_id']
+                );
+                $this->sendJsonSuccess($result['template'], !empty($result['created']) ? 201 : 200);
+                return;
+            }
+            $result = $this->templateService->createTemplate($payload, $authInfo['user_id'], $authInfo['station_id']);
             $this->sendJsonSuccess($result, 201);
         } catch (InvalidArgumentException $e) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', $e->getMessage(), 400);
         } catch (RuntimeException $e) {
             if (strpos($e->getMessage(), 'DUPLICATE_TEMPLATE_VERSION') !== false) {
                 $this->sendJsonError('DUPLICATE_TEMPLATE_VERSION', $e->getMessage(), 409);
+            } elseif (strpos($e->getMessage(), 'STATION_CUSTOMIZATION_SOURCE_CONFLICT') !== false) {
+                $this->sendJsonError('STATION_CUSTOMIZATION_SOURCE_CONFLICT', 'La personalización existente conserva otra versión de origen.', 409);
+            } elseif (strpos($e->getMessage(), 'STATION_CUSTOMIZATION_SOURCE_UNAVAILABLE') !== false) {
+                $this->sendJsonError('STATION_CUSTOMIZATION_SOURCE_UNAVAILABLE', 'El turno de origen ya no está disponible para esta estación.', 404);
+            } elseif (strpos($e->getMessage(), 'STATION_CUSTOMIZATION_SCHEMA_UNAVAILABLE') !== false) {
+                $this->sendJsonError('STATION_CUSTOMIZATION_SCHEMA_UNAVAILABLE', 'La personalización local no está habilitada en este entorno.', 503);
+            } elseif (strpos($e->getMessage(), 'CANNOT_SHADOW_GLOBAL_TEMPLATE') !== false) {
+                $this->sendJsonError('CANNOT_SHADOW_GLOBAL_TEMPLATE', $e->getMessage(), 409);
             } else {
                 $this->sendJsonError('SERVER_ERROR', 'Error interno al procesar plantilla de turno.', 500);
             }
@@ -60,15 +88,16 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateTemplateVersion(string $clave): void
     {
-        $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'JSON payload required', 400);
             return;
         }
 
+        $authInfo = $this->authorizeTemplateMutation($payload);
+
         try {
-            $result = $this->templateService->createNewVersion($clave, $payload);
+            $result = $this->templateService->createNewVersion($clave, $payload, $authInfo['user_id'], $authInfo['station_id']);
             $this->sendJsonSuccess($result, 201);
         } catch (InvalidArgumentException $e) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', $e->getMessage(), 400);
@@ -88,13 +117,28 @@ class ShiftSchedulingV2Controller
      */
     public function handleListTemplates(): void
     {
-        $authz = $this->authorizeScheduleRead();
+        $authz = $this->authorizeTemplateCatalogRead();
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 50;
         $includeAll = isset($_GET['include_all_versions']) && ($_GET['include_all_versions'] === 'true' || $_GET['include_all_versions'] === '1');
 
+        $templateLocalities = array_values(array_map('intval', $authz['authorized_template_localities'] ?? $authz['authorized_stations'] ?? []));
+        $templateDepartments = array_values(array_map('intval', $authz['authorized_template_departments'] ?? []));
+        $filterStationId = null;
+        if (array_key_exists('station_id', $_GET)) {
+            if (!is_numeric($_GET['station_id'])) { $this->sendJsonError('INVALID_STATION_ID', 'station_id must be a canonical locality ID.', 400); return; }
+            $requested = (int) $_GET['station_id'];
+            if ($requested < 1 || !in_array($requested, $templateLocalities, true)) {
+                $this->sendJsonError('UNAUTHORIZED_STATION_ACCESS', 'Template catalog locality is outside authorized scope.', 403); return;
+            }
+            $filterStationId = $requested;
+        } elseif (count($authz['authorized_stations'] ?? []) === 1) {
+            $filterStationId = (int) $authz['authorized_stations'][0];
+        }
+        $localOnly = $filterStationId !== null && in_array($filterStationId, $templateDepartments, true);
+
         try {
-            $result = $this->templateService->listTemplates($page, $perPage, $includeAll);
+            $result = $this->templateService->listTemplates($page, $perPage, $includeAll, $filterStationId, $localOnly);
             $this->sendJsonSuccess($result, 200);
         } catch (Throwable $e) {
             $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar plantillas de turno.', 500);
@@ -106,9 +150,23 @@ class ShiftSchedulingV2Controller
      */
     public function handleGetTemplateVersion(string $clave, int $version): void
     {
-        $authz = $this->authorizeScheduleRead();
+        $authz = $this->authorizeTemplateCatalogRead();
         try {
-            $result = $this->templateService->getTemplateVersion($clave, $version);
+            $requestedStation = isset($_GET['station_id']) && is_numeric($_GET['station_id']) ? (int) $_GET['station_id'] : null;
+            $allowedLocalities = array_values(array_map('intval', $authz['authorized_template_localities'] ?? $authz['authorized_stations'] ?? []));
+            $allowedDepartments = array_values(array_map('intval', $authz['authorized_template_departments'] ?? []));
+            if ($requestedStation !== null && !in_array($requestedStation, $allowedLocalities, true)) {
+                $this->sendJsonError('UNAUTHORIZED_STATION_ACCESS', 'Template locality is outside authorized ACL scope.', 403);
+                return;
+            }
+            if ($requestedStation === null && count($allowedLocalities) > 1
+                && count($authz['authorized_stations'] ?? []) !== 1) {
+                $this->sendJsonError('STATION_ID_REQUIRED', 'station_id is required for a multi-locality template read.', 400);
+                return;
+            }
+            $filterStationId = $requestedStation ?? (count($authz['authorized_stations'] ?? []) === 1 ? (int) $authz['authorized_stations'][0] : null);
+            $localOnly = $filterStationId !== null && in_array($filterStationId, $allowedDepartments, true);
+            $result = $this->templateService->getTemplateVersion($clave, $version, $filterStationId, $localOnly);
             if ($result === null) {
                 $this->sendJsonError('NOT_FOUND', "Template version not found", 404);
                 return;
@@ -297,11 +355,13 @@ class ShiftSchedulingV2Controller
         exit;
     }
 
-    /**
-     * Authenticate Portal3 and authorize read-only schedule access through
-     * the existing biometricos ACL and canonical workplace scope resolver.
-     */
+    /** Authenticate and authorize M03 reading using its narrow scheduling capability. */
     private function authorizeScheduleRead(): array
+    {
+        return $this->authorizeSpecificCapability(ShiftSchedulingAuthorizationService::READ, true);
+    }
+
+    private function authorizeTemplateCatalogRead(): array
     {
         $classBD = new BD();
         $conexion = $classBD->conectarBD();
@@ -313,7 +373,7 @@ class ShiftSchedulingV2Controller
             $this->sendJsonError($auth['status'], $auth['error'], $auth['code']);
         }
 
-        $authz = Portal3JwtAuthHelper::authorizeBiometricos($conexion, $auth, 'leer');
+        $authz = ShiftSchedulingAuthorizationService::authorizeTemplateCatalogRead($conexion, $auth);
         $classBD->desconectarBD($conexion);
         if (!$authz['success']) {
             $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
@@ -343,6 +403,142 @@ class ShiftSchedulingV2Controller
             $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
         }
 
+        return $authz;
+    }
+
+    /** Authorize template creation/versioning: Encargado is scoped strictly to home station; Global requires TEMPLATE_ADMIN. */
+    private function authorizeTemplateMutation(array $payload): array
+    {
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $auth = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
+        if (!$auth['valid']) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError($auth['status'], $auth['error'], $auth['code']);
+            return [];
+        }
+
+        $positionId = (int)($auth['id_puesto'] ?? 0);
+        $userId = (int)($auth['user_id'] ?? 0);
+        $requestedScope = strtoupper(trim((string)($payload['scope'] ?? '')));
+        if (!in_array($requestedScope, ['', 'GLOBAL', 'STATION'], true)) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'scope must be GLOBAL or STATION.', 400);
+            return [];
+        }
+
+        $requestedLocality = null;
+        if (array_key_exists('id_estacion', $payload)) {
+            $localityId = filter_var($payload['id_estacion'], FILTER_VALIDATE_INT);
+            if ($localityId === false || $localityId < 1) {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', 'id_estacion must be a positive canonical locality ID.', 400);
+                return [];
+            }
+            $requestedLocality = $localityId;
+        }
+
+        if ($positionId === Portal3JwtAuthHelper::DIRECCION_OPERACIONES_PUESTO_ID
+            && $requestedScope === 'STATION'
+            && $requestedLocality === Portal3JwtAuthHelper::AUTOLAVADO_LOCALITY_ID) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError('FUNCTION_PERMISSION_DENIED', 'Dirección conserva acceso de consulta a Autolavado.', 403);
+            return [];
+        }
+
+        // Global template administrator path: explicit station writes use the separate station capability.
+        $stationWriteRequested = false;
+        if ($requestedScope === 'STATION') {
+            $stationWriteRequested = true;
+        }
+
+        if ($positionId === Portal3JwtAuthHelper::ENCARGADO_PUESTO_ID) {
+            if ($requestedScope === 'GLOBAL') {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('FUNCTION_PERMISSION_DENIED', 'Encargado no tiene permiso para administrar plantillas globales.', 403);
+                return [];
+            }
+            // Preserve the existing station-local default for Encargado when scope is omitted.
+            $stationWriteRequested = true;
+        }
+
+        if ($stationWriteRequested) {
+            $authz = ShiftSchedulingAuthorizationService::authorizeStationTemplateMutation($conexion, $auth);
+            $classBD->desconectarBD($conexion);
+            if (!$authz['success']) {
+                $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
+                return [];
+            }
+
+            $authorizedTemplateLocalities = array_values(array_map(
+                'intval',
+                $authz['authorized_template_localities'] ?? $authz['authorized_stations'] ?? []
+            ));
+            $authorizedDepartments = array_values(array_map(
+                'intval',
+                $authz['authorized_template_departments'] ?? []
+            ));
+            $physicalStations = array_values(array_map(
+                'intval',
+                $authz['authorized_stations'] ?? []
+            ));
+            $stationId = $requestedLocality
+                ?? (count($physicalStations) === 1 ? $physicalStations[0] : null);
+
+            if ($stationId === null
+                || !in_array($stationId, $authorizedTemplateLocalities, true)
+                || ($stationId === Portal3JwtAuthHelper::AUTOLAVADO_LOCALITY_ID
+                    && !in_array($stationId, $authorizedDepartments, true))) {
+                $this->sendJsonError('STATION_SCOPE_DENIED', 'La localidad solicitada no está autorizada para administrar plantillas.', 403);
+                return [];
+            }
+
+            return [
+                'user_id' => $userId,
+                'position_id' => $positionId,
+                'scope' => 'STATION',
+                'station_id' => $stationId,
+            ];
+        }
+
+        // Only the GLOBAL catalog is authorized by checador.plantillas.administrar.
+        $authz = ShiftSchedulingAuthorizationService::authorize(
+            $conexion,
+            $auth,
+            ShiftSchedulingAuthorizationService::TEMPLATE_ADMIN,
+            false
+        );
+        $classBD->desconectarBD($conexion);
+        if (!$authz['success']) {
+            $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
+            return [];
+        }
+
+        return [
+            'user_id' => $userId,
+            'position_id' => $positionId,
+            'scope' => 'GLOBAL',
+            'station_id' => null,
+        ];
+    }
+
+    private function authorizeSpecificCapability(string $permission, bool $requireStationScope): array
+    {
+        $classBD = new BD();
+        $conexion = $classBD->conectarBD();
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $auth = Portal3JwtAuthHelper::validateToken($conexion, $authHeader);
+        if (!$auth['valid']) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError($auth['status'], $auth['error'], $auth['code']);
+        }
+        $authz = ShiftSchedulingAuthorizationService::authorize($conexion, $auth, $permission, $requireStationScope);
+        $classBD->desconectarBD($conexion);
+        if (!$authz['success']) {
+            $this->sendJsonError($authz['status'], $authz['error'], $authz['code']);
+        }
+        $authz['user_id'] = (int)($auth['user_id'] ?? 0);
         return $authz;
     }
 
