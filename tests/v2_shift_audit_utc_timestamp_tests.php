@@ -48,7 +48,7 @@ function runSourceChecks(string $root): void
             );
         }
     }
-    assertCheck($insertCount === 4, "Expected four canonical shift audit inserts; found {$insertCount}");
+    assertCheck($insertCount === 5, "Expected five canonical shift audit inserts; found {$insertCount}");
 
     $assignmentSource = file_get_contents($root . '/modelo/v2/shift/ShiftAssignmentService.php');
     assertCheck(
@@ -56,7 +56,7 @@ function runSourceChecks(string $root): void
         && preg_match('/registrado_at_utc\)\s*VALUES\s*\([^;]*UTC_TIMESTAMP\(\)/is', $assignmentSource) === 1,
         'Canonical assignment timestamp must continue to use UTC_TIMESTAMP()'
     );
-    echo "PASS: four shift audit writers and assignment UTC source are explicit.\n";
+    echo "PASS: five shift audit writers and assignment UTC source are explicit.\n";
 }
 
 function runLiveChecks(): void

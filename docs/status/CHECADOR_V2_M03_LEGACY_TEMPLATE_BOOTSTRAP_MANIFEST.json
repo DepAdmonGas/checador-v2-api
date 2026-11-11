@@ -1,0 +1,540 @@
+{
+    "task_id": "CHECADOR_V2_M03_AUTHORIZED_TEMPLATE_BOOTSTRAP_EXECUTION_V1",
+    "definitions": {
+        "LEGACY_IL1_060000_140000": {
+            "template_key": "LEGACY_IL1_060000_140000",
+            "version": 1,
+            "template_id": 1,
+            "name": "Legacy Interlomas — TURNO 1 / ENCARGADO 1 — 06:00–14:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                1
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "06:00:00",
+                    "hora_fin_local": "14:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "aaac5728b6e827435ceccb7244bfbebb0c1dd63d287143f9e7ee6dcb75ffcee5",
+                "e0617f72a47a5ed5bc854f940414beaffde857d1861118cca63661af14308e8a"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 10,
+                    "title": "TURNO 1",
+                    "hora_entrada": "06:00:00",
+                    "hora_salida": "14:00:00",
+                    "definition_sha256": "aaac5728b6e827435ceccb7244bfbebb0c1dd63d287143f9e7ee6dcb75ffcee5"
+                },
+                {
+                    "legacy_id": 13,
+                    "title": "ENCARGADO 1",
+                    "hora_entrada": "06:00:00",
+                    "hora_salida": "14:00:00",
+                    "definition_sha256": "e0617f72a47a5ed5bc854f940414beaffde857d1861118cca63661af14308e8a"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_075000_140000": {
+            "template_key": "LEGACY_IL1_075000_140000",
+            "version": 1,
+            "template_id": 2,
+            "name": "Legacy Interlomas — FACTURISTA 1 — 07:50–14:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                2
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "07:50:00",
+                    "hora_fin_local": "14:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "316682de47069a7af6c6310fb66472de4e959fd43e86f4a2a982705b19a74463"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 26,
+                    "title": "FACTURISTA 1",
+                    "hora_entrada": "07:50:00",
+                    "hora_salida": "14:00:00",
+                    "definition_sha256": "316682de47069a7af6c6310fb66472de4e959fd43e86f4a2a982705b19a74463"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_080000_140000": {
+            "template_key": "LEGACY_IL1_080000_140000",
+            "version": 1,
+            "template_id": 3,
+            "name": "Legacy Interlomas — BANDERERO DE APOYO 1 — 08:00–14:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                3
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "08:00:00",
+                    "hora_fin_local": "14:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "9489b52ca998b03dabf4a146c047045aa3a5d64e59aff27a50bb265e9d4f3354"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 116,
+                    "title": "BANDERERO DE APOYO 1",
+                    "hora_entrada": "08:00:00",
+                    "hora_salida": "14:00:00",
+                    "definition_sha256": "9489b52ca998b03dabf4a146c047045aa3a5d64e59aff27a50bb265e9d4f3354"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_080000_190000": {
+            "template_key": "LEGACY_IL1_080000_190000",
+            "version": 1,
+            "template_id": 4,
+            "name": "Legacy Interlomas — BANDERERO FULL — 08:00–19:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                4
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "08:00:00",
+                    "hora_fin_local": "19:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "24c4d1cb50be276234cf47366fdf256d496cf2ab3dc846ce101fe37cbb36b97f"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 61,
+                    "title": "BANDERERO FULL",
+                    "hora_entrada": "08:00:00",
+                    "hora_salida": "19:00:00",
+                    "definition_sha256": "24c4d1cb50be276234cf47366fdf256d496cf2ab3dc846ce101fe37cbb36b97f"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_090000_150000": {
+            "template_key": "LEGACY_IL1_090000_150000",
+            "version": 1,
+            "template_id": 5,
+            "name": "Legacy Interlomas — ASISTENTE SABADO — 09:00–15:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                5
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "09:00:00",
+                    "hora_fin_local": "15:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "16bc389dc011f4bc519923f1c19043fe8fdffe4e380fb59db5bc31f5de49b1a9"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 17,
+                    "title": "ASISTENTE SABADO",
+                    "hora_entrada": "09:00:00",
+                    "hora_salida": "15:00:00",
+                    "definition_sha256": "16bc389dc011f4bc519923f1c19043fe8fdffe4e380fb59db5bc31f5de49b1a9"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_090000_153000": {
+            "template_key": "LEGACY_IL1_090000_153000",
+            "version": 1,
+            "template_id": 6,
+            "name": "Legacy Interlomas — INTENDENCIA SABADO — 09:00–15:30",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                6
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "09:00:00",
+                    "hora_fin_local": "15:30:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "a17c220dd6f03fc9b7404be7a3d00cf8733202285c51f5a35728a904cc315e19"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 84,
+                    "title": "INTENDENCIA SABADO",
+                    "hora_entrada": "09:00:00",
+                    "hora_salida": "15:30:00",
+                    "definition_sha256": "a17c220dd6f03fc9b7404be7a3d00cf8733202285c51f5a35728a904cc315e19"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_090000_180000": {
+            "template_key": "LEGACY_IL1_090000_180000",
+            "version": 1,
+            "template_id": 7,
+            "name": "Legacy Interlomas — ASISTENTE / INTENDENCIA — 09:00–18:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                7
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "09:00:00",
+                    "hora_fin_local": "18:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "c8b84e6b6627252d9ccfa2058d7884b2e37a6a1cfe63c256593a2b1732e78317",
+                "70e851e3b72bd3777c4d2dd43b928c61e9a12363044bf61c83d54d778fb82c30"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 16,
+                    "title": "ASISTENTE",
+                    "hora_entrada": "09:00:00",
+                    "hora_salida": "18:00:00",
+                    "definition_sha256": "c8b84e6b6627252d9ccfa2058d7884b2e37a6a1cfe63c256593a2b1732e78317"
+                },
+                {
+                    "legacy_id": 18,
+                    "title": "INTENDENCIA",
+                    "hora_entrada": "09:00:00",
+                    "hora_salida": "18:00:00",
+                    "definition_sha256": "70e851e3b72bd3777c4d2dd43b928c61e9a12363044bf61c83d54d778fb82c30"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_135000_200000": {
+            "template_key": "LEGACY_IL1_135000_200000",
+            "version": 1,
+            "template_id": 8,
+            "name": "Legacy Interlomas — FACTURISTA 2 — 13:50–20:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                8
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "13:50:00",
+                    "hora_fin_local": "20:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "986a8384997129aa8b8b8817a28bc9403ed54473d3f337d0a6a9434a5c380254"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 27,
+                    "title": "FACTURISTA 2",
+                    "hora_entrada": "13:50:00",
+                    "hora_salida": "20:00:00",
+                    "definition_sha256": "986a8384997129aa8b8b8817a28bc9403ed54473d3f337d0a6a9434a5c380254"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_140000_200000": {
+            "template_key": "LEGACY_IL1_140000_200000",
+            "version": 1,
+            "template_id": 9,
+            "name": "Legacy Interlomas — TURNO 2 / BANDERERO DE APOYO 2 — 14:00–20:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                9
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "14:00:00",
+                    "hora_fin_local": "20:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "da40bbd1a328e008ab27ce8e22a374a0b7d22c878e2502afc9585d93b3c48cad",
+                "8e9823ba8c7c38418dec7d1802819dafcabaea508c725cc9ecde72039e401e1d"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 11,
+                    "title": "TURNO 2",
+                    "hora_entrada": "14:00:00",
+                    "hora_salida": "20:00:00",
+                    "definition_sha256": "da40bbd1a328e008ab27ce8e22a374a0b7d22c878e2502afc9585d93b3c48cad"
+                },
+                {
+                    "legacy_id": 117,
+                    "title": "BANDERERO DE APOYO 2",
+                    "hora_entrada": "14:00:00",
+                    "hora_salida": "20:00:00",
+                    "definition_sha256": "8e9823ba8c7c38418dec7d1802819dafcabaea508c725cc9ecde72039e401e1d"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_140000_220000": {
+            "template_key": "LEGACY_IL1_140000_220000",
+            "version": 1,
+            "template_id": 10,
+            "name": "Legacy Interlomas — ENCARGADO 2 — 14:00–22:00",
+            "shift_type": "REGULAR",
+            "segment_ids": [
+                10
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "14:00:00",
+                    "hora_fin_local": "22:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 0
+                }
+            ],
+            "source_hashes": [
+                "1b68aa0900d7eb12762d93b486d3b73e23c014309e7d0f67cc1870e8715bccb2"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 14,
+                    "title": "ENCARGADO 2",
+                    "hora_entrada": "14:00:00",
+                    "hora_salida": "22:00:00",
+                    "definition_sha256": "1b68aa0900d7eb12762d93b486d3b73e23c014309e7d0f67cc1870e8715bccb2"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_200000_060000": {
+            "template_key": "LEGACY_IL1_200000_060000",
+            "version": 1,
+            "template_id": 11,
+            "name": "Legacy Interlomas — TURNO 3 — 20:00–06:00",
+            "shift_type": "NOCTURNO",
+            "segment_ids": [
+                11
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "20:00:00",
+                    "hora_fin_local": "06:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 1
+                }
+            ],
+            "source_hashes": [
+                "fa73d4d3c1ea176fe712d098486c41cf1fb75e91e326b65bb38c3aec1785b156"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 12,
+                    "title": "TURNO 3",
+                    "hora_entrada": "20:00:00",
+                    "hora_salida": "06:00:00",
+                    "definition_sha256": "fa73d4d3c1ea176fe712d098486c41cf1fb75e91e326b65bb38c3aec1785b156"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        },
+        "LEGACY_IL1_220000_060000": {
+            "template_key": "LEGACY_IL1_220000_060000",
+            "version": 1,
+            "template_id": 12,
+            "name": "Legacy Interlomas — ENCARGADO 3 — 22:00–06:00",
+            "shift_type": "NOCTURNO",
+            "segment_ids": [
+                12
+            ],
+            "segments": [
+                {
+                    "ordinal": 1,
+                    "tipo_segmento": "WORK",
+                    "hora_inicio_local": "22:00:00",
+                    "hora_fin_local": "06:00:00",
+                    "dia_offset_inicio": 0,
+                    "dia_offset_fin": 1
+                }
+            ],
+            "source_hashes": [
+                "1ff4b05cebd05e8d7fa9dd00537430f72358da879b4c484e3b14227e26b733c6"
+            ],
+            "source_rows": [
+                {
+                    "legacy_id": 15,
+                    "title": "ENCARGADO 3",
+                    "hora_entrada": "22:00:00",
+                    "hora_salida": "06:00:00",
+                    "definition_sha256": "1ff4b05cebd05e8d7fa9dd00537430f72358da879b4c484e3b14227e26b733c6"
+                }
+            ],
+            "origin_status": "created_by_this_bootstrap",
+            "recorded_at_utc": "2026-11-02T18:51:55Z"
+        }
+    },
+    "pending": [],
+    "executions": [
+        {
+            "execution_id": "20261102T185155Z-4100467-4afabe",
+            "started_at_utc": "2026-11-02T18:51:55Z",
+            "mode": "apply",
+            "created": 12,
+            "matched_exact": 0,
+            "conflicts": [],
+            "completed_at_utc": "2026-11-02T18:51:55Z",
+            "database_after": {
+                "templates": 12,
+                "segments": 12,
+                "assignments": 0,
+                "raw_punch_rows": 89,
+                "distinct_raw_punch_uuids": 89
+            }
+        },
+        {
+            "execution_id": "20261102T185221Z-4100529-3c5f5f",
+            "started_at_utc": "2026-11-02T18:52:21Z",
+            "mode": "apply",
+            "created": 0,
+            "matched_exact": 12,
+            "conflicts": [],
+            "completed_at_utc": "2026-11-02T18:52:21Z",
+            "database_after": {
+                "templates": 12,
+                "segments": 12,
+                "assignments": 0,
+                "raw_punch_rows": 89,
+                "distinct_raw_punch_uuids": 89
+            }
+        },
+        {
+            "execution_id": "20261102T185318Z-4100742-393ffb",
+            "started_at_utc": "2026-11-02T18:53:18Z",
+            "mode": "apply",
+            "created": 0,
+            "matched_exact": 12,
+            "conflicts": [],
+            "completed_at_utc": "2026-11-02T18:53:18Z",
+            "database_after": {
+                "templates": 12,
+                "segments": 12,
+                "assignments": 0,
+                "raw_punch_rows": 89,
+                "distinct_raw_punch_uuids": 89
+            }
+        }
+    ],
+    "schema_version": 1,
+    "authorization": {
+        "scope": "One development-only CLI bootstrap and idempotent verification reruns; no HTTP or ordinary template administration.",
+        "authorized_at": "2026-11-02"
+    },
+    "source": {
+        "database": "bd_admongas",
+        "server_hostname": "fedora",
+        "table": "op_rh_localidades_horario",
+        "physical_station_id": 1,
+        "numlista": 2,
+        "canonical_locality_id": 1,
+        "canonical_locality_name": "Interlomas",
+        "source_row_count": 17,
+        "source_rows_sha256": [
+            "aaac5728b6e827435ceccb7244bfbebb0c1dd63d287143f9e7ee6dcb75ffcee5",
+            "da40bbd1a328e008ab27ce8e22a374a0b7d22c878e2502afc9585d93b3c48cad",
+            "fa73d4d3c1ea176fe712d098486c41cf1fb75e91e326b65bb38c3aec1785b156",
+            "e0617f72a47a5ed5bc854f940414beaffde857d1861118cca63661af14308e8a",
+            "1b68aa0900d7eb12762d93b486d3b73e23c014309e7d0f67cc1870e8715bccb2",
+            "1ff4b05cebd05e8d7fa9dd00537430f72358da879b4c484e3b14227e26b733c6",
+            "c8b84e6b6627252d9ccfa2058d7884b2e37a6a1cfe63c256593a2b1732e78317",
+            "16bc389dc011f4bc519923f1c19043fe8fdffe4e380fb59db5bc31f5de49b1a9",
+            "70e851e3b72bd3777c4d2dd43b928c61e9a12363044bf61c83d54d778fb82c30",
+            "316682de47069a7af6c6310fb66472de4e959fd43e86f4a2a982705b19a74463",
+            "986a8384997129aa8b8b8817a28bc9403ed54473d3f337d0a6a9434a5c380254",
+            "24c4d1cb50be276234cf47366fdf256d496cf2ab3dc846ce101fe37cbb36b97f",
+            "a17c220dd6f03fc9b7404be7a3d00cf8733202285c51f5a35728a904cc315e19",
+            "241e1a887c4e0bcd769e80b3a69fda742fefd5a8f6eeb83d79db2bb9b017f29f",
+            "f8d4877857a14bc04978810b1d48c0eb6bb7bf88adb019c983e8c8820919411a",
+            "9489b52ca998b03dabf4a146c047045aa3a5d64e59aff27a50bb265e9d4f3354",
+            "8e9823ba8c7c38418dec7d1802819dafcabaea508c725cc9ecde72039e401e1d"
+        ],
+        "excluded_rows": [
+            {
+                "legacy_id": 98,
+                "title": "VACACIONES",
+                "hora_entrada": "00:00:00",
+                "hora_salida": "00:00:00",
+                "definition_sha256": "241e1a887c4e0bcd769e80b3a69fda742fefd5a8f6eeb83d79db2bb9b017f29f",
+                "excluded_reason": "Administrative zero-duration legacy record; not a work shift."
+            },
+            {
+                "legacy_id": 99,
+                "title": "INCAPACIDAD",
+                "hora_entrada": "00:00:00",
+                "hora_salida": "00:00:00",
+                "definition_sha256": "f8d4877857a14bc04978810b1d48c0eb6bb7bf88adb019c983e8c8820919411a",
+                "excluded_reason": "Administrative zero-duration legacy record; not a work shift."
+            }
+        ]
+    }
+}
