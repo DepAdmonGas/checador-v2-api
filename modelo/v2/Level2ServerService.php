@@ -67,6 +67,78 @@ class Level2ServerService {
     }
 
     // 2. Historial de Asignaciones Dispositivo <-> Estación
+    /**
+     * Resuelve la estación asignada al dispositivo en el instante efectivo del evento.
+     * Los intervalos son semiabiertos [valido_desde_utc, valido_hasta_utc), en UTC.
+     * Fail closed: historial ausente, ambiguo o con estación no catalogada no produce una estación.
+     */
+    public function resolverEstacionHistorica($conexion, int $idDispositivo, string $ocurridoAtUtc): array {
+        if ($idDispositivo <= 0 || trim($ocurridoAtUtc) === '') {
+            return ['success' => false, 'status' => 'INVALID_EVENT_TIME'];
+        }
+
+        $stmt = $conexion->prepare(
+            'SELECT id_estacion FROM op_rh_v2_dispositivo_estacion_historial
+             WHERE id_dispositivo = ?
+               AND valido_desde_utc <= ?
+               AND (valido_hasta_utc IS NULL OR valido_hasta_utc > ?)
+             ORDER BY valido_desde_utc DESC, id DESC
+             LIMIT 2'
+        );
+        if (!$stmt) {
+            return ['success' => false, 'status' => 'HISTORY_QUERY_FAILED'];
+        }
+
+        $stmt->bind_param('iss', $idDispositivo, $ocurridoAtUtc, $ocurridoAtUtc);
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return ['success' => false, 'status' => 'HISTORY_QUERY_FAILED'];
+        }
+
+        $result = $stmt->get_result();
+        if (!$result) {
+            $stmt->close();
+            return ['success' => false, 'status' => 'HISTORY_QUERY_FAILED'];
+        }
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+
+        if (count($rows) === 0) {
+            return ['success' => false, 'status' => 'HISTORY_NOT_FOUND'];
+        }
+        if (count($rows) !== 1) {
+            return ['success' => false, 'status' => 'HISTORY_AMBIGUOUS'];
+        }
+
+        $idEstacion = (int)($rows[0]['id_estacion'] ?? 0);
+        if ($idEstacion <= 0) {
+            return ['success' => false, 'status' => 'INVALID_STATION'];
+        }
+
+        $stmtStation = $conexion->prepare('SELECT id FROM tb_estaciones WHERE id = ? LIMIT 1');
+        if (!$stmtStation) {
+            return ['success' => false, 'status' => 'STATION_QUERY_FAILED'];
+        }
+        $stmtStation->bind_param('i', $idEstacion);
+        if (!$stmtStation->execute()) {
+            $stmtStation->close();
+            return ['success' => false, 'status' => 'STATION_QUERY_FAILED'];
+        }
+        $stationResult = $stmtStation->get_result();
+        $stationExists = $stationResult && $stationResult->num_rows === 1;
+        $stmtStation->close();
+
+        if (!$stationExists) {
+            return ['success' => false, 'status' => 'INVALID_STATION'];
+        }
+
+        return ['success' => true, 'status' => 'RESOLVED', 'id_estacion' => $idEstacion];
+    }
+
     public function registrarAsignacionEstacion($conexion, int $idDispositivo, int $idEstacion, string $validoDesdeUtc, ?string $validoHastaUtc = null): array {
         $idDispositivo = (int)$idDispositivo;
         $idEstacion = (int)$idEstacion;
@@ -236,7 +308,30 @@ class Level2ServerService {
     }
 
     // 5. Ingesta y Consulta de Telemetría Operativa
+    private function normalizarPayloadTelemetria(array $payload): array {
+        $normalizar = static function ($value) use (&$normalizar) {
+            if (!is_array($value)) {
+                return $value;
+            }
+
+            foreach ($value as $key => $nestedValue) {
+                $value[$key] = $normalizar($nestedValue);
+            }
+
+            if (!array_is_list($value)) {
+                ksort($value, SORT_STRING);
+            }
+            return $value;
+        };
+
+        return $normalizar($payload);
+    }
+
     public function registrarTelemetria($conexion, int $idDispositivo, string $deviceGeneration, int $telemetrySequence, string $observationRaw, ?int $batteryLevel, ?string $networkStatus, ?string $clockStatus, array $payloadJson, ?string $serverReceivedAtUtc = null): array {
+        if ($telemetrySequence < 1 || trim($observationRaw) === '') {
+            return ['success' => false, 'code' => 400, 'status' => 'BAD_REQUEST', 'error' => 'La secuencia de telemetría debe iniciar en 1 y observation_timestamp es obligatorio.'];
+        }
+
         if (!$this->validarGeneracionDispositivo($conexion, $idDispositivo, $deviceGeneration)) {
             return ['success' => false, 'code' => 400, 'status' => 'INVALID_GENERATION', 'error' => 'Generación no registrada para el dispositivo.'];
         }
@@ -252,29 +347,114 @@ class Level2ServerService {
 
         $payloadStr = json_encode($payloadJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        $stmt = $conexion->prepare('INSERT INTO op_rh_v2_dispositivo_telemetria (id_dispositivo, device_generation, telemetry_sequence, observation_timestamp_raw, observado_at_utc, server_received_at_utc, battery_level, network_status, clock_status, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE server_received_at_utc=VALUES(server_received_at_utc)');
+        $findExisting = function () use ($conexion, $idDispositivo, $deviceGeneration, $telemetrySequence): ?array {
+            $stmtExisting = $conexion->prepare('SELECT id, observation_timestamp_raw, battery_level, network_status, clock_status, payload_json FROM op_rh_v2_dispositivo_telemetria WHERE id_dispositivo = ? AND device_generation = ? AND telemetry_sequence = ? LIMIT 1');
+            if (!$stmtExisting) {
+                return null;
+            }
+            $stmtExisting->bind_param('isi', $idDispositivo, $deviceGeneration, $telemetrySequence);
+            if (!$stmtExisting->execute()) {
+                $stmtExisting->close();
+                return null;
+            }
+            $existing = $stmtExisting->get_result()->fetch_assoc() ?: null;
+            $stmtExisting->close();
+            return $existing;
+        };
+
+        $resolveDuplicate = function (array $existing) use ($observationRaw, $batteryLevel, $networkStatus, $clockStatus, $payloadJson): array {
+            $storedPayload = json_decode((string)($existing['payload_json'] ?? ''), true);
+            $samePayload = is_array($storedPayload)
+                && $this->normalizarPayloadTelemetria($storedPayload) === $this->normalizarPayloadTelemetria($payloadJson);
+            $sameObservation = (string)$existing['observation_timestamp_raw'] === $observationRaw;
+            $sameBattery = ($existing['battery_level'] === null ? null : (int)$existing['battery_level']) === $batteryLevel;
+            $sameNetwork = $existing['network_status'] === $networkStatus;
+            $sameClock = $existing['clock_status'] === $clockStatus;
+
+            if ($sameObservation && $sameBattery && $sameNetwork && $sameClock && $samePayload) {
+                return ['success' => true, 'code' => 200, 'status' => 'ALREADY_RECEIVED', 'id' => (int)$existing['id']];
+            }
+            return ['success' => false, 'code' => 409, 'status' => 'SEQUENCE_COLLISION', 'error' => 'La secuencia de telemetría ya fue usada por una observación diferente.'];
+        };
+
+        $existing = $findExisting();
+        if ($existing !== null) {
+            return $resolveDuplicate($existing);
+        }
+
+        $stmt = $conexion->prepare('INSERT INTO op_rh_v2_dispositivo_telemetria (id_dispositivo, device_generation, telemetry_sequence, observation_timestamp_raw, observado_at_utc, server_received_at_utc, battery_level, network_status, clock_status, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->bind_param('isisssisss', $idDispositivo, $deviceGeneration, $telemetrySequence, $observationRaw, $observadoAtUtc, $serverReceivedAt, $batteryLevel, $networkStatus, $clockStatus, $payloadStr);
-        
-        if ($stmt->execute()) {
+
+        try {
+            $inserted = $stmt->execute();
+            $insertErrorCode = (int)$stmt->errno;
+        } catch (Throwable $exception) {
+            $inserted = false;
+            $insertErrorCode = (int)$stmt->errno;
+            if ($insertErrorCode === 0) {
+                $insertErrorCode = (int)$exception->getCode();
+            }
+        }
+
+        if ($inserted) {
             $id = (int)$stmt->insert_id;
             $stmt->close();
             return ['success' => true, 'code' => 201, 'status' => 'TELEMETRY_RECORDED', 'id' => $id];
-        } else {
-            $stmt->close();
-            return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error al registrar telemetría.'];
         }
+
+        $stmt->close();
+        if ($insertErrorCode === 1062) {
+            $existingAfterCollision = $findExisting();
+            if ($existingAfterCollision !== null) {
+                return $resolveDuplicate($existingAfterCollision);
+            }
+        }
+        return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error al registrar telemetría.'];
     }
 
     // 6. Evaluación de Ventana Nivel 2 y Generación de Manifiesto
     public function evaluarVentanaNivel2($conexion, int $idEstacion, string $fromUtc, string $toUtc, string $coveragePolicyRef = 'POLICY_V1.0_DEFAULT'): array {
+        $utc = new DateTimeZone('UTC');
         try {
-            $dtFrom = new DateTime($fromUtc, new DateTimeZone('UTC'));
+            $dtFrom = new DateTime($fromUtc, $utc);
+            $dtFrom->setTimezone($utc);
             $fromUtc = $dtFrom->format('Y-m-d H:i:s');
-        } catch (Throwable $e) {}
-        try {
-            $dtTo = new DateTime($toUtc, new DateTimeZone('UTC'));
+            $dtTo = new DateTime($toUtc, $utc);
+            $dtTo->setTimezone($utc);
             $toUtc = $dtTo->format('Y-m-d H:i:s');
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+            return [
+                'window_level2_status' => 'UNKNOWN',
+                'delivery_completeness' => 'UNKNOWN',
+                'operational_coverage' => 'UNKNOWN',
+                'time_window_attribution' => 'UNKNOWN',
+                'has_zero_governed_events' => false,
+                'reason' => 'VENTANA_UTC_INVALIDA'
+            ];
+        }
+
+        if ($dtFrom > $dtTo) {
+            return [
+                'window_level2_status' => 'UNKNOWN',
+                'delivery_completeness' => 'UNKNOWN',
+                'operational_coverage' => 'UNKNOWN',
+                'time_window_attribution' => 'UNKNOWN',
+                'has_zero_governed_events' => false,
+                'reason' => 'VENTANA_UTC_INVALIDA'
+            ];
+        }
+
+        // A future interval has not closed yet and cannot be credited from past heartbeats.
+        if ($dtTo > new DateTime('now', $utc)) {
+            return [
+                'window_level2_status' => 'UNKNOWN',
+                'delivery_completeness' => 'UNKNOWN',
+                'operational_coverage' => 'UNKNOWN',
+                'time_window_attribution' => 'UNKNOWN',
+                'has_zero_governed_events' => false,
+                'reason' => 'VENTANA_AUN_ABIERTA'
+            ];
+        }
 
         // A. Consultar Política de Cobertura
         $stmtPol = $conexion->prepare('SELECT max_heartbeat_gap_seconds, max_clock_drift_seconds, require_telemetry_continuity FROM op_rh_v2_coverage_policies WHERE coverage_policy_ref = ? AND es_activo = 1 LIMIT 1');
@@ -332,7 +512,7 @@ class Level2ServerService {
             }
 
             // Check Telemetría Operativa en el intervalo
-            $stmtTelem = $conexion->prepare('SELECT observado_at_utc, server_received_at_utc FROM op_rh_v2_dispositivo_telemetria WHERE id_dispositivo = ? AND device_generation = ? AND observado_at_utc >= ? AND observado_at_utc <= ? ORDER BY observado_at_utc ASC');
+            $stmtTelem = $conexion->prepare('SELECT telemetry_sequence, observado_at_utc, server_received_at_utc, clock_status, payload_json FROM op_rh_v2_dispositivo_telemetria WHERE id_dispositivo = ? AND device_generation = ? AND observado_at_utc >= ? AND observado_at_utc <= ? ORDER BY observado_at_utc ASC, telemetry_sequence ASC');
             $stmtTelem->bind_param('isss', $dispId, $gen, $fromUtc, $toUtc);
             $stmtTelem->execute();
             $resTelem = $stmtTelem->get_result();
@@ -344,10 +524,16 @@ class Level2ServerService {
             $stmtTelem->close();
 
             if (empty($telemetrias)) {
-                $operationalCoverage = 'UNKNOWN';
+                if ($operationalCoverage !== 'INCOMPLETE') {
+                    $operationalCoverage = 'UNKNOWN';
+                }
+                if ($timeWindowAttribution === 'VERIFIED') {
+                    $timeWindowAttribution = 'UNKNOWN';
+                }
             } else {
                 $maxGapAllowed = (int)$policy['max_heartbeat_gap_seconds'];
                 $prevTime = strtotime($fromUtc);
+                $prevTelemetrySequence = null;
 
                 foreach ($telemetrias as $t) {
                     $currTime = strtotime($t['observado_at_utc']);
@@ -356,9 +542,52 @@ class Level2ServerService {
                     }
                     $prevTime = $currTime;
 
+                    if ((int)$policy['require_telemetry_continuity'] === 1) {
+                        $telemetrySequence = (int)$t['telemetry_sequence'];
+                        if ($telemetrySequence < 1 || ($prevTelemetrySequence !== null && $telemetrySequence !== $prevTelemetrySequence + 1)) {
+                            $operationalCoverage = 'INCOMPLETE';
+                        }
+                        $prevTelemetrySequence = $telemetrySequence;
+                    }
+
+                    $healthPayload = json_decode((string)($t['payload_json'] ?? ''), true);
+                    $requiredHealthSignals = [
+                        'application_running',
+                        'sdk_initialized',
+                        'sensor_connected',
+                        'capture_thread_alive',
+                        'queue_writable'
+                    ];
+                    $healthEvidenceComplete = is_array($healthPayload);
+                    $captureHealthy = true;
+                    foreach ($requiredHealthSignals as $healthSignal) {
+                        if (!is_array($healthPayload) || !array_key_exists($healthSignal, $healthPayload) || !is_bool($healthPayload[$healthSignal])) {
+                            $healthEvidenceComplete = false;
+                            continue;
+                        }
+                        if ($healthPayload[$healthSignal] === false) {
+                            $captureHealthy = false;
+                        }
+                    }
+
+                    if (!$captureHealthy) {
+                        $operationalCoverage = 'INCOMPLETE';
+                    } elseif (!$healthEvidenceComplete && $operationalCoverage === 'VERIFIED') {
+                        $operationalCoverage = 'UNKNOWN';
+                    }
+
                     // Calidad del tiempo de origen
                     $recTime = strtotime($t['server_received_at_utc']);
                     if (abs($recTime - $currTime) > (int)$policy['max_clock_drift_seconds']) {
+                        $timeWindowAttribution = 'DEGRADED';
+                    }
+
+                    $clockStatus = strtoupper(trim((string)($t['clock_status'] ?? '')));
+                    if ($clockStatus === '') {
+                        if ($timeWindowAttribution === 'VERIFIED') {
+                            $timeWindowAttribution = 'UNKNOWN';
+                        }
+                    } elseif ($clockStatus !== 'SYNCED') {
                         $timeWindowAttribution = 'DEGRADED';
                     }
                 }

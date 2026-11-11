@@ -47,6 +47,13 @@ try {
     $conexion->query("DELETE FROM op_rh_v2_dispositivos WHERE id IN (100, 101)");
 
     $l2Service = new Level2ServerService();
+    $healthyTelemetryPayload = [
+        'application_running' => true,
+        'sdk_initialized' => true,
+        'sensor_connected' => true,
+        'capture_thread_alive' => true,
+        'queue_writable' => true
+    ];
 
     // Setup Dispositivos y Credenciales
     $secretHash = password_hash('secret123', PASSWORD_BCRYPT);
@@ -107,8 +114,8 @@ try {
     assertTest(!$resCollision['success'] && $resCollision['code'] === 409, "Conflicto de secuencia asignada a otro evento es rechazado con 409 SEQUENCE_COLLISION", $passCount, $failCount);
 
     // 5. Test Telemetría Operativa e Historial (AUTH2-F)
-    $resTelem1 = $l2Service->registrarTelemetria($conexion, 100, 'gen-100-v1', 1, '2026-02-01 07:55:00', 95, 'CONNECTED', 'SYNCED', ['temp' => 36.5]);
-    $resTelem2 = $l2Service->registrarTelemetria($conexion, 100, 'gen-100-v1', 2, '2026-02-01 08:15:00', 94, 'CONNECTED', 'SYNCED', ['temp' => 36.6]);
+    $resTelem1 = $l2Service->registrarTelemetria($conexion, 100, 'gen-100-v1', 1, '2026-02-01 07:55:00', 95, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload + ['temp' => 36.5]);
+    $resTelem2 = $l2Service->registrarTelemetria($conexion, 100, 'gen-100-v1', 2, '2026-02-01 08:15:00', 94, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload + ['temp' => 36.6]);
     assertTest($resTelem1['success'] && $resTelem2['success'], "Registros de telemetría operativa almacenados con éxito", $passCount, $failCount);
 
     $countTelem = $conexion->query("SELECT COUNT(*) as c FROM op_rh_v2_dispositivo_telemetria WHERE id_dispositivo = 100 AND device_generation = 'gen-100-v1'")->fetch_assoc()['c'];
@@ -121,8 +128,8 @@ try {
     $idEv4 = (int)$conexion->query("SELECT id FROM op_rh_v2_marcaciones_crudas WHERE event_uuid = 'ev-l2-004'")->fetch_assoc()['id'];
     $l2Service->procesarSecuenciaNivel2($conexion, $idEv4, 101, 'gen-101-v1', 1);
 
-    $l2Service->registrarTelemetria($conexion, 101, 'gen-101-v1', 1, '2026-08-01 07:55:00', 100, 'CONNECTED', 'SYNCED', [], '2026-08-01 07:55:05');
-    $l2Service->registrarTelemetria($conexion, 101, 'gen-101-v1', 2, '2026-08-01 08:05:00', 99, 'CONNECTED', 'SYNCED', [], '2026-08-01 08:05:05');
+    $l2Service->registrarTelemetria($conexion, 101, 'gen-101-v1', 1, '2026-08-01 07:55:00', 100, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-08-01 07:55:05');
+    $l2Service->registrarTelemetria($conexion, 101, 'gen-101-v1', 2, '2026-08-01 08:05:00', 99, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-08-01 08:05:05');
 
     $evalResult = $l2Service->evaluarVentanaNivel2($conexion, 1, '2026-08-01 07:55:00', '2026-08-01 08:05:00');
     assertTest($evalResult['window_level2_status'] === 'VERIFIED', "Evaluación de ventana completa retorna Nivel 2 VERIFIED para todos los dispositivos de la estación", $passCount, $failCount);

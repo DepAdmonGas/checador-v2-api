@@ -21,6 +21,7 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $host = getenv('DB_HOST') ?: '127.0.0.1';
 $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? (string)getenv('DB_PASS') : 'kimera';
+$port = (int) (getenv('DB_PORT') ?: 3306);
 $jwtSecret = 'test_jwt_secret_l2r_tests_777888';
 putenv("JWT_SECRET={$jwtSecret}");
 
@@ -66,7 +67,7 @@ function make_l2r_jwt(array $customPayload, string $secret): string {
 }
 
 function call_cgi_api(string $method, string $uri, array $headers = [], string $body = ''): array {
-    global $host, $user, $pass, $dbName, $jwtSecret;
+    global $host, $user, $pass, $port, $dbName, $jwtSecret;
 
     $script = realpath(__DIR__ . '/../index.php');
     if (strpos($uri, '/portal-api-v.1.0.1') !== 0) {
@@ -86,6 +87,7 @@ function call_cgi_api(string $method, string $uri, array $headers = [], string $
         'DB_HOST' => $host,
         'DB_USER' => $user,
         'DB_PASS' => $pass,
+        'DB_PORT' => (string)$port,
         'DB_NAME' => $dbName,
         'JWT_SECRET' => $jwtSecret,
     ];
@@ -159,9 +161,9 @@ function call_cgi_api(string $method, string $uri, array $headers = [], string $
 }
 
 try {
-    $admin = new mysqli($host, $user, $pass);
+    $admin = new mysqli($host, $user, $pass, '', $port);
     $admin->query("CREATE DATABASE `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    $db = new mysqli($host, $user, $pass, $dbName);
+    $db = new mysqli($host, $user, $pass, $dbName, $port);
 
     // 1. Portal3 ACL schema
     $db->query("CREATE TABLE tb_usuarios (
@@ -266,11 +268,12 @@ try {
         (20, 'Acceso Temporal', 'acceso-temporal', 1)");
 
     $db->query("INSERT INTO tb_modulos_config (id, modulo_key, estaciones_soportadas, tipo_departamento, activo) VALUES 
-        (15, 'biometricos', '[1,2,99]', 'localidades', 1),
-        (20, 'acceso-temporal', '[1,2,99]', 'localidades', 1)");
+        (15, 'biometricos', '[101,202,99]', 'localidades', 1),
+        (20, 'acceso-temporal', '[101,202,99]', 'localidades', 1)");
 
-    // Stations: Station 1 -> numlista 2 -> Locality 1; Station 2 -> numlista 1 -> Locality 2
-    $db->query("INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (1, 2, 0), (2, 1, 0)");
+    // Physical station IDs deliberately differ from canonical locality IDs.
+    // Station 101 -> numlista 2 -> Locality 1; Station 202 -> numlista 1 -> Locality 2.
+    $db->query("INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (101, 2, 0), (202, 1, 0)");
     $db->query("INSERT INTO op_rh_localidades (id, numlista, localidad, recuperacion_vapores) VALUES 
         (1, 2, 'Estacion Matriz', 'GREEN MACHINE'),
         (2, 1, 'Sucursal Norte', 'OPW')");
@@ -281,42 +284,49 @@ try {
         (2, 'America/Mexico_City', '2026-10-12', NULL)");
 
     // Users:
-    // User 101: home station 1 (maps to locality 1). Has DIRECT grant biometricos.leer = 1. NO acceso-temporal.
-    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (101, 'supervisor_bio', 1, 5, 0)");
+    // User 101: home physical station 101 (maps to canonical locality 1). Has DIRECT grant biometricos.leer = 1. NO acceso-temporal.
+    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (101, 'supervisor_bio', 101, 5, 0)");
     $db->query("INSERT INTO modulos_usuarios_do (id_modulo, id_usuario, leer) VALUES (15, 101, 1)");
 
     // User 102: home station 1. Has DIRECT grant acceso-temporal (leer=1, editar=1). NO biometricos.
-    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (102, 'user_temp_only', 1, 5, 0)");
+    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (102, 'user_temp_only', 101, 5, 0)");
     $db->query("INSERT INTO modulos_usuarios_do (id_modulo, id_usuario, leer, editar) VALUES (20, 102, 1, 1)");
 
     // User 103: home station 1. NO grants.
-    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (103, 'user_no_grants', 1, 5, 0)");
+    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (103, 'user_no_grants', 101, 5, 0)");
 
     require_once __DIR__ . '/../modelo/v2/Level2ServerService.php';
     $l2Service = new Level2ServerService();
+    $healthyTelemetryPayload = [
+        'application_running' => true,
+        'sdk_initialized' => true,
+        'sensor_connected' => true,
+        'capture_thread_alive' => true,
+        'queue_writable' => true
+    ];
 
     // Device 100 on station 1 (complete, no gap)
-    $db->query("INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado) VALUES (100, 'dev-l2-100', 1, 'L2 Terminal 100', 'America/Mexico_City', 1)");
+    $db->query("INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado) VALUES (100, 'dev-l2-100', 101, 'L2 Terminal 100', 'America/Mexico_City', 1)");
     $l2Service->registrarGeneracion($db, 100, 'dev-l2-100', 'gen-v1');
-    $l2Service->registrarAsignacionEstacion($db, 100, 1, '2026-01-01 00:00:00', null);
-    $l2Service->registrarTelemetria($db, 100, 'gen-v1', 1, '2026-10-12 06:00:00', 100, 'CONNECTED', 'SYNCED', [], '2026-10-12 06:00:00');
-    $l2Service->registrarTelemetria($db, 100, 'gen-v1', 2, '2026-10-12 06:10:00', 99, 'CONNECTED', 'SYNCED', [], '2026-10-12 06:10:00');
+    $l2Service->registrarAsignacionEstacion($db, 100, 101, '2026-01-01 00:00:00', null);
+    $l2Service->registrarTelemetria($db, 100, 'gen-v1', 1, '2026-10-12 06:00:00', 100, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-10-12 06:00:00');
+    $l2Service->registrarTelemetria($db, 100, 'gen-v1', 2, '2026-10-12 06:10:00', 99, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-10-12 06:10:00');
 
     // Device 200 on station 2 with a GAP (seq 1 and seq 3)
-    $db->query("INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado) VALUES (200, 'dev-l2-200', 2, 'L2 Terminal 200', 'America/Mexico_City', 1)");
+    $db->query("INSERT INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, timezone, estado) VALUES (200, 'dev-l2-200', 202, 'L2 Terminal 200', 'America/Mexico_City', 1)");
     $l2Service->registrarGeneracion($db, 200, 'dev-l2-200', 'gen-gap');
-    $l2Service->registrarAsignacionEstacion($db, 200, 2, '2026-01-01 00:00:00', null);
-    $l2Service->registrarTelemetria($db, 200, 'gen-gap', 1, '2026-10-12 06:00:00', 100, 'CONNECTED', 'SYNCED', [], '2026-10-12 06:00:00');
-    $l2Service->registrarTelemetria($db, 200, 'gen-gap', 2, '2026-10-12 06:10:00', 99, 'CONNECTED', 'SYNCED', [], '2026-10-12 06:10:00');
+    $l2Service->registrarAsignacionEstacion($db, 200, 202, '2026-01-01 00:00:00', null);
+    $l2Service->registrarTelemetria($db, 200, 'gen-gap', 1, '2026-10-12 06:00:00', 100, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-10-12 06:00:00');
+    $l2Service->registrarTelemetria($db, 200, 'gen-gap', 2, '2026-10-12 06:10:00', 99, 'CONNECTED', 'SYNCED', $healthyTelemetryPayload, '2026-10-12 06:10:00');
 
     $db->query("INSERT INTO op_rh_v2_marcaciones_crudas (id, event_uuid, id_dispositivo, id_estacion_resuelta, referencia_externa_personal, ocurrido_at_utc, source_timestamp_raw, recibido_at_utc, metodo_captura, processing_status) VALUES 
-        (201, 'ev-l2-gap-1', 200, 2, 'EMP-1', '2026-10-12 06:02:00', '2026-10-12 00:02:00', UTC_TIMESTAMP(), 'BIOMETRIC', 'RECEIVED'),
-        (202, 'ev-l2-gap-3', 200, 2, 'EMP-3', '2026-10-12 06:05:00', '2026-10-12 00:05:00', UTC_TIMESTAMP(), 'BIOMETRIC', 'RECEIVED')");
+        (201, 'ev-l2-gap-1', 200, 202, 'EMP-1', '2026-10-12 06:02:00', '2026-10-12 00:02:00', UTC_TIMESTAMP(), 'BIOMETRIC', 'RECEIVED'),
+        (202, 'ev-l2-gap-3', 200, 202, 'EMP-3', '2026-10-12 06:05:00', '2026-10-12 00:05:00', UTC_TIMESTAMP(), 'BIOMETRIC', 'RECEIVED')");
     $l2Service->procesarSecuenciaNivel2($db, 201, 200, 'gen-gap', 1);
     $l2Service->procesarSecuenciaNivel2($db, 202, 200, 'gen-gap', 3);
 
     // Grant user 101 multiestacion to station 2 as well for testing station 2 evaluations
-    $db->query("INSERT INTO tb_multiestacion_usuario (id_usuario, estaciones, activo) VALUES (101, '[1,2]', 1)");
+    $db->query("INSERT INTO tb_multiestacion_usuario (id_usuario, estaciones, activo) VALUES (101, '[101,202]', 1)");
 
     $jwt101 = "Bearer " . make_l2r_jwt(['sub' => 101], $jwtSecret);
     $jwt102 = "Bearer " . make_l2r_jwt(['sub' => 102], $jwtSecret);
@@ -345,7 +355,7 @@ try {
 
     // L2R04: biometricos.leer + out-of-scope workplace -> denied 403
     // Create User 104 with scope ONLY on station 1 (no multiestacion)
-    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (104, 'user_scope_1_only', 1, 5, 0)");
+    $db->query("INSERT INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (104, 'user_scope_1_only', 101, 5, 0)");
     $db->query("INSERT INTO modulos_usuarios_do (id_modulo, id_usuario, leer) VALUES (15, 104, 1)");
     $jwt104 = "Bearer " . make_l2r_jwt(['sub' => 104], $jwtSecret);
 
@@ -388,7 +398,7 @@ try {
     // Add Locality 99, Station 99
     $db->query("INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (99, 99, 0)");
     $db->query("INSERT INTO op_rh_localidades (id, numlista, localidad, recuperacion_vapores) VALUES (99, 99, 'Estacion Vacia', 'NONE')");
-    $db->query("UPDATE tb_multiestacion_usuario SET estaciones = '[1,2,99]' WHERE id_usuario = 101");
+    $db->query("UPDATE tb_multiestacion_usuario SET estaciones = '[101,202,99]' WHERE id_usuario = 101");
 
     $res10 = call_cgi_api('GET', "/api/v2/level2/window-status?station_id=99&from=" . urlencode($fromUtc) . "&to=" . urlencode($toUtc), [
         'HTTP_AUTHORIZATION' => $jwt101
