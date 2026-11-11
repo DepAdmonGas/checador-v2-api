@@ -89,7 +89,7 @@ class TemporaryAccessV2Controller {
         }
 
         $conexion = $userAuth['conexion'];
-        $authorizedStationIds = $userAuth['authorized_stations'];
+        $authorizedStationIds = $userAuth['authorized_physical_station_ids'] ?? [];
         $filterStationId = $_GET['id_estacion'] ?? null;
 
         $result = $this->service->getPendingRequestsForPortal3($conexion, $authorizedStationIds, $filterStationId);
@@ -113,14 +113,14 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $userAuth = $this->autenticarPortal3User('editar');
+        $userAuth = $this->autenticarPortal3User('crear');
         if (!$userAuth['success']) {
             $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
         $conexion = $userAuth['conexion'];
-        $authorizedStationIds = $userAuth['authorized_stations'];
+        $authorizedStationIds = $userAuth['authorized_physical_station_ids'] ?? [];
         $userId = $userAuth['user_id'];
 
         $result = $this->service->authorizeRequest($conexion, $authorizedStationIds, $requestUuid, $userId);
@@ -151,7 +151,7 @@ class TemporaryAccessV2Controller {
         }
 
         $conexion = $userAuth['conexion'];
-        $authorizedStationIds = $userAuth['authorized_stations'];
+        $authorizedStationIds = $userAuth['authorized_physical_station_ids'] ?? [];
         $userId = $userAuth['user_id'];
 
         $result = $this->service->rejectRequest($conexion, $authorizedStationIds, $requestUuid, $userId);
@@ -175,14 +175,14 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $userAuth = $this->autenticarPortal3User('editar');
+        $userAuth = $this->autenticarPortal3User('eliminar');
         if (!$userAuth['success']) {
             $this->sendJsonResponse($userAuth['code'], array('code' => $userAuth['code'], 'status' => $userAuth['status'] ?? 'UNAUTHORIZED', 'message' => $userAuth['message']));
             return;
         }
 
         $conexion = $userAuth['conexion'];
-        $authorizedStationIds = $userAuth['authorized_stations'];
+        $authorizedStationIds = $userAuth['authorized_physical_station_ids'] ?? [];
         $userId = $userAuth['user_id'];
 
         $result = $this->service->cancelRequest($conexion, $authorizedStationIds, $requestUuid, $userId);

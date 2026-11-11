@@ -164,7 +164,19 @@ $connection->data['user_grants'] = [['id_modulo' => 22, 'id_usuario' => 7, 'leer
 $connection->data['role_grants'] = [['id_modulo' => 22, 'id_puesto' => 90, 'leer' => 0, 'crear' => 0, 'editar' => 1, 'eliminar' => 0, 'descargar' => 0]];
 $read = Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'leer');
 $assert(!empty($read['success']) && $read['authorized_stations'] === [801], 'leer=1 permite queue sólo en home station convertida a localidad');
+$assert(($read['authorized_physical_station_ids'] ?? null) === [10]
+    && $read['authorized_stations'] !== $read['authorized_physical_station_ids'], 'PIN scope preserves both ID spaces: canonical locality 801 maps to physical station 10');
 $assert((Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'editar')['code'] ?? 0) === 403, 'sin editar directo no hereda el flag del puesto');
+$assert((Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'crear')['code'] ?? 0) === 403, 'crear=0 y editar=0 deniegan autorización PIN');
+$assert((Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'eliminar')['code'] ?? 0) === 403, 'eliminar=0 y editar=0 deniegan cancelación PIN');
+$connection->data['user_grants'] = [['id_modulo' => 22, 'id_usuario' => 7, 'leer' => 1, 'crear' => 1, 'editar' => 0, 'eliminar' => 1, 'descargar' => 0]];
+$assert(!empty(Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'crear')['success']), 'crear=1 permite autorizar sin editar');
+$assert(!empty(Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'eliminar')['success']), 'eliminar=1 permite cancelar sin editar');
+$assert((Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'editar')['code'] ?? 0) === 403, 'crear/eliminar no implican editar ni rechazo');
+$connection->data['user_grants'] = [['id_modulo' => 22, 'id_usuario' => 7, 'leer' => 1, 'crear' => 0, 'editar' => 1, 'eliminar' => 0, 'descargar' => 0]];
+$assert(!empty(Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'crear')['success'])
+    && !empty(Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'eliminar')['success'])
+    && !empty(Portal3JwtAuthHelper::authorizeTemporaryAccess($connection, $valid, 'editar')['success']), 'legacy editar=1 preserves prior authorization, cancellation and rejection behavior');
 $assert(!in_array(802, $read['authorized_stations'], true), 'home station scope niega otra localidad');
 
 $connection->data['user_grants'] = [];
@@ -224,8 +236,16 @@ $queries = implode("\n", $connection->queries);
 $assert(strpos($queries, 'op_rh_personal') === false, 'JWT sub no se resuelve como op_rh_personal.id');
 $assert(strpos($queries, 'op_rh_localidades_perfil') === false, 'username legacy no se trata como identidad Portal3');
 $controller = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Controller.php');
+$temporaryService = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Service.php');
 $assert(strpos($controller, "autenticarPortal3User('leer')") !== false, 'GET queue está conectado al permiso leer');
-$assert(substr_count($controller, "autenticarPortal3User('editar')") === 3, 'authorize/reject/cancel están conectados al permiso editar');
+$assert(strpos($controller, "autenticarPortal3User('crear')") !== false
+    && strpos($controller, "autenticarPortal3User('editar')") !== false
+    && strpos($controller, "autenticarPortal3User('eliminar')") !== false,
+    'authorize/reject/cancel usan crear/editar/eliminar de forma independiente');
+$assert(substr_count($controller, "\$userAuth['authorized_physical_station_ids'] ?? []") === 4
+    && str_contains($temporaryService, "r.id_estacion IN (\$inClause)")
+    && str_contains($temporaryService, "in_array(intval(\$row['id_estacion']), \$authorizedStationIds, true)"),
+    'Temporary Access filters request rows in physical-device station ID space after canonical locality authorization');
 $createMethod = substr($controller, strpos($controller, 'public function handleCreateRequest()'), strpos($controller, 'public function handleListPendingRequests()') - strpos($controller, 'public function handleCreateRequest()'));
 $validateMethod = substr($controller, strpos($controller, 'public function handleValidatePin()'), strpos($controller, 'private function autenticarDispositivo()') - strpos($controller, 'public function handleValidatePin()'));
 $assert(strpos($createMethod, 'autenticarDispositivo()') !== false && strpos($createMethod, 'autenticarPortal3User') === false, 'Device create conserva Device Auth sin ACL humano');

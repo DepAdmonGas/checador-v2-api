@@ -200,7 +200,7 @@ class Portal3JwtAuthHelper {
 
     /** Resolve fresh function ACL plus station IDs in op_rh_localidades space. */
     public static function authorizeTemporaryAccess($conexion, array $user, string $requiredPermission) {
-        if (!in_array($requiredPermission, ['leer', 'editar'], true)) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso funcional no disponible.');
+        if (!in_array($requiredPermission, ['leer', 'crear', 'editar', 'eliminar'], true)) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso funcional no disponible.');
         try {
             $module = self::selectOne($conexion, 'SELECT id, activo FROM modulos_dpto_operativo WHERE clave = ? LIMIT 1', 's', [self::TEMPORARY_ACCESS_MODULE]);
             if (!$module || (int) ($module['activo'] ?? 0) !== 1) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Acceso no autorizado.');
@@ -214,7 +214,15 @@ class Portal3JwtAuthHelper {
                 $puestoId = (int) ($user['id_puesto'] ?? 0);
                 $grant = $puestoId > 0 ? self::selectOne($conexion, 'SELECT leer, crear, editar, eliminar, descargar FROM modulos_puestos_do WHERE id_modulo = ? AND id_puesto = ? LIMIT 1', 'ii', [(int) $module['id'], $puestoId]) : null;
             }
-            if (!$grant || (int) ($grant[$requiredPermission] ?? 0) !== 1) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Acceso no autorizado.');
+            $legacyEdit = $grant && (int) ($grant['editar'] ?? 0) === 1;
+            $allowed = $grant && match ($requiredPermission) {
+                'leer' => (int) ($grant['leer'] ?? 0) === 1,
+                'crear' => (int) ($grant['crear'] ?? 0) === 1 || $legacyEdit,
+                'eliminar' => (int) ($grant['eliminar'] ?? 0) === 1 || $legacyEdit,
+                'editar' => $legacyEdit,
+                default => false,
+            };
+            if (!$allowed) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Acceso no autorizado.');
 
             $cols = ['activo', 'estaciones_soportadas', 'tipo_departamento'];
             if (self::hasColumn($conexion, 'tb_modulos_config', 'tipo')) {
@@ -231,9 +239,18 @@ class Portal3JwtAuthHelper {
             if (!$moduleConfig || (int) ($moduleConfig['activo'] ?? 0) !== 1 || ($moduleConfig['tipo_departamento'] ?? null) !== 'localidades') return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance de estación no disponible.');
             $supportedStations = self::decodeIdList($moduleConfig['estaciones_soportadas'] ?? null);
             if (!$supportedStations) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance de estación no disponible.');
-            $authorizedStations = self::resolveStationScope($conexion, $user, $supportedStations, $moduleConfig);
-            if (!$authorizedStations) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance de estación no disponible.');
-            return ['success' => true, 'code' => 200, 'status' => 'AUTHORIZED', 'authorized_stations' => $authorizedStations];
+            $authorizedPhysicalStationIds = [];
+            $authorizedStations = self::resolveStationScope($conexion, $user, $supportedStations, $moduleConfig, $authorizedPhysicalStationIds);
+            if (!$authorizedStations || !$authorizedPhysicalStationIds) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance de estación no disponible.');
+            return [
+                'success' => true,
+                'code' => 200,
+                'status' => 'AUTHORIZED',
+                // Canonical locality IDs remain available for Portal3 scope checks.
+                'authorized_stations' => $authorizedStations,
+                // Request rows store the physical device host station ID.
+                'authorized_physical_station_ids' => array_values(array_unique($authorizedPhysicalStationIds)),
+            ];
         } catch (Portal3JwtDependencyException $exception) {
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permisos o alcance de estación.');
         } catch (Throwable $exception) {
@@ -241,7 +258,7 @@ class Portal3JwtAuthHelper {
         }
     }
 
-    public static function resolveStationScope($conexion, array $user, array $supportedStations, ?array $moduleConfig = null): array {
+    public static function resolveStationScope($conexion, array $user, array $supportedStations, ?array $moduleConfig = null, ?array &$authorizedPhysicalStationIds = null): array {
         $userId = (int) ($user['user_id'] ?? $user['id'] ?? 0);
         $puestoId = (int) ($user['id_puesto'] ?? 0);
         $homeStationId = (int) ($user['id_gas'] ?? 0);
@@ -277,6 +294,9 @@ class Portal3JwtAuthHelper {
 
         // 2. Map station IDs to canonical op_rh_localidades with strict 1:1 bijection (FASE 3)
         $stationLocalityIds = [];
+        if ($authorizedPhysicalStationIds !== null) {
+            $authorizedPhysicalStationIds = [];
+        }
         foreach ($sourceStationIds as $sourceId) {
             $sourceId = (int) $sourceId;
             if ($sourceId < 1) {
@@ -310,6 +330,9 @@ class Portal3JwtAuthHelper {
                 return [];
             }
             $stationLocalityIds[] = (int) $locality['id'];
+            if ($authorizedPhysicalStationIds !== null) {
+                $authorizedPhysicalStationIds[] = $sourceId;
+            }
         }
         $stationLocalityIds = array_values(array_unique($stationLocalityIds));
 
