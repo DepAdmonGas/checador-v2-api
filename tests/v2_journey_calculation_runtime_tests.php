@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/test_bootstrap_guard.php';
 require_once __DIR__ . '/../modelo/BD.php';
+require_once __DIR__ . '/../modelo/v2/Level2ServerService.php';
 require_once __DIR__ . '/../modelo/v2/journey/JourneyPairingService.php';
 require_once __DIR__ . '/../modelo/v2/journey/JourneyCalculationService.php';
 
@@ -72,6 +73,7 @@ $conexion->query("SET FOREIGN_KEY_CHECKS = 0");
 try { run_sql_script($conexion, $calcDown); } catch (Throwable $e) {}
 try { run_sql_script($conexion, $pairingDown); } catch (Throwable $e) {}
 try { run_sql_script($conexion, $shiftDown); } catch (Throwable $e) {}
+try { $conexion->query("DELETE FROM op_rh_v2_marcaciones_nivel2_metadata"); } catch (Throwable $e) {}
 $conexion->query("TRUNCATE TABLE op_rh_v2_marcaciones_crudas");
 $conexion->query("SET FOREIGN_KEY_CHECKS = 1");
 
@@ -96,11 +98,107 @@ $assert_test = function (bool $condition, string $testId, string $description) u
 
 $pairingService = new JourneyPairingService($conexion);
 $calcService    = new JourneyCalculationService($conexion);
+$level2Service  = new Level2ServerService();
 
 // Fixtures base
 $workerId = 900;
-$stationId = 15;
-$conexion->query("INSERT IGNORE INTO op_rh_v2_dispositivos (id, uuid_dispositivo, id_estacion, nombre, estado) VALUES (150, 'DEV_CALC_900', $stationId, 'Dev Calc', 1)");
+$workplaceNumlista = random_int(900000, 1900000000);
+$stmtStation = $conexion->prepare('INSERT INTO tb_estaciones (numlista, nombre, estatus) VALUES (?, ?, 0)');
+$stationName = 'Synthetic calculation station';
+$stmtStation->bind_param('is', $workplaceNumlista, $stationName);
+$stmtStation->execute();
+$physicalStationId = (int)$stmtStation->insert_id;
+$stmtStation->close();
+$stmtLocality = $conexion->prepare('INSERT INTO op_rh_localidades (numlista, localidad, recuperacion_vapores) VALUES (?, ?, ?)');
+$localityName = 'Synthetic calculation locality';
+$emptyValue = '';
+$stmtLocality->bind_param('iss', $workplaceNumlista, $localityName, $emptyValue);
+$stmtLocality->execute();
+$stationId = (int)$stmtLocality->insert_id;
+$stmtLocality->close();
+
+$deviceUuid = 'DEV_CALC_' . bin2hex(random_bytes(8));
+$stmtDevice = $conexion->prepare('INSERT INTO op_rh_v2_dispositivos (uuid_dispositivo, id_estacion, nombre, estado) VALUES (?, ?, \'Dev Calc\', 1)');
+$stmtDevice->bind_param('si', $deviceUuid, $physicalStationId);
+$stmtDevice->execute();
+$deviceId = (int)$stmtDevice->insert_id;
+$stmtDevice->close();
+$deviceGeneration = 'GEN_CALC_' . bin2hex(random_bytes(8));
+$generationResult = $level2Service->registrarGeneracion($conexion, $deviceId, $deviceUuid, $deviceGeneration);
+if (empty($generationResult['success'])) {
+    throw new RuntimeException('Could not register the isolated Level 2 test generation.');
+}
+$assignmentResult = $level2Service->registrarAsignacionEstacion($conexion, $deviceId, $physicalStationId, '2026-10-01 00:00:00');
+if (empty($assignmentResult['success'])) {
+    throw new RuntimeException('Could not assign the isolated Level 2 test generation to its physical station.');
+}
+$GLOBALS['calculationLevel2Service'] = $level2Service;
+$GLOBALS['calculationDeviceId'] = $deviceId;
+$GLOBALS['calculationDeviceGeneration'] = $deviceGeneration;
+$GLOBALS['calculationPhysicalStationId'] = $physicalStationId;
+$GLOBALS['calculationPunchSequence'] = 1;
+$GLOBALS['calculationTelemetrySequence'] = 1;
+$GLOBALS['calculationTelemetryDays'] = [];
+
+/**
+ * Seed a deterministic, test-only closed-day evidence fixture through the real
+ * Level 2 service. The existing server-receipt injection seam is used only by
+ * this isolated DB suite; production HTTP continues to use actual receipt time.
+ */
+function ensure_verified_level2_day(mysqli $db, string $workDate): void {
+    $daySeeded = &$GLOBALS['calculationTelemetryDays'];
+    $service = $GLOBALS['calculationLevel2Service'];
+    $generation = $GLOBALS['calculationDeviceGeneration'];
+    $physicalStationId = (int)$GLOBALS['calculationPhysicalStationId'];
+
+    if (empty($daySeeded[$workDate])) {
+        $start = strtotime($workDate . ' 00:00:00 UTC');
+        $end = strtotime($workDate . ' 23:59:59 UTC');
+        $sampleTimes = [];
+        for ($sampleTime = $start; $sampleTime < $end; $sampleTime += 900) {
+            $sampleTimes[] = $sampleTime;
+        }
+        $sampleTimes[] = $end;
+
+        $healthyPayload = [
+            'application_running' => true,
+            'sdk_initialized' => true,
+            'sensor_connected' => true,
+            'capture_thread_alive' => true,
+            'queue_writable' => true
+        ];
+        foreach ($sampleTimes as $sampleTime) {
+            $sampleUtc = gmdate('Y-m-d H:i:s', $sampleTime);
+            $result = $service->registrarTelemetria(
+                $db,
+                (int)$GLOBALS['calculationDeviceId'],
+                $generation,
+                (int)$GLOBALS['calculationTelemetrySequence'],
+                $sampleUtc,
+                100,
+                'CONNECTED',
+                'SYNCED',
+                $healthyPayload,
+                $sampleUtc
+            );
+            if (empty($result['success'])) {
+                throw new RuntimeException('Could not seed deterministic Level 2 telemetry for ' . $workDate . '.');
+            }
+            $GLOBALS['calculationTelemetrySequence']++;
+        }
+        $daySeeded[$workDate] = true;
+    }
+
+    $evaluation = $service->evaluarVentanaNivel2(
+        $db,
+        $physicalStationId,
+        $workDate . ' 00:00:00',
+        $workDate . ' 23:59:59'
+    );
+    if (($evaluation['window_level2_status'] ?? null) !== 'VERIFIED') {
+        throw new RuntimeException('Deterministic Level 2 fixture was not verified for ' . $workDate . ': ' . json_encode($evaluation));
+    }
+}
 
 // Helper para crear jornada programada
 function create_shift(mysqli $db, int $workerId, int $stationId, string $workDate, string $tipoJornada = 'SCHEDULED', ?string $startUtc = null, ?string $endUtc = null, array $payloadSegs = []): int {
@@ -110,17 +208,34 @@ function create_shift(mysqli $db, int $workerId, int $stationId, string $workDat
     $stmt->execute();
     $id = (int)$stmt->insert_id;
     $stmt->close();
+    ensure_verified_level2_day($db, $workDate);
     return $id;
 }
 
 // Helper para insertar marcación cruda
 function create_punch(mysqli $db, int $workerId, int $stationId, string $occurredUtc): int {
+    $deviceId = (int)$GLOBALS['calculationDeviceId'];
+    $physicalStationId = (int)$GLOBALS['calculationPhysicalStationId'];
     $uuid = 'PUNCH_CALC_' . uniqid();
-    $stmt = $db->prepare("INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, id_personal_resuelto, referencia_externa_personal, source_timestamp_raw, ocurrido_at_utc, recibido_at_utc) VALUES (?, 150, ?, ?, 'EXT_900', ?, ?, NOW())");
-    $stmt->bind_param("siiss", $uuid, $stationId, $workerId, $occurredUtc, $occurredUtc);
+    $stmt = $db->prepare("INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, id_personal_resuelto, referencia_externa_personal, source_timestamp_raw, ocurrido_at_utc, recibido_at_utc) VALUES (?, ?, ?, ?, 'EXT_900', ?, ?, NOW())");
+    $stmt->bind_param("siiiss", $uuid, $deviceId, $physicalStationId, $workerId, $occurredUtc, $occurredUtc);
     $stmt->execute();
     $id = (int)$stmt->insert_id;
     $stmt->close();
+
+    $level2 = $GLOBALS['calculationLevel2Service'];
+    $metadata = $level2->procesarSecuenciaNivel2(
+        $db,
+        $id,
+        $deviceId,
+        $GLOBALS['calculationDeviceGeneration'],
+        (int)$GLOBALS['calculationPunchSequence']
+    );
+    if (empty($metadata['success'])) {
+        throw new RuntimeException('Could not bind the synthetic PunchEvent to its Level 2 device sequence.');
+    }
+    $GLOBALS['calculationPunchSequence']++;
+    ensure_verified_level2_day($db, substr($occurredUtc, 0, 10));
     return $id;
 }
 

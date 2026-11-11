@@ -12,6 +12,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../BD.php';
+require_once __DIR__ . '/../WorkplacePhysicalStationResolver.php';
 
 class JourneyPairingService
 {
@@ -57,6 +58,9 @@ class JourneyPairingService
 
         $workerId = (int)$shift['id_personal'];
         $stationId = (int)$shift['id_estacion'];
+        // ScheduledShift stores the canonical locality ID. Raw PunchEvents
+        // store the physical tb_estaciones ID resolved at capture time.
+        $physicalStationId = WorkplacePhysicalStationResolver::resolve($this->db, $stationId);
         $workDate = $shift['fecha_jornada_local'];
         $tipoJornada = $shift['tipo_jornada'];
         $scheduledStartUtc = $shift['scheduled_start_utc'];
@@ -95,11 +99,11 @@ class JourneyPairingService
         }
 
         // 2. Evaluate Level 2 Completeness
-        $l2Status = $this->evaluateLevel2Completeness($stationId, $workDate);
+        $l2Status = $this->evaluateLevel2Completeness($physicalStationId, $workDate);
 
         // 3. Handle non-scheduled day states (DAY_OFF, UNSCHEDULED, UNKNOWN)
         if ($tipoJornada !== 'SCHEDULED' || empty($segments)) {
-            return $this->pairNonScheduledShift($shift, $segments, $l2Status);
+            return $this->pairNonScheduledShift($shift, $segments, $l2Status, $physicalStationId);
         }
 
         // 4. Calculate search window W = [S_start - 4h, S_end + 4h]
@@ -121,7 +125,7 @@ class JourneyPairingService
         $punches = $this->fetchCandidatePunches($workerId, $windowStart, $windowEnd);
 
         // 6. Calculate execution fingerprint
-        $fingerprint = $this->calculateFingerprint($scheduledShiftId, $punches, $l2Status);
+        $fingerprint = $this->calculateFingerprint($scheduledShiftId, $physicalStationId, $punches, $l2Status);
 
         // 7. Check if identical execution already exists (Idempotency)
         $existingHeader = $this->findExistingExecutionByFingerprint($scheduledShiftId, $fingerprint);
@@ -130,7 +134,7 @@ class JourneyPairingService
         }
 
         // 8. Execute deterministic slot allocation per segment
-        $pairingResults = $this->allocateSegmentSlots($segments, $punches, $stationId);
+        $pairingResults = $this->allocateSegmentSlots($segments, $punches, $physicalStationId ?? 0);
 
         $overallStatus = $pairingResults['overall_status'];
         if ($l2Status !== 'VERIFIED' && $overallStatus !== 'WORKPLACE_MISMATCH' && $overallStatus !== 'AMBIGUOUS_PAIRING') {
@@ -249,25 +253,34 @@ class JourneyPairingService
     /**
      * Evaluate Level 2 Completeness state for a station and work date.
      */
-    private function evaluateLevel2Completeness(int $stationId, string $workDate): string
+    private function evaluateLevel2Completeness(?int $physicalStationId, string $workDate): string
     {
+        if ($physicalStationId === null || $physicalStationId < 1) {
+            return 'PENDING_SYNC_COMPLETION';
+        }
+
         $stmt = $this->db->prepare(
             "SELECT window_level2_status FROM op_rh_v2_level2_window_evaluations
              WHERE id_estacion = ? AND DATE(window_from_utc) <= ? AND DATE(window_to_utc) >= ?
              ORDER BY id DESC LIMIT 1"
         );
         if ($stmt) {
-            $stmt->bind_param('iss', $stationId, $workDate, $workDate);
+            $stmt->bind_param('iss', $physicalStationId, $workDate, $workDate);
             $stmt->execute();
             $res = $stmt->get_result();
-            if ($res && $row = $res->fetch_assoc()) {
-                if ($row['window_level2_status'] === 'VERIFIED') {
-                    return 'VERIFIED';
-                }
-                return 'PENDING_SYNC_COMPLETION';
+            $row = $res ? $res->fetch_assoc() : null;
+            $stmt->close();
+            if ($row !== null) {
+                return $row['window_level2_status'] === 'VERIFIED'
+                    ? 'VERIFIED'
+                    : 'PENDING_SYNC_COMPLETION';
             }
         }
-        return 'VERIFIED';
+
+        // A missing Level 2 evaluation is insufficient source evidence. The
+        // frozen journey contract keeps UNKNOWN/INCOMPLETE non-final; absence
+        // of the authoritative row must therefore fail closed as pending.
+        return 'PENDING_SYNC_COMPLETION';
     }
 
     /**
@@ -334,13 +347,14 @@ class JourneyPairingService
     /**
      * Calculate SHA256 execution fingerprint.
      */
-    private function calculateFingerprint(int $shiftId, array $punches, string $l2Status): string
+    private function calculateFingerprint(int $shiftId, ?int $physicalStationId, array $punches, string $l2Status): string
     {
         $punchTokens = [];
         foreach ($punches as $p) {
             $punchTokens[] = $p['id'] . ':' . $p['ocurrido_at_utc'];
         }
-        $rawString = "shift:$shiftId:ver:{$this->algorithmVersion}:l2:$l2Status:punches:" . implode(',', $punchTokens);
+        $physicalStationToken = $physicalStationId === null ? 'unresolved' : (string) $physicalStationId;
+        $rawString = "shift:$shiftId:physical_station:$physicalStationToken:ver:{$this->algorithmVersion}:l2:$l2Status:punches:" . implode(',', $punchTokens);
         return hash('sha256', $rawString);
     }
 
@@ -619,7 +633,7 @@ class JourneyPairingService
     /**
      * Non-scheduled shift pairing (DAY_OFF, UNSCHEDULED, UNKNOWN).
      */
-    private function pairNonScheduledShift(array $shift, array $segments, string $l2Status): array
+    private function pairNonScheduledShift(array $shift, array $segments, string $l2Status, ?int $physicalStationId): array
     {
         $shiftId = (int)$shift['id'];
         $workerId = (int)$shift['id_personal'];
@@ -630,7 +644,7 @@ class JourneyPairingService
         $dayEnd = "$workDate 23:59:59";
 
         $punches = $this->fetchCandidatePunches($workerId, $dayStart, $dayEnd);
-        $fingerprint = $this->calculateFingerprint($shiftId, $punches, $l2Status);
+        $fingerprint = $this->calculateFingerprint($shiftId, $physicalStationId, $punches, $l2Status);
 
         $existingHeader = $this->findExistingExecutionByFingerprint($shiftId, $fingerprint);
         if ($existingHeader !== null) {

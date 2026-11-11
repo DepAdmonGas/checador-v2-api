@@ -50,11 +50,14 @@ $readMethods = [
     'handleGetEffectiveSchedule',
 ];
 
-esa('ESA01', 'authorized Portal3 read path uses the schedule authorization gate', function () use ($controller, $readMethods): bool {
-    foreach ($readMethods as $method) {
+esa('ESA01', 'each read path uses its contract-specific scheduling authorization gate', function () use ($controller, $readMethods): bool {
+    foreach (['handleListTemplates', 'handleGetTemplateVersion'] as $method) {
+        if (strpos(methodBody($controller, $method), '$this->authorizeTemplateCatalogRead()') === false) return false;
+    }
+    foreach (['handleListAssignments', 'handleGetEffectiveSchedule'] as $method) {
         if (strpos(methodBody($controller, $method), '$this->authorizeScheduleRead()') === false) return false;
     }
-    return true;
+    return count($readMethods) === 4;
 });
 
 esa('ESA02', 'effective schedule preserves a defined success response path', function () use ($controller): bool {
@@ -73,8 +76,13 @@ esa('ESA04', 'invalid JWT is propagated before schedule resolution', function ()
         && strpos($controller, '$this->sendJsonError($auth[\'status\'], $auth[\'error\'], $auth[\'code\'])') !== false;
 });
 
-esa('ESA05', 'biometricos.leer is the required functional permission', function () use ($controller): bool {
-    return substr_count($controller, 'authorizeBiometricos($conexion, $auth, \'leer\')') === 1;
+esa('ESA05', 'schedule reads require dedicated programacion.leer rather than biometricos.leer', function () use ($controller): bool {
+    $catalog = methodBody($controller, 'authorizeTemplateCatalogRead');
+    $schedule = methodBody($controller, 'authorizeScheduleRead');
+    return str_contains($controller, 'ShiftSchedulingAuthorizationService::READ')
+        && str_contains($catalog, 'ShiftSchedulingAuthorizationService::authorizeTemplateCatalogRead')
+        && str_contains($schedule, 'ShiftSchedulingAuthorizationService::READ')
+        && strpos($controller, "authorizeBiometricos(\$conexion, \$auth, 'leer')") === false;
 });
 
 esa('ESA06', 'temporary-access permission is not used for schedule reads', function () use ($controller): bool {
@@ -148,11 +156,12 @@ esa('ESA19', 'resolver does not infer FALTA or payroll outcomes', function () us
         && stripos($resolver, 'nómina') === false;
 });
 
-esa('ESA20', 'temporary-access authorization remains outside this controller', function () use ($controller): bool {
+esa('ESA20', 'temporary-access authorization stays separate and materialization retains its distinct biometricos.editar gate', function () use ($controller): bool {
     return strpos($controller, 'acceso-temporal') === false
         && strpos($controller, 'authorizeUser($_SERVER') === false
-        && substr_count($controller, '$this->authorizeScheduleWrite()') === 5
-        && substr_count($controller, "authorizeBiometricos(\$conexion, \$auth, 'editar')") === 1;
+        && substr_count($controller, '$this->authorizeScheduleWrite()') === 3
+        && substr_count($controller, "authorizeBiometricos(\$conexion, \$auth, 'editar')") === 1
+        && str_contains(methodBody($controller, 'handleMaterializeScheduledShifts'), '$this->authorizeBiometricosWrite()');
 });
 
 echo "ESA_SUITE: " . ($passed + $failed) . " PASS: $passed FAIL: $failed\n";

@@ -162,6 +162,37 @@ try {
         'es_activo' => 1
     ]);
     assertTest($asig1['id'] > 0, 'T09', 'Create valid worker shift assignment');
+    assertTest(
+        preg_match('/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/', (string) ($asig1['creado_at'] ?? '')) === 1
+        && preg_match('/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/', (string) ($asig1['registrado_at_utc'] ?? '')) === 1,
+        'T09A',
+        'Assignment creation returns both persisted audit timestamps'
+    );
+    $asig1Replay = $asigService->createAssignment([
+        'id_personal' => 100,
+        'id_estacion' => 10,
+        'id_plantilla' => $v1Detail['id'],
+        'dia_semana' => 'LUNES',
+        'valido_desde' => '2026-11-01',
+        'valido_hasta' => null,
+        'es_activo' => 1
+    ]);
+    $assignmentCountResult = $db->query("SELECT COUNT(*) AS total FROM op_rh_v2_turnos_asignaciones WHERE id_personal = 100 AND id_estacion = 10 AND dia_semana = 'LUNES'");
+    $assignmentCount = (int) ($assignmentCountResult->fetch_assoc()['total'] ?? -1);
+    assertTest(
+        ($asig1Replay['idempotent'] ?? false) === true
+        && (int) ($asig1Replay['id'] ?? 0) === (int) $asig1['id']
+        && ($asig1Replay['creado_at'] ?? null) === $asig1['creado_at']
+        && ($asig1Replay['registrado_at_utc'] ?? null) === $asig1['registrado_at_utc']
+        && $assignmentCount === 1,
+        'T09B',
+        'Exact assignment replay preserves persisted audit timestamps without inserting a duplicate'
+    );
+    assertTest(
+        strpos(file_get_contents(__DIR__ . '/../modelo/v2/shift/ShiftSchedulingV2Controller.php') ?: '', '$this->sendJsonSuccess($result, 201);') !== false,
+        'T09C',
+        'Assignment API wraps the persisted audit detail in the contractual HTTP 201 response'
+    );
 
     // T10: Assignment Invalid Effective Interval Rejected
     $t10Failed = false;
@@ -217,7 +248,7 @@ try {
     assertTest($closedAsig['valido_hasta'] === '2026-11-30' && $closedAsig['es_activo'] === 0, 'T14', 'Close assignment by setting valido_hasta and es_activo = 0');
 
     // T15: List Worker Assignments Bounded
-    $listAsig = $asigService->listAssignments(100, 10);
+    $listAsig = $asigService->listAssignments(100, [10], 10);
     assertTest(count($listAsig['items']) === 1, 'T15', 'List worker assignments bounded by worker and station');
 
     // T16: Schedule Resolution SCHEDULED
