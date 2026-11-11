@@ -637,6 +637,19 @@ if ($is_valid_route) {
                 echo json_encode(["code" => 405, "status" => "METHOD_NOT_ALLOWED", "mensaje" => "Método no permitido."], JSON_UNESCAPED_UNICODE);
                 exit;
             }
+        } else if ($count == 6 && $partes_ruta[5] === 'replace') {
+            if ($server_method === 'POST') {
+                // POST /api/v2/shift-assignments/{id}/replace
+                $asigId = (int)$partes_ruta[4];
+                $shiftCtrl->handleReplaceAssignment($asigId);
+                exit;
+            } else {
+                http_response_code(405);
+                header('Allow: POST');
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(["code" => 405, "status" => "METHOD_NOT_ALLOWED", "mensaje" => "Método no permitido."], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
         } else {
             include_once $ruta_elegida;
         }
@@ -719,7 +732,19 @@ if ($is_valid_route) {
         }
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'workplaces') {
         $count = count($partes_ruta);
-        if ($count == 6 && $partes_ruta[5] === 'timezone') {
+        if ($count == 6 && $partes_ruta[5] === 'incidences') {
+            if ($server_method === 'GET') {
+                // GET /api/v2/workplaces/{workplace_id}/incidences — C02 read-only collection.
+                include_once "modelo/v2/IncidenceCollectionReadV2Controller.php";
+                (new IncidenceCollectionReadV2Controller())->handleList((string)$partes_ruta[4]);
+                exit;
+            }
+            http_response_code(405);
+            header('Allow: GET');
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(["code" => 405, "status" => "METHOD_NOT_ALLOWED"], JSON_UNESCAPED_UNICODE);
+            exit;
+        } else if ($count == 6 && $partes_ruta[5] === 'timezone') {
             if ($server_method === 'GET') {
                 // GET /api/v2/workplaces/{workplace_id}/timezone?date=YYYY-MM-DD
                 include_once "modelo/v2/WorkplaceTimezoneReadV2Controller.php";
@@ -738,7 +763,19 @@ if ($is_valid_route) {
         }
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'journeys') {
         $count = count($partes_ruta);
-        if ($count == 5 && $partes_ruta[4] === 'evaluate') {
+        if ($count == 5 && $partes_ruta[4] === 'persisted') {
+            if ($server_method === 'GET') {
+                // GET /api/v2/journeys/persisted — read only existing calculations.
+                include_once "modelo/v2/journey/PersistedJourneyReadV2Controller.php";
+                (new PersistedJourneyReadV2Controller())->handleList();
+                exit;
+            }
+            http_response_code(405);
+            header('Allow: GET');
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(["code" => 405, "status" => "METHOD_NOT_ALLOWED"], JSON_UNESCAPED_UNICODE);
+            exit;
+        } else if ($count == 5 && $partes_ruta[4] === 'evaluate') {
             if ($server_method === 'POST') {
                 // POST /api/v2/journeys/evaluate
                 include_once "modelo/v2/journey/JourneyEvaluationV2Controller.php";
@@ -885,6 +922,33 @@ if ($is_valid_route) {
         header('Allow: GET');
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(["status" => "error", "code" => 405, "error" => ["code" => "METHOD_NOT_ALLOWED", "message" => "Method not allowed. Read-only boundary."]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'administrative-devices') {
+        if (count($partes_ruta) === 4 && $server_method === 'GET') {
+            include_once "modelo/v2/AdministrativeDeviceReadV2Controller.php";
+            (new AdministrativeDeviceReadV2Controller())->handle();
+            exit;
+        }
+        http_response_code(405);
+        header('Allow: GET');
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: private, no-store');
+        echo json_encode(['status' => 'ERROR', 'code' => 'METHOD_NOT_ALLOWED', 'message' => 'Método o ruta no permitidos.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'attendance-policies') {
+        include_once "modelo/v2/AttendancePolicyV2Controller.php";
+        $policyCtrl = new AttendancePolicyV2Controller();
+        if (count($partes_ruta) === 4 && $server_method === 'GET') {
+            $policyCtrl->handleRead();
+            exit;
+        } else if (count($partes_ruta) === 4 && $server_method === 'POST') {
+            $policyCtrl->handleCreate();
+            exit;
+        }
+        http_response_code(405);
+        header('Allow: GET, POST');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(["status" => "error", "error" => ["code" => "METHOD_NOT_ALLOWED", "message" => "Método o ruta no permitidos."]], JSON_UNESCAPED_UNICODE);
         exit;
     } else {
         include_once $ruta_elegida;
