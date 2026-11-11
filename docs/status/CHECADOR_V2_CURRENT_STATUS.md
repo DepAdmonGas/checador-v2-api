@@ -1,7 +1,7 @@
 # CHECADOR V2 — CANONICAL PROJECT STATUS
 
 **Document Status:** CANONICAL
-**Last Updated At:** 2026-10-14
+**Last Updated At:** 2026-11-03
 **Target Date:** 2026-12-31
 
 ---
@@ -13,19 +13,19 @@ Before EVERY future Checador task (coding, audit, documentation, or planning), t
 ```text
 DOCUMENTATION_CONTEXT_LOADED: YES
 CURRENT_STATUS_SHA256: <sha256 of docs/status/CHECADOR_V2_CURRENT_STATUS.md>
-ACTIVITY_LEDGER_SHA256: 9cf632f20f2ef7b4495630a1dee7cec1e05d3582542e10ecee25abd2b45bb461
-DELIVERY_ROADMAP_SHA256: a4a29befb0891851c4cf7204f6238b650a301380f126174ae3c11c67345929fe
+ACTIVITY_LEDGER_SHA256: 110f7aa0f24d75bec205520e9befdfaeb8338217015d38c928775d2e2602a0d7
+DELIVERY_ROADMAP_SHA256: 06e2d6080952dd74235885a4b3b80451ae9ac64e66bebd4906f55dd8668d5955
 ARCHITECTURE_FREEZE_SHA256: 87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85
 SHIFT_MODEL_SPEC_SHA256: 7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6
 SHIFT_CONTRACT_SPEC_SHA256: 0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f
 CURRENT_PHASE: POST_OCT12_STABILIZATION_AND_LEVEL2_READ_CONTINUATION
-LAST_COMPLETED_ACTIVITY: CHECADOR_V2_API_P3H_EVENT_CLASSIFICATION_CONTRACT_FREEZE_V1_1
+LAST_COMPLETED_ACTIVITY: CHECADOR_V2_M11_CROSS_APPROVAL_AND_IMPLEMENTATION_V1
 CURRENT_ACTIVE_MILESTONE: V2.7_PREPRODUCTION_HARDENING_AND_CUTOVER_READINESS
 A05_RUNTIME_STATE: COMPLETED
 LECTOR_IMPLEMENTATION_STATUS: COMPLETE
 LECTOR_ACTIVE_DEVELOPMENT: NO
 TARGET_DATE: 2026-12-31
-TASK_CONSISTENT_WITH_CURRENT_STATUS: YES / NO
+TASK_CONSISTENT_WITH_CURRENT_STATUS: YES
 ```
 
 If `DOCUMENTATION_CONTEXT_LOADED` is not `YES` or `TASK_CONSISTENT_WITH_CURRENT_STATUS` is not `YES`, **STOP IMMEDIATELY**. No code modifications are authorized.
@@ -84,9 +84,9 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 
 ## 4. LAST COMPLETED ACTIVITY
 
-- **Activity ID:** `CHECADOR_V2_API_P3H_EVENT_CLASSIFICATION_CONTRACT_FREEZE_V1_1`
-- **Type:** DOCUMENTATION_CONTRACT_FREEZE
-- **Summary:** Formally froze API contract amendment `docs/v2/CHECADOR_V2_P3H_EVENT_CLASSIFICATION_PUBLIC_PAYLOAD_CONTRACT_V1.1.md` at status `FROZEN_OWNER_APPROVED` (SHA-256: `df6b0bec7c6977cb0c12bf5409c8243528af145036474aa3adcf237b21f4711c`) following explicit Project Owner approval. Reconciled endpoint reference from erroneous draft value `GET /api/v2/journeys/on-demand` to canonical, pre-existing implemented endpoint `POST /api/v2/journeys/evaluate`. Preserved predecessor V1.0 contract as immutable historical evidence. All other semantics and architectural invariants remain 100% unchanged. Zero runtime code modifications, zero route changes, zero new endpoints, zero schema changes.
+- **Activity ID:** `CHECADOR_V2_M03_AUTHORIZED_TEMPLATE_BOOTSTRAP_EXECUTION_V1`
+- **Type:** DEVELOPMENT_ONLY_SHIFT_TEMPLATE_BOOTSTRAP
+- **Summary:** Following explicit owner authorization, amended only §7 of the identical Portal3/API Shift Scheduling Authorization Addendum V1.0 copies (SHA-256 `09ec77ee0ff76279df48f3efb04579cbd15f9f625230de5bc7c99a7884717f40`) to permit a CLI-only initial bootstrap in local development without changing HTTP authorization or normal template-admin permissions. The CLI created 12 unique V2 templates and 12 work segments from 15 valid legacy intervals, excluding VACACIONES and INCAPACIDAD and creating no assignments, rests, memberships, or work dates. Local `bd_admongas` readback verified 12 templates, 12 segments, 0 assignments, and 89/89 raw punch UUIDs. Two idempotency re-runs created zero duplicates. Portal3 authenticated read-only Chrome tests passed for Encargado ID 33 and Dirección ID 19; the catalog and segment times were visible and selectable only in the authorized assignment form. The Architecture Freeze, Lector, schema, ACL, production, and canonical events remain unchanged; work is uncommitted and undeployed.
 
 ---
 
@@ -105,7 +105,7 @@ If `LECTOR_ACTIVE_DEVELOPMENT` is `NO`, the agent MUST NOT modify Lector source 
 | **API Station Context Alignment (F-03 API)** | AVAILABLE | `GET /acceso-empresa` and `GET /api/v2/devices/context` expose canonical `id_estacion`. |
 | **Shift Scheduling V2 Physical Schema (A03)** | IMPLEMENTED | SQL migrations created and validated via 20 schema tests (`op_rh_v2_turnos_plantillas`, `op_rh_v2_turnos_segmentos`, `op_rh_v2_turnos_asignaciones`, `op_rh_v2_jornadas_programadas`). |
 | **Shift Scheduling V2 Service & API Contract (A04F)** | FROZEN V1.0 | Formally frozen backend service interfaces, REST API contracts, validation, resolution, and materialization specification (`docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_SERVICE_API_CONTRACT_V1.0.md`). |
-| **Shift Scheduling V2 Runtime Services & Endpoints (A05)** | OPERATIONAL | Runtime domain services, controller, REST routes, and 30/30 runtime tests PASS (`tests/v2_shift_scheduling_runtime_tests.php`). |
+| **Shift Scheduling V2 Runtime Services & Endpoints (A05)** | OPERATIONAL (DEVELOPMENT; authorization addendum V1.0 implemented) | Specific schedule read/edit and separate template-admin capabilities; position 6 is scoped to its mapped home station, position 13 reads its authorized active stations. Assignment close/replacement and explicit day-off support implemented. Addendum SHA256: `09ec77ee0ff76279df48f3efb04579cbd15f9f625230de5bc7c99a7884717f40`. The authorized CLI bootstrap created 12 templates/12 segments from approved legacy definitions; readback has 0 assignments and preserves 89/89 raw punch UUIDs. Normal HTTP template administration still requires `checador.plantillas.administrar`; no such grant was added. |
 | **PunchEvent / ScheduledShift Pairing Contract (P1D)** | FROZEN V1.0 | Formally frozen deterministic pairing specification (`docs/v2/CHECADOR_V2_JOURNEY_PAIRING_CONTRACT_V1.0.md`). |
 | **PunchEvent / ScheduledShift Pairing Physical Model (P1S)** | FROZEN V1.0 | Formally frozen physical database model specification (`docs/architecture/CHECADOR_V2_JOURNEY_PAIRING_PHYSICAL_MODEL_V1.0.md`). |
 | **PunchEvent / ScheduledShift Pairing Physical Schema (P1M)** | IMPLEMENTED | SQL migrations created and validated via 25 schema tests (`op_rh_v2_pareos_jornada`, `op_rh_v2_pareos_segmentos`, `op_rh_v2_pareos_marcaciones_asociadas`). |
@@ -165,6 +165,20 @@ A task is considered **FULLY CLOSED** only when all of the following criteria ar
 
 ## 8. CANONICAL HASH REFERENCE
 
+### 8.1. Current-status hash reference reconciliation (2026-11-02)
+
+The Activity Ledger and Delivery Roadmap reference digests in the mandatory gate
+were stale. Their current contents are unchanged from API commit
+`b567ebb7d4dd90bd5357c8a6b4f16a077f9808c3` (2026-10-23), verified by hashing
+both the working files and the committed blobs. The verified SHA256 values are
+`5c886f5f31f06de78442163ee1ca8c8b0be6261e62da2c3c32fa0b988d97cb8b` for the
+Activity Ledger and
+`06e2d6080952dd74235885a4b3b80451ae9ac64e66bebd4906f55dd8668d5955` for the
+Delivery Roadmap. No content was changed in either referenced document during
+this reconciliation. The stale references were updated here under the explicit
+user authorization recorded in the current task; the Architecture Freeze and
+the frozen Shift Scheduling specifications were verified unchanged.
+
 - **Architecture Freeze V1.0:** `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`
 - **Shift Model Physical Spec V1.0:** `7fa934b7e12ed7a8cca74e52420de0373494ed7cd47b233635288fe5abea52a6`
 - **Shift Service & API Contract Spec V1.0:** `0a3ebc362471ec952d49d2c8debd504656f7fc842f0701d4b1c8db82d0ffa30f`
@@ -213,3 +227,37 @@ A task is considered **FULLY CLOSED** only when all of the following criteria ar
     - SEC-F04: Perimeter access log query string redaction verification.
   - `DEFERRED`:
     - HTTP replay protection (`DEFERRED_SECURITY_HARDENING`).
+
+## 11. SHIFT SCHEDULING AUTHORIZATION ADDENDUM AND STATION-MANAGER SLICE (2026-11-02)
+
+- **User authorization:** Explicitly authorized the narrowly scoped Shift Scheduling permission amendment and implementation for local development. No production deployment or Lector work is authorized.
+- **Contract addendum:** `docs/v2/CHECADOR_V2_SHIFT_SCHEDULING_AUTHORIZATION_ADDENDUM_V1.0.md`, SHA-256 `c717482d5402a3d41d7fe9d932f39d0722a67bdd6a26bfa65c018ec0162c2253`. The Portal3 companion was verified byte-identical. `CHECADOR_V2_ARCHITECTURE_FREEZE_V1.0.md`, the frozen Shift Scheduling model/service contracts, and the shared Lector baseline remain unchanged.
+- **Authorization model:** Dedicated capabilities `checador.programacion.leer`, `checador.programacion.editar`, and separately granted `checador.plantillas.administrar`. Encargado (position 6) receives read/edit only in its own uniquely mapped active station. Dirección (position 13) receives read-only access to its authorized active station scope. No broad `biometricos.editar` grant was added; template administration was not granted to either QA profile.
+- **API implementation:** Fresh permission and station-scope resolution, canonical physical-station/locality mapping, membership interval validation on assignment writes, idempotent/optimistic close-and-replace handling, explicit day-off support, and template writes behind the distinct admin grant. Existing Block A filtering remains in force; no Block B cursor/consistency semantics or J2 runtime was added.
+- **Portal3 implementation:** Dedicated permission reader and authorization path, schedule-specific routes/actions, CSRF-protected write handlers with API readback, date-aware worker selector and server-side membership revalidation. The Comodines module keeps its original `biometricos.*` gate. A separate template form is available only to a user carrying the specific template-admin grant.
+- **Development ACL/schema:** Local `bd_admongas` development migrations `2026_11_02_000001_create_v2_shift_scheduling_permission_grants.sql` and `2026_11_02_000002_allow_explicit_day_off_assignments.sql` applied. Active grants are limited to position 6 read/edit and position 13 read. The operational schedule-write gate remains disabled.
+- **Verification:** API authorization 23/23, assignment read-scope 25/25, membership coverage 8/8; Portal M03 capture 16/16, Access Foundation 57/57, UI Quality Gate 36/36; authenticated read-only Chrome E2E 1/1 for Encargado and 1/1 for Dirección, at 1440/1024/768/375. Relevant PHP and JavaScript lint passed. Candidate screenshots are stored in the private E2E artifact directory; visual approval remains pending.
+- **Development records at this activity's earlier read-only verification:** Template and assignment tables each contained zero rows before and after the migration/read verification. No template or assignment was written in that earlier activity. No canonical punch, payroll, production, or Lector data changed then.
+- **Operational status at that earlier verification:** Station-scoped reads were browser-verified, while real template administration and assignment write/readback were still unverified because the local write gate was off and no RH-confirmed schedule had been provided. The subsequent QA assignment evidence and its non-official status are recorded in Section 12; do not interpret it as an approved labor schedule.
+- **Next prerequisites for official RH scheduling:** Obtain RH-approved shift definition and effective dates, then use the separately authorized template-administration process if template changes are needed. The QA persistence path is now verified once; any further QA or official assignments require their own explicit scope and authorization.
+
+## 12. FIRST REAL QA ASSIGNMENT THROUGH PORTAL3 (2026-11-02)
+
+- **Status:** `CLOSED_VERIFIED_DEVELOPMENT_QA`; this proves the authorized QA persistence path, not operational RH scheduling or a payroll/Journey outcome.
+- **Assignment:** Encargado ID 33, Interlomas locality 1, QA worker 1004, active template 3/version 1 (`08:00–14:00`), Tuesday 2026-11-03, validity `[2026-11-03, 2026-11-04)`. No retroactive row was created.
+- **API response contract:** The API now returns actual persisted `creado_at` and `registrado_at_utc` for creation and exact replay. Portal3 accepts success only on API HTTP 201 with valid audit timestamps plus successful API readback. The `Idempotency-Key` header is sent by Portal3 but is not consumed by the API; duplicate protection is the separate exact-match/row-lock path.
+- **Persistence / readback:** MariaDB `bd_admongas` contains exactly one assignment (ID 1) with `creado_at=2026-11-02 13:44:53` and `registrado_at_utc=2026-11-02 19:44:53`. API readback matched. Authenticated Chrome showed `Legacy Interlomas — BANDERERO DE APOYO 1 — 08:00–14:00` after save and after a fresh reload. Portal3's API-readback duplicate guard prevented a second row; cross-station workplace 2 tampering was rejected before API write.
+- **Profiles / scope:** Encargado retained schedule read/edit only in Interlomas and no template-admin grant. Dirección retained read-only station supervision. Development global POST gate was off, schedule-specific gate on; no other-module POST was sent.
+- **Protected data:** No Journey/materialized snapshot, payroll, PIN, incidence, template, membership, or other-locality write occurred. Original raw punches remain 89 unique UUIDs; SHA-256 of the UUID set remains `91384da9f49fd3632188f10811eb17ab644e5293ca76be23d857aef40207d343`. No production or Lector change.
+- **Validation and limitations:** Portal regression 24/24; API read-scope 25/25, scheduling authorization 23/23, source-only response contract 6/6. UI gate 36 PASS / 0 FAIL / 1 BLOCKED; authenticated Chrome separately passed for both profiles. The DB-backed API runtime suite was not run without an isolated DB. The generic schedule-write static authorization suite remains 18 PASS / 6 FAIL on older broad-permission expectations and was not changed. Human visual approval is pending.
+- **History:** Section 11's zero-assignment/write-gate-off statements describe the state before this activity. Architecture Freeze, frozen model/service contracts, Delivery Roadmap, and shared implementation status remain unchanged.
+
+## 13. M03 OPERATIONAL COMPLETION REVIEW (2026-11-02)
+
+- **Status:** `PARTIALLY_VERIFIED_LOCAL`; the single development QA assignment in Section 12 remains preserved and verified. This review does not certify official staffing or close/replacement runtime.
+- **Authorization regression:** The six former static failures were obsolete expectations predating the approved Shift Scheduling Authorization Addendum. They expected broad `biometricos.editar` gates and a single authorization helper on routes that now intentionally use dedicated schedule, template-admin, and legacy materialization capabilities. The test was changed to assert those exact route policies; result 31/31 PASS. No ACL or runtime authorization code changed.
+- **Assignment Idempotency-Key:** The frozen Shift Scheduling API Contract V1.0 documents optional `X-Idempotency-Key` for template creation only, not `POST /shift-assignments`. Assignment exact-payload replay/overlap protection remains as implemented, but key reuse/conflict requires a contract decision defining scope, retention, replay semantics, and durable storage. No schema or contract change was made. Do not claim assignment header idempotency.
+- **Worker readiness:** Verified date-aware membership logic and server revalidation remain in place. Known verified memberships are for the QA cohort 1004–1008; they do not establish current membership or shift decisions for operative staff. No RH-authoritative assignments or schedule details were provided; no worker schedules were created.
+- **Close/replacement:** Endpoints and authorization paths exist, but DB lifecycle validation is pending an isolated test database. The current runtime suite drops/recreates Shift Scheduling and Journey tables; it was not run against `bd_admongas`.
+- **Validation:** Authorization static 31/31, role/scope 23/23, read scope 25/25, membership 8/8, Portal M03 capture 24/24; PHP lint and diff check PASS. Prior real Chrome evidence for Encargado create/readback and Dirección read-only remains applicable because no Portal runtime/UI changes were made. Human visual approval remains pending.
+- **Data / governance:** No database writes, production changes, contract edits, ACL changes, or changes to the 89 original punch UUIDs in this review. The QA assignment remains explicitly non-official. Architecture Freeze and Delivery Roadmap remain unchanged. `LAST_COMPLETED_ACTIVITY` remains the Section 12 QA assignment; this review is not a full M03 closeout.

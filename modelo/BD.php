@@ -10,6 +10,8 @@ class BD
         $user = getenv('DB_USER');
         $pass = getenv('DB_PASS');
         $bd = getenv('DB_NAME');
+        $portRaw = getenv('DB_PORT');
+        $port = ($portRaw === false || trim($portRaw) === '') ? 3306 : filter_var($portRaw, FILTER_VALIDATE_INT);
 
         if ($server === false || $server === '') {
             throw new RuntimeException("Database configuration error: DB_HOST is required and not set.");
@@ -23,8 +25,11 @@ class BD
         if ($bd === false || $bd === '') {
             throw new RuntimeException("Database configuration error: DB_NAME is required and not set.");
         }
+        if ($port === false || $port < 1 || $port > 65535) {
+            throw new RuntimeException("Database configuration error: DB_PORT must be a valid TCP port.");
+        }
 
-        $con = mysqli_connect($server, $user, $pass, $bd);
+        $con = mysqli_connect($server, $user, $pass, $bd, $port);
 
         if (!$con) {
             echo "Error: No se pudo conectar a MySQL." . PHP_EOL;

@@ -56,7 +56,7 @@ class AdministrativeEvaluationService {
             throw new InvalidArgumentException("Missing required fields for incidence master creation.");
         }
 
-        $validTypes = ['VACATION', 'DISABILITY', 'PERMISSION', 'AUTHORIZED_LATENESS', 'AUTHORIZED_EARLY_DEPARTURE', 'OFFICIAL_MISSION'];
+        $validTypes = ['VACATION', 'DISABILITY', 'PERMISSION', 'AUTHORIZED_LATENESS', 'AUTHORIZED_EARLY_DEPARTURE', 'OFFICIAL_MISSION', 'PUNCH_ATTENDANCE'];
         if (!in_array($tipo, $validTypes, true)) {
             throw new InvalidArgumentException("Invalid incidence type: $tipo");
         }
@@ -81,6 +81,64 @@ class AdministrativeEvaluationService {
             $stmtR->execute();
             $revisionId = (int)$stmtR->insert_id;
             $stmtR->close();
+
+            $punchCheck = $params['punch_check_link'] ?? null;
+            if ($tipo === 'PUNCH_ATTENDANCE') {
+                if (!is_array($punchCheck)) {
+                    throw new InvalidArgumentException('PUNCH_CHECK_LINK_REQUIRED');
+                }
+                $policyVersionId = (int)($punchCheck['policy_version_id'] ?? 0);
+                $checkDate = (string)($punchCheck['check_date'] ?? '');
+                $timezoneId = (string)($punchCheck['timezone_id'] ?? '');
+                $cutoffLocal = (string)($punchCheck['cutoff_local'] ?? '');
+                $checkKind = (string)($punchCheck['check_kind'] ?? '');
+                $nature = (string)($punchCheck['nature'] ?? '');
+                $sourceDeviceId = isset($punchCheck['source_event_device_id']) ? (int)$punchCheck['source_event_device_id'] : null;
+                $sourceEventUuid = isset($punchCheck['source_event_uuid']) ? (string)$punchCheck['source_event_uuid'] : null;
+                if ($policyVersionId < 1 || $checkDate === '' || $timezoneId === '' || $cutoffLocal === ''
+                    || !in_array($checkKind, ['ENTRY', 'LUNCH_EXIT', 'LUNCH_RETURN', 'FINAL_EXIT'], true)
+                    || !in_array($nature, ['LATENESS', 'OMISSION'], true)
+                    || (($nature === 'LATENESS') !== ($sourceDeviceId !== null && $sourceEventUuid !== null))) {
+                    throw new InvalidArgumentException('PUNCH_CHECK_LINK_INVALID');
+                }
+                $stmtCheck = $this->db->prepare(
+                    'INSERT INTO op_rh_v2_incidencia_chequeos '
+                    . '(id_incidencia_maestro, policy_version_id, fecha_chequeo_local, timezone_id, limite_registro_local, '
+                    . 'tipo_chequeo, naturaleza, source_event_device_id, source_event_uuid) '
+                    . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                );
+                if (!$stmtCheck) {
+                    throw new RuntimeException('PUNCH_CHECK_LINK_WRITE_UNAVAILABLE');
+                }
+                $stmtCheck->bind_param('iisssssis', $masterId, $policyVersionId, $checkDate, $timezoneId, $cutoffLocal, $checkKind, $nature, $sourceDeviceId, $sourceEventUuid);
+                $stmtCheck->execute();
+                $stmtCheck->close();
+
+                $stmtVerifyCheck = $this->db->prepare(
+                    'SELECT policy_version_id, fecha_chequeo_local, timezone_id, limite_registro_local, '
+                    . 'tipo_chequeo, naturaleza, source_event_device_id, source_event_uuid '
+                    . 'FROM op_rh_v2_incidencia_chequeos WHERE id_incidencia_maestro = ? LIMIT 1'
+                );
+                if (!$stmtVerifyCheck) {
+                    throw new RuntimeException('PUNCH_CHECK_LINK_READBACK_UNAVAILABLE');
+                }
+                $stmtVerifyCheck->bind_param('i', $masterId);
+                $stmtVerifyCheck->execute();
+                $storedCheck = $stmtVerifyCheck->get_result()->fetch_assoc();
+                $stmtVerifyCheck->close();
+                if ($storedCheck === null || (int)$storedCheck['policy_version_id'] !== $policyVersionId
+                    || (string)$storedCheck['fecha_chequeo_local'] !== $checkDate
+                    || (string)$storedCheck['timezone_id'] !== $timezoneId
+                    || (string)$storedCheck['limite_registro_local'] !== $cutoffLocal
+                    || (string)$storedCheck['tipo_chequeo'] !== $checkKind
+                    || (string)$storedCheck['naturaleza'] !== $nature
+                    || ($storedCheck['source_event_device_id'] === null ? null : (int)$storedCheck['source_event_device_id']) !== $sourceDeviceId
+                    || ($storedCheck['source_event_uuid'] === null ? null : (string)$storedCheck['source_event_uuid']) !== $sourceEventUuid) {
+                    throw new RuntimeException('PUNCH_CHECK_LINK_READBACK_MISMATCH');
+                }
+            } elseif ($punchCheck !== null) {
+                throw new InvalidArgumentException('PUNCH_CHECK_LINK_NOT_ALLOWED');
+            }
 
             // Materialize daily applications for matching ScheduledShifts within inclusive local date range
             $appIds = [];

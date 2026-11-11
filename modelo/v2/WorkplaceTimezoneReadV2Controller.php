@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 include_once __DIR__ . "/../BD.php";
 include_once __DIR__ . "/Portal3JwtAuthHelper.php";
+include_once __DIR__ . "/shift/ShiftSchedulingAuthorizationService.php";
+include_once __DIR__ . "/shift/JourneyReadAuthorizationService.php";
 
 class WorkplaceTimezoneReadV2Controller
 {
@@ -103,6 +105,22 @@ class WorkplaceTimezoneReadV2Controller
 
         // 5. Authorize functional permission 'leer' on 'biometricos' module and resolve station scope
         $authz = $this->autorizarAccesoBiometricos($conexion, $auth, 'leer');
+        // M03 scheduling readers use their narrow capability and must not need
+        // the broader biometricos ACL merely to resolve the same station's
+        // timezone. Other biometricos clients keep their existing gate.
+        if (!$authz['success'] && (int)($authz['code'] ?? 0) === 403) {
+            $authz = ShiftSchedulingAuthorizationService::authorize(
+                $conexion,
+                $auth,
+                ShiftSchedulingAuthorizationService::READ,
+                true
+            );
+        }
+        // M05 uses the same read-only timezone metadata but never gains access
+        // to scheduling assignments or any write/evaluation operation.
+        if (!$authz['success'] && (int)($authz['code'] ?? 0) === 403) {
+            $authz = JourneyReadAuthorizationService::authorize($conexion, $auth);
+        }
         if (!$authz['success']) {
             $classBD->desconectarBD($conexion);
             http_response_code($authz['code']);

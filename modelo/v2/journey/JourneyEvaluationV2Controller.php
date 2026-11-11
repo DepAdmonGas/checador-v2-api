@@ -11,7 +11,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../BD.php';
 require_once __DIR__ . '/../Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/../Level2ServerService.php';
+require_once __DIR__ . '/../WorkplacePhysicalStationResolver.php';
 require_once __DIR__ . '/../shift/ScheduleResolutionService.php';
+require_once __DIR__ . '/../shift/WorkplaceCoverageService.php';
+require_once __DIR__ . '/../shift/WorkplaceCoverageFeatureGate.php';
 require_once __DIR__ . '/../shift/ScheduledShiftMaterializationService.php';
 require_once __DIR__ . '/../shift/WorkplaceTimezoneAuthorityService.php';
 require_once __DIR__ . '/JourneyPairingService.php';
@@ -107,7 +110,50 @@ class JourneyEvaluationV2Controller
             return;
         }
 
-        // 6. Workplace Timezone resolution
+        // 6. Resolve the approved coverage-aware schedule only behind the opt-in gate.
+        // The ordinary Journey contract remains unchanged while coverage is disabled.
+        // When enabled, API V2 validates home membership, coverage approval, actor scope,
+        // and that the caller's station is the worker's effective Workplace for the date.
+        $scheduleService = new ScheduleResolutionService($conexion);
+        if (WorkplaceCoverageFeatureGate::isEnabled()) {
+            try {
+                $scheduleResult = (new WorkplaceCoverageService($conexion))->resolveWorkerEffective(
+                    $idPersonal,
+                    $fechaLocal,
+                    $auth
+                );
+            } catch (Throwable $e) {
+                $code = $e->getMessage();
+                $classBD->desconectarBD($conexion);
+                if (in_array($code, ['FUNCTION_PERMISSION_DENIED', 'STATION_SCOPE_DENIED'], true)) {
+                    $this->sendJsonError($code, 'Coverage schedule is outside authorized scope.', 403);
+                }
+                $this->sendJsonError('EFFECTIVE_SCHEDULE_UNAVAILABLE', 'Unable to resolve the authorized effective schedule.', 503);
+                return;
+            }
+            $effectiveStatus = (string)($scheduleResult['estado_jornada'] ?? 'UNKNOWN');
+            $effectiveWorkplaceId = (int)($scheduleResult['effective_workplace_id'] ?? $scheduleResult['id_estacion'] ?? 0);
+            if ($effectiveStatus !== 'UNKNOWN' && $effectiveWorkplaceId < 1) {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('EFFECTIVE_SCHEDULE_UNAVAILABLE', 'The effective Workplace could not be verified.', 503);
+                return;
+            }
+            if ($effectiveWorkplaceId > 0 && $effectiveWorkplaceId !== $idEstacion) {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('EFFECTIVE_WORKPLACE_MISMATCH', 'Requested station does not match the worker effective Workplace for this date.', 409);
+                return;
+            }
+        } else {
+            try {
+                $scheduleResult = $scheduleService->resolveSchedule($idPersonal, $idEstacion, $fechaLocal);
+            } catch (Throwable $e) {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar horario efectivo.', 500);
+                return;
+            }
+        }
+
+        // 7. Workplace Timezone resolution
         $tzAuthority = new WorkplaceTimezoneAuthorityService($conexion);
         try {
             $workplaceTz = $tzAuthority->resolve($idEstacion, $fechaLocal);
@@ -128,16 +174,6 @@ class JourneyEvaluationV2Controller
         } catch (Throwable $e) {
             $classBD->desconectarBD($conexion);
             $this->sendJsonError('SERVER_ERROR', 'Error interno al resolver huso horario del centro de trabajo.', 500);
-            return;
-        }
-
-        // 7. Resolve Effective Schedule
-        $scheduleService = new ScheduleResolutionService($conexion);
-        try {
-            $scheduleResult = $scheduleService->resolveSchedule($idPersonal, $idEstacion, $fechaLocal);
-        } catch (Throwable $e) {
-            $classBD->desconectarBD($conexion);
-            $this->sendJsonError('SERVER_ERROR', 'Error interno al consultar horario efectivo.', 500);
             return;
         }
 
@@ -229,9 +265,14 @@ class JourneyEvaluationV2Controller
         }
 
         // 9. Evaluate / retrieve Level 2 Window Completeness
+        // API requests and schedules use canonical locality IDs, while the
+        // Level 2 device/evidence tables use physical tb_estaciones IDs.
+        $physicalStationId = WorkplacePhysicalStationResolver::resolve($conexion, $idEstacion);
         $l2Service = new Level2ServerService();
         try {
-            $l2Result = $l2Service->evaluarVentanaNivel2($conexion, $idEstacion, $fromUtc, $toUtc);
+            $l2Result = $physicalStationId === null
+                ? ['window_level2_status' => 'UNKNOWN', 'evaluation_ref' => null]
+                : $l2Service->evaluarVentanaNivel2($conexion, $physicalStationId, $fromUtc, $toUtc);
         } catch (Throwable $e) {
             $l2Result = [
                 'window_level2_status' => 'UNKNOWN',

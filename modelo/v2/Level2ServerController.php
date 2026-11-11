@@ -3,6 +3,7 @@ include_once __DIR__ . "/../BD.php";
 include_once __DIR__ . "/DispositivoV2.php";
 include_once __DIR__ . "/Level2ServerService.php";
 include_once __DIR__ . "/Portal3JwtAuthHelper.php";
+include_once __DIR__ . "/WorkplacePhysicalStationResolver.php";
 
 class Level2ServerController {
 
@@ -150,18 +151,19 @@ class Level2ServerController {
             }
         }
 
-        $deviceGeneration = trim($body['device_generation'] ?? '');
-        $telemetrySequence = isset($body['telemetry_sequence']) ? (int)$body['telemetry_sequence'] : null;
-        $observationRaw = trim($body['observation_timestamp'] ?? '');
+        $deviceGeneration = is_string($body['device_generation'] ?? null) ? trim($body['device_generation']) : '';
+        $sequenceValue = $body['telemetry_sequence'] ?? null;
+        $telemetrySequence = is_int($sequenceValue) ? $sequenceValue : null;
+        $observationRaw = is_string($body['observation_timestamp'] ?? null) ? trim($body['observation_timestamp']) : '';
         $batteryLevel = isset($body['battery_level']) ? (int)$body['battery_level'] : null;
         $networkStatus = isset($body['network_status']) ? trim($body['network_status']) : null;
         $clockStatus = isset($body['clock_status']) ? trim($body['clock_status']) : null;
         $payloadJson = isset($body['payload']) && is_array($body['payload']) ? $body['payload'] : [];
 
-        if (empty($deviceGeneration) || $telemetrySequence === null || empty($observationRaw)) {
+        if (empty($deviceGeneration) || $telemetrySequence === null || $telemetrySequence < 1 || empty($observationRaw)) {
             $classBD->desconectarBD($conexion);
             http_response_code(400);
-            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_generation, telemetry_sequence y observation_timestamp son obligatorios."), JSON_UNESCAPED_UNICODE);
+            echo json_encode(array("code" => 400, "status" => "BAD_REQUEST", "mensaje" => "device_generation, telemetry_sequence entero desde 1 y observation_timestamp son obligatorios."), JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -295,8 +297,27 @@ class Level2ServerController {
             return;
         }
 
-        $l2Service = new Level2ServerService();
-        $res = $l2Service->evaluarVentanaNivel2($conexion, $stationIdParam, $fromParam, $toParam);
+        // Portal3 authorizes canonical locality IDs, while Level 2 device
+        // history and evaluations are keyed by physical tb_estaciones IDs.
+        // Resolve only after ACL validation and fail closed if the mapping is
+        // missing or ambiguous.
+        $physicalStationId = WorkplacePhysicalStationResolver::resolve($conexion, $stationIdParam);
+        if ($physicalStationId === null) {
+            $res = [
+                'window_level2_status' => 'UNKNOWN',
+                'delivery_completeness' => 'UNKNOWN',
+                'operational_coverage' => 'UNKNOWN',
+                'time_window_attribution' => 'UNKNOWN',
+                'has_zero_governed_events' => false,
+                'governed_event_count' => 0,
+                'evaluation_ref' => null,
+                'manifest_digest' => null,
+                'evaluated_at_utc' => null,
+            ];
+        } else {
+            $l2Service = new Level2ServerService();
+            $res = $l2Service->evaluarVentanaNivel2($conexion, $physicalStationId, $fromParam, $toParam);
+        }
 
         $classBD->desconectarBD($conexion);
         http_response_code(200);

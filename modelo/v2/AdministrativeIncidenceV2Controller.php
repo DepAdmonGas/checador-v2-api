@@ -12,6 +12,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../BD.php';
 require_once __DIR__ . '/Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/journey/AdministrativeEvaluationService.php';
+require_once __DIR__ . '/WorkplacePhysicalStationResolver.php';
+require_once __DIR__ . '/shift/ShiftWorkerMembershipService.php';
+require_once __DIR__ . '/shift/WorkplaceTimezoneAuthorityService.php';
+require_once __DIR__ . '/PunchIncidenceDeadlineService.php';
 
 class AdministrativeIncidenceV2Controller
 {
@@ -47,6 +51,12 @@ class AdministrativeIncidenceV2Controller
             }
         }
         return '';
+    }
+
+    private static function isCivilDate(string $value): bool
+    {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        return $date !== false && $date->format('Y-m-d') === $value;
     }
     /**
      * GET /api/v2/incidences
@@ -179,7 +189,7 @@ class AdministrativeIncidenceV2Controller
             $types .= "s";
         }
 
-        $sql = "SELECT m.uuid_incidencia, m.id_personal, m.id_estacion, m.tipo_incidencia,
+        $sql = "SELECT m.id AS master_id, m.uuid_incidencia, m.id_personal, m.id_estacion, m.tipo_incidencia,
                        m.alcance_incidencia, m.fecha_inicio_local, m.fecha_fin_local,
                        m.estado_actual, m.revision_actual,
                        r.motivo, r.folio_evidencia, r.creado_por_usuario_id, r.aprobado_por_usuario_id,
@@ -229,7 +239,8 @@ class AdministrativeIncidenceV2Controller
                 'source_classification' => $sourceClass,
                 'created_at_utc' => $row['creado_at_utc'] !== null ? gmdate('Y-m-d\TH:i:s\Z', strtotime((string)$row['creado_at_utc'])) : null,
                 'created_by_user_id' => (int)($row['creado_por_usuario_id'] ?? 0),
-                'approved_by_user_id' => $row['aprobado_por_usuario_id'] !== null ? (int)$row['aprobado_por_usuario_id'] : null
+                'approved_by_user_id' => $row['aprobado_por_usuario_id'] !== null ? (int)$row['aprobado_por_usuario_id'] : null,
+                'check_reference' => $this->readPunchCheckReference($conexion, (int)$row['master_id'])
             ];
         }
         $stmt->close();
@@ -343,6 +354,7 @@ class AdministrativeIncidenceV2Controller
             ];
         }
         $stmtRev->close();
+        $checkReference = $this->readPunchCheckReference($conexion, $masterId);
         $classBD->desconectarBD($conexion);
 
         echo json_encode([
@@ -360,6 +372,7 @@ class AdministrativeIncidenceV2Controller
                 'time_interval' => null,
                 'current_status' => (string)$master['estado_actual'],
                 'current_revision' => (int)$master['revision_actual'],
+                'check_reference' => $checkReference,
                 'revisions' => $revisionsList
             ]
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -561,6 +574,9 @@ class AdministrativeIncidenceV2Controller
     public function handleCreateIncident(): void
     {
         $this->setSecurityHeaders();
+        // Deadline eligibility is based on the server receipt instant, not on
+        // how long authorization and source validation take to finish.
+        $requestReceivedAtUtc = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         // 1. Mandatory Idempotency-Key header
         $idempotencyKey = $this->getHeaderValue('Idempotency-Key');
@@ -650,7 +666,7 @@ class AdministrativeIncidenceV2Controller
         }
 
         $category = trim((string)($body['category'] ?? ''));
-        $validCategories = ['VACATION', 'PERMISSION', 'DISABILITY', 'AUTHORIZED_LATENESS', 'AUTHORIZED_EARLY_DEPARTURE', 'OFFICIAL_MISSION'];
+        $validCategories = ['VACATION', 'PERMISSION', 'DISABILITY', 'AUTHORIZED_LATENESS', 'AUTHORIZED_EARLY_DEPARTURE', 'OFFICIAL_MISSION', 'PUNCH_ATTENDANCE'];
         if (!in_array($category, $validCategories, true)) {
             $classBD->desconectarBD($conexion);
             $this->sendJsonError('INVALID_PAYLOAD', "Categoría de incidencia '{$category}' inválida. Categorías válidas: " . implode(', ', $validCategories), 400);
@@ -687,6 +703,51 @@ class AdministrativeIncidenceV2Controller
             $evidenceRef = null;
         }
 
+        $punchCheckReference = null;
+        if ($category === 'PUNCH_ATTENDANCE') {
+            $environment = strtolower(trim((string)(getenv('APP_ENV') ?: '')));
+            if (!in_array($environment, ['dev', 'development', 'local'], true)
+                || !str_starts_with($reason, '[QA DEV]')
+                || !is_string($evidenceRef)
+                || !str_starts_with($evidenceRef, 'QA-M06-')) {
+                $classBD->desconectarBD($conexion);
+                $this->sendJsonError('QA_DEVELOPMENT_SCOPE_REQUIRED', 'Este registro M06 requiere entorno local de desarrollo y referencias QA autorizadas.', 403);
+                return;
+            }
+            $checkResult = $this->validatePunchAttendanceCheck(
+                $conexion,
+                $body,
+                $workerId,
+                $workplaceId,
+                $scope,
+                $startDate,
+                $endDate,
+                $requestReceivedAtUtc
+            );
+            if (!($checkResult['ok'] ?? false)) {
+                $classBD->desconectarBD($conexion);
+                $errorCode = (string) ($checkResult['error'] ?? 'INVALID_PUNCH_CHECK');
+                $httpCode = match ($errorCode) {
+                    'CHECK_DATE_IN_FUTURE' => 422,
+                    'INCIDENCE_DEADLINE_EXPIRED' => 422,
+                    'ATTENDANCE_POLICY_NOT_VERSIONED' => 422,
+                    'WORKER_MEMBERSHIP_UNVERIFIED' => 422,
+                    'SOURCE_EVENT_NOT_MATCHED' => 422,
+                    'WORKPLACE_TIMEZONE_UNRESOLVED' => 503,
+                    default => 400,
+                };
+                $this->sendJsonError($errorCode, $this->punchCheckErrorMessage($errorCode), $httpCode);
+                return;
+            }
+            $punchCheckReference = $checkResult['data'];
+        } elseif (array_key_exists('check_date', $body) || array_key_exists('check_kind', $body)
+            || array_key_exists('nature', $body) || array_key_exists('source_event_device_id', $body)
+            || array_key_exists('source_event_uuid', $body)) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError('INVALID_PUNCH_CHECK', 'Los datos de chequeo solo aplican a PUNCH_ATTENDANCE.', 400);
+            return;
+        }
+
         // Actor strictly from authenticated JWT sub
         $actorUserId = (int)$auth['user_id'];
 
@@ -700,7 +761,17 @@ class AdministrativeIncidenceV2Controller
             'start_date' => $startDate,
             'end_date' => $endDate,
             'reason' => $reason,
-            'evidence_reference' => $evidenceRef
+            'evidence_reference' => $evidenceRef,
+            'punch_check' => $punchCheckReference === null ? null : [
+                'check_date' => $punchCheckReference['check_date'],
+                'check_kind' => $punchCheckReference['check_kind'],
+                'nature' => $punchCheckReference['nature'],
+                'source_event_device_id' => $punchCheckReference['source_event_device_id'],
+                'source_event_uuid' => $punchCheckReference['source_event_uuid'],
+                'policy_version_id' => $punchCheckReference['policy_version_id'],
+                'timezone_id' => $punchCheckReference['timezone_id'],
+                'cutoff_local' => $punchCheckReference['cutoff_local'],
+            ],
         ];
         $semanticHash = hash('sha256', json_encode($semanticPayload));
 
@@ -724,6 +795,7 @@ class AdministrativeIncidenceV2Controller
                     $storedHash = $meta['hash'] ?? '';
                     if ($storedHash === $semanticHash) {
                         // Identical replay -> return existing incident
+                        $checkReference = $this->readPunchCheckReference($conexion, (int)$existingIdemp['id_incidencia_maestro']);
                         $classBD->desconectarBD($conexion);
                         http_response_code(201);
                         echo json_encode([
@@ -735,7 +807,8 @@ class AdministrativeIncidenceV2Controller
                                 'category' => (string)$existingIdemp['tipo_incidencia'],
                                 'current_revision' => (int)$existingIdemp['revision_actual'],
                                 'status' => (string)$existingIdemp['estado_actual'],
-                                'created_at_utc' => gmdate('Y-m-d\TH:i:s\Z', strtotime((string)$existingIdemp['creado_at_utc']))
+                                'created_at_utc' => gmdate('Y-m-d\TH:i:s\Z', strtotime((string)$existingIdemp['creado_at_utc'])),
+                                'check_reference' => $checkReference
                             ]
                         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                         return;
@@ -746,6 +819,18 @@ class AdministrativeIncidenceV2Controller
                 $this->sendJsonError('IDEMPOTENCY_CONFLICT', "La clave de idempotencia '{$idempotencyKey}' ya fue utilizada previamente con un payload diferente.", 409);
                 return;
             }
+        }
+
+        // An identical retry of an incidence already accepted within its
+        // deadline remains idempotent after the cutoff. New rows still fail
+        // closed at the cutoff below.
+        if ($category === 'PUNCH_ATTENDANCE' && !empty($punchCheckReference['deadline_expired'])) {
+            $classBD->desconectarBD($conexion);
+            $this->sendJsonError('INCIDENCE_DEADLINE_EXPIRED', $this->punchCheckErrorMessage('INCIDENCE_DEADLINE_EXPIRED'), 422);
+            return;
+        }
+        if (is_array($punchCheckReference)) {
+            unset($punchCheckReference['deadline_expired'], $punchCheckReference['deadline_days']);
         }
 
         // 7. Persist new incident master + revision 1
@@ -768,7 +853,8 @@ class AdministrativeIncidenceV2Controller
                 'folio_evidencia' => $evidenceRef,
                 'creado_por_usuario_id' => $actorUserId,
                 'estado_actual' => $initialStatus,
-                'estado_revision' => $initialStatus
+                'estado_revision' => $initialStatus,
+                'punch_check_link' => $punchCheckReference
             ]);
         } catch (\Throwable $e) {
             $classBD->desconectarBD($conexion);
@@ -798,7 +884,8 @@ class AdministrativeIncidenceV2Controller
                 'category' => $category,
                 'current_revision' => 1,
                 'status' => $initialStatus,
-                'created_at_utc' => $createdAtUtc
+                'created_at_utc' => $createdAtUtc,
+                'check_reference' => $punchCheckReference
             ]
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
@@ -2171,6 +2258,196 @@ class AdministrativeIncidenceV2Controller
 
         http_response_code(200);
         echo json_encode($responseData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    /** Validate and freeze the policy/check provenance before the incidence transaction begins. */
+    private function validatePunchAttendanceCheck(
+        mysqli $db,
+        array $body,
+        int $workerId,
+        int $workplaceId,
+        string $scope,
+        string $startDate,
+        string $endDate,
+        DateTimeImmutable $requestReceivedAtUtc
+    ): array {
+        $checkDate = is_string($body['check_date'] ?? null) ? trim($body['check_date']) : '';
+        $checkKind = is_string($body['check_kind'] ?? null) ? trim($body['check_kind']) : '';
+        $nature = is_string($body['nature'] ?? null) ? trim($body['nature']) : '';
+        $validKinds = ['ENTRY', 'LUNCH_EXIT', 'LUNCH_RETURN', 'FINAL_EXIT'];
+        if (!PunchIncidenceDeadlineService::isCivilDate($checkDate)
+            || !in_array($checkKind, $validKinds, true)
+            || !in_array($nature, ['LATENESS', 'OMISSION'], true)
+            || $scope !== 'WORKER' || $startDate !== $checkDate || $endDate !== $checkDate) {
+            return ['ok' => false, 'error' => 'INVALID_PUNCH_CHECK'];
+        }
+
+        try {
+            (new ShiftWorkerMembershipService($db))->assertLocalDateMembership($workerId, $workplaceId, $checkDate);
+        } catch (Throwable) {
+            return ['ok' => false, 'error' => 'WORKER_MEMBERSHIP_UNVERIFIED'];
+        }
+
+        try {
+            $timezoneId = (new WorkplaceTimezoneAuthorityService($db))->resolve($workplaceId, $checkDate);
+        } catch (Throwable) {
+            return ['ok' => false, 'error' => 'WORKPLACE_TIMEZONE_UNRESOLVED'];
+        }
+        $timezone = new DateTimeZone($timezoneId);
+        $now = $requestReceivedAtUtc->setTimezone($timezone);
+        if ($checkDate > $now->format('Y-m-d')) {
+            return ['ok' => false, 'error' => 'CHECK_DATE_IN_FUTURE'];
+        }
+
+        $stmtPolicy = $db->prepare(
+            'SELECT id, policy_version, effective_from_local_date, timezone_id, '
+            . 'retardo_tolerance_minutes, incidence_deadline_days '
+            . 'FROM op_rh_v2_attendance_policy_versions '
+            . 'WHERE workplace_id = ? AND effective_from_local_date <= ? '
+            . 'ORDER BY effective_from_local_date DESC, policy_version DESC LIMIT 1'
+        );
+        if (!$stmtPolicy) {
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_UNAVAILABLE'];
+        }
+        $stmtPolicy->bind_param('is', $workplaceId, $checkDate);
+        if (!$stmtPolicy->execute()) {
+            $stmtPolicy->close();
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_UNAVAILABLE'];
+        }
+        $policy = $stmtPolicy->get_result()->fetch_assoc();
+        $stmtPolicy->close();
+        if ($policy === null) {
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_NOT_VERSIONED'];
+        }
+        $policyTimezone = is_string($policy['timezone_id'] ?? null) ? trim((string)$policy['timezone_id']) : '';
+        if ($policyTimezone === '' || $policyTimezone !== $timezoneId
+            || !in_array($policyTimezone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true)) {
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_INVALID'];
+        }
+        $deadlineDays = (int)$policy['incidence_deadline_days'];
+        if ($deadlineDays < 0 || $deadlineDays > 30
+            || (int)$policy['retardo_tolerance_minutes'] < 0
+            || (int)$policy['retardo_tolerance_minutes'] > 120) {
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_INVALID'];
+        }
+
+        try {
+            $deadline = PunchIncidenceDeadlineService::evaluate($checkDate, $deadlineDays, $timezoneId, $now);
+        } catch (Throwable) {
+            return ['ok' => false, 'error' => 'ATTENDANCE_POLICY_INVALID'];
+        }
+        $sourceDeviceId = null;
+        $sourceEventUuid = null;
+        if ($nature === 'LATENESS') {
+            $rawDeviceId = $body['source_event_device_id'] ?? null;
+            $sourceDeviceId = (is_int($rawDeviceId) || (is_string($rawDeviceId) && ctype_digit($rawDeviceId)))
+                ? (int)$rawDeviceId : 0;
+            $sourceEventUuid = is_string($body['source_event_uuid'] ?? null)
+                ? trim($body['source_event_uuid']) : '';
+            if ($sourceDeviceId < 1 || $sourceEventUuid === '' || strlen($sourceEventUuid) > 64) {
+                return ['ok' => false, 'error' => 'INVALID_PUNCH_CHECK'];
+            }
+            $stmtEvent = $db->prepare(
+                'SELECT id_personal_resuelto, id_estacion_resuelta, ocurrido_at_utc '
+                . 'FROM op_rh_v2_marcaciones_crudas WHERE id_dispositivo = ? AND event_uuid = ? LIMIT 1'
+            );
+            if (!$stmtEvent) {
+                return ['ok' => false, 'error' => 'SOURCE_EVENT_NOT_MATCHED'];
+            }
+            $stmtEvent->bind_param('is', $sourceDeviceId, $sourceEventUuid);
+            $stmtEvent->execute();
+            $event = $stmtEvent->get_result()->fetch_assoc();
+            $stmtEvent->close();
+            if ($event === null || (int)($event['id_personal_resuelto'] ?? 0) !== $workerId
+                || (int)($event['id_estacion_resuelta'] ?? 0) < 1
+                || !is_string($event['ocurrido_at_utc'] ?? null)
+                || trim((string)$event['ocurrido_at_utc']) === '') {
+                return ['ok' => false, 'error' => 'SOURCE_EVENT_NOT_MATCHED'];
+            }
+            $eventLocalityId = WorkplacePhysicalStationResolver::resolveCanonicalLocality(
+                $db,
+                (int)$event['id_estacion_resuelta']
+            );
+            if ($eventLocalityId !== $workplaceId) {
+                return ['ok' => false, 'error' => 'SOURCE_EVENT_NOT_MATCHED'];
+            }
+            try {
+                $eventLocalDate = (new DateTimeImmutable((string)$event['ocurrido_at_utc'], new DateTimeZone('UTC')))
+                    ->setTimezone($timezone)->format('Y-m-d');
+            } catch (Throwable) {
+                return ['ok' => false, 'error' => 'SOURCE_EVENT_NOT_MATCHED'];
+            }
+            if ($eventLocalDate !== $checkDate) {
+                return ['ok' => false, 'error' => 'SOURCE_EVENT_NOT_MATCHED'];
+            }
+        } elseif (array_key_exists('source_event_device_id', $body) || array_key_exists('source_event_uuid', $body)) {
+            return ['ok' => false, 'error' => 'INVALID_PUNCH_CHECK'];
+        }
+
+        return ['ok' => true, 'data' => [
+            'check_date' => $checkDate,
+            'check_kind' => $checkKind,
+            'nature' => $nature,
+            'policy_version_id' => (int)$policy['id'],
+            'policy_version' => (int)$policy['policy_version'],
+            'deadline_days' => $deadlineDays,
+            'deadline_expired' => $deadline['expired'],
+            'source_event_device_id' => $sourceDeviceId,
+            'source_event_uuid' => $sourceEventUuid,
+            'timezone_id' => $timezoneId,
+            'cutoff_local' => $deadline['cutoff_local'],
+        ]];
+    }
+
+    /** @return array<string,mixed>|null */
+    private function readPunchCheckReference(mysqli $db, int $masterId): ?array
+    {
+        $stmt = $db->prepare(
+            'SELECT c.fecha_chequeo_local, c.tipo_chequeo, c.naturaleza, c.source_event_device_id, '
+            . 'c.source_event_uuid, c.policy_version_id, p.policy_version, c.timezone_id, c.limite_registro_local '
+            . 'FROM op_rh_v2_incidencia_chequeos c '
+            . 'JOIN op_rh_v2_attendance_policy_versions p ON p.id = c.policy_version_id '
+            . 'WHERE c.id_incidencia_maestro = ? LIMIT 1'
+        );
+        if (!$stmt) {
+            return null;
+        }
+        $stmt->bind_param('i', $masterId);
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return null;
+        }
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row === null) {
+            return null;
+        }
+        return [
+            'check_date' => (string)$row['fecha_chequeo_local'],
+            'check_kind' => (string)$row['tipo_chequeo'],
+            'nature' => (string)$row['naturaleza'],
+            'source_event_device_id' => $row['source_event_device_id'] === null ? null : (int)$row['source_event_device_id'],
+            'source_event_uuid' => $row['source_event_uuid'] === null ? null : (string)$row['source_event_uuid'],
+            'policy_version_id' => (int)$row['policy_version_id'],
+            'policy_version' => (int)$row['policy_version'],
+            'timezone_id' => (string)$row['timezone_id'],
+            'cutoff_local' => (string)$row['limite_registro_local'],
+        ];
+    }
+
+    private function punchCheckErrorMessage(string $code): string
+    {
+        return match ($code) {
+            'CHECK_DATE_IN_FUTURE' => 'La fecha del chequeo no puede estar en el futuro.',
+            'INCIDENCE_DEADLINE_EXPIRED' => 'El plazo local para registrar esta incidencia ya venció.',
+            'ATTENDANCE_POLICY_NOT_VERSIONED' => 'No existe una política V2 versionada para la fecha del chequeo.',
+            'WORKER_MEMBERSHIP_UNVERIFIED' => 'No se pudo confirmar la adscripción del trabajador para esa fecha y localidad.',
+            'SOURCE_EVENT_NOT_MATCHED' => 'La marcación indicada no coincide con el trabajador, la localidad y la fecha del chequeo.',
+            'WORKPLACE_TIMEZONE_UNRESOLVED' => 'No se pudo confirmar la zona horaria vigente de la localidad.',
+            'ATTENDANCE_POLICY_UNAVAILABLE' => 'No se pudo consultar la política versionada de la localidad.',
+            'ATTENDANCE_POLICY_INVALID' => 'La política versionada contiene valores fuera de los límites autorizados.',
+            default => 'Los datos del chequeo de marcación no son válidos.',
+        };
     }
 
     private function setSecurityHeaders(): void

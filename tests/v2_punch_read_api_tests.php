@@ -486,5 +486,151 @@ run_test("11. Comprehensive Date Range Duration Limits (30d allowed, 31d allowed
     unset($_SERVER['HTTP_AUTHORIZATION']);
 });
 
+// 12. Locality and physical station IDs are separate namespaces. The read
+// must map the authorized locality to its unique physical station and omit
+// an event whose event-time device history is absent, conflicting, or points
+// to a different station.
+run_test("12. Canonical locality maps to physical station and uncertain history is excluded", function() use ($db) {
+    $db->query("INSERT IGNORE INTO tb_estaciones (id, numlista, estatus) VALUES (55, 155, 0), (5, 5, 0)");
+    $db->query("INSERT IGNORE INTO op_rh_localidades (id, numlista) VALUES (5, 155)");
+    $db->query("UPDATE tb_modulos_config SET estaciones_soportadas = '[1,2,3,5,55]' WHERE modulo_key = 'biometricos'");
+    $db->query("INSERT IGNORE INTO tb_usuarios (id, usuario, id_gas, id_puesto, estatus) VALUES (997, 'user_divergent_station_ids', 55, 10, 0)");
+    $db->query("INSERT IGNORE INTO modulos_usuarios_do (id_modulo, id_usuario, leer, crear, editar, eliminar, descargar) VALUES (20, 997, 1, 0, 0, 0, 0)");
+    $db->query("INSERT IGNORE INTO tb_multiestacion_usuario (id_usuario, estaciones, activo) VALUES (997, '[55]', 1)");
+
+    $deviceIds = [];
+    foreach ([['READ-SCOPE-VALID', 55], ['READ-SCOPE-AMBIGUOUS', 55], ['READ-SCOPE-MISMATCH', 55], ['READ-SCOPE-NO-HISTORY', null]] as [$deviceUuid, $stationId]) {
+        $deviceName = $deviceUuid;
+        $deviceStmt = $db->prepare('INSERT INTO op_rh_v2_dispositivos (uuid_dispositivo, id_estacion, nombre, timezone, estado) VALUES (?, 55, ?, ?, 1)');
+        $timezone = 'UTC';
+        $deviceStmt->bind_param('sss', $deviceUuid, $deviceName, $timezone);
+        $deviceStmt->execute();
+        $deviceIds[$deviceUuid] = (int) $db->insert_id;
+        $deviceStmt->close();
+
+        if ($stationId !== null) {
+            $historyStmt = $db->prepare('INSERT INTO op_rh_v2_dispositivo_estacion_historial (id_dispositivo, id_estacion, valido_desde_utc, valido_hasta_utc, creado_at_utc) VALUES (?, ?, ?, NULL, ?)');
+            $from = '2026-10-02 00:00:00';
+            $created = '2026-10-01 00:00:00';
+            $historyStmt->bind_param('iiss', $deviceIds[$deviceUuid], $stationId, $from, $created);
+            $historyStmt->execute();
+            $historyStmt->close();
+        }
+    }
+
+    $ambiguousDevice = $deviceIds['READ-SCOPE-AMBIGUOUS'];
+    $otherStation = 56;
+    $ambiguousFrom = '2026-10-02 00:00:00';
+    $ambiguousCreated = '2026-10-01 00:00:00';
+    $ambiguousStmt = $db->prepare('INSERT INTO op_rh_v2_dispositivo_estacion_historial (id_dispositivo, id_estacion, valido_desde_utc, valido_hasta_utc, creado_at_utc) VALUES (?, ?, ?, NULL, ?)');
+    $ambiguousStmt->bind_param('iiss', $ambiguousDevice, $otherStation, $ambiguousFrom, $ambiguousCreated);
+    $ambiguousStmt->execute();
+    $ambiguousStmt->close();
+
+    $mismatchDevice = $deviceIds['READ-SCOPE-MISMATCH'];
+    $mismatchStation = 56;
+    $mismatchStmt = $db->prepare('UPDATE op_rh_v2_dispositivo_estacion_historial SET id_estacion = ? WHERE id_dispositivo = ?');
+    $mismatchStmt->bind_param('ii', $mismatchStation, $mismatchDevice);
+    $mismatchStmt->execute();
+    $mismatchStmt->close();
+
+    $eventIds = [
+        'read-scope-valid-' . bin2hex(random_bytes(6)) => $deviceIds['READ-SCOPE-VALID'],
+        'read-scope-ambiguous-' . bin2hex(random_bytes(6)) => $ambiguousDevice,
+        'read-scope-mismatch-' . bin2hex(random_bytes(6)) => $mismatchDevice,
+        'read-scope-no-history-' . bin2hex(random_bytes(6)) => $deviceIds['READ-SCOPE-NO-HISTORY'],
+    ];
+    foreach ($eventIds as $eventUuid => $deviceId) {
+        $physicalStationId = 55;
+        $eventStmt = $db->prepare('INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, referencia_externa_personal, id_personal_resuelto, source_timestamp_raw, source_timezone_reported, effective_timezone, timezone_fallback_applied, ocurrido_at_utc, recibido_at_utc, metodo_captura, external_event_id, secuencia_dispositivo, processing_status) VALUES (?, ?, ?, ?, 10, ?, ?, ?, 0, ?, ?, ?, ?, 1, ?)');
+        $workerRef = 'EMP-SCOPE-TEST';
+        $timestampRaw = '2026-10-02T12:00:00Z';
+        $utc = '2026-10-02';
+        $captureMethod = 'BIOMETRIC';
+        $externalId = $eventUuid;
+        $processingStatus = 'RECEIVED';
+        $eventStmt->bind_param('siisssssssss', $eventUuid, $deviceId, $physicalStationId, $workerRef, $timestampRaw, $utc, $utc, $utc, $utc, $captureMethod, $externalId, $processingStatus);
+        $eventStmt->execute();
+        $eventStmt->close();
+    }
+
+    // Add the canonical-ID decoy separately under physical station 5.
+    $decoyUuid = 'read-scope-canonical-decoy-' . bin2hex(random_bytes(6));
+    $decoyDevice = $deviceIds['READ-SCOPE-VALID'];
+    $decoyStation = 5;
+    $decoyRef = 'EMP-SCOPE-TEST';
+    $decoyTimestamp = '2026-10-02T12:00:00Z';
+    $decoyDate = '2026-10-02';
+    $decoyMethod = 'BIOMETRIC';
+    $decoyExternal = $decoyUuid;
+    $decoyStatus = 'RECEIVED';
+    $decoyStmt = $db->prepare('INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, referencia_externa_personal, id_personal_resuelto, source_timestamp_raw, source_timezone_reported, effective_timezone, timezone_fallback_applied, ocurrido_at_utc, recibido_at_utc, metodo_captura, external_event_id, secuencia_dispositivo, processing_status) VALUES (?, ?, ?, ?, 10, ?, ?, ?, 0, ?, ?, ?, ?, 1, ?)');
+    $decoyStmt->bind_param('siisssssssss', $decoyUuid, $decoyDevice, $decoyStation, $decoyRef, $decoyTimestamp, $decoyDate, $decoyDate, $decoyDate, $decoyDate, $decoyMethod, $decoyExternal, $decoyStatus);
+    $decoyStmt->execute();
+    $decoyStmt->close();
+
+    $validUuid = array_key_first(array_filter($eventIds, static fn(int $id, string $uuid): bool => str_contains($uuid, 'valid-'), ARRAY_FILTER_USE_BOTH));
+    $validFixtureStmt = $db->prepare('SELECT e.event_uuid, e.id_dispositivo, e.id_estacion_resuelta, e.ocurrido_at_utc, h.id_estacion, h.valido_desde_utc, h.valido_hasta_utc FROM op_rh_v2_marcaciones_crudas e LEFT JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo = e.id_dispositivo WHERE e.event_uuid = ?');
+    $validFixtureStmt->bind_param('s', $validUuid);
+    $validFixtureStmt->execute();
+    $validFixture = $validFixtureStmt->get_result()->fetch_assoc();
+    $validFixtureStmt->close();
+    if (!$validFixture
+        || (int) ($validFixture['id_estacion_resuelta'] ?? 0) !== 55
+        || (int) ($validFixture['id_estacion'] ?? 0) !== 55
+        || (string) ($validFixture['ocurrido_at_utc'] ?? '') < (string) ($validFixture['valido_desde_utc'] ?? '')) {
+        throw new Exception('Synthetic fixture did not establish a matching physical station history: ' . json_encode($validFixture));
+    }
+
+    $matchingHistoryStmt = $db->prepare('SELECT COUNT(*) AS total FROM op_rh_v2_marcaciones_crudas e
+        WHERE e.event_uuid = ? AND e.id_estacion_resuelta = 55
+          AND e.ocurrido_at_utc >= ? AND e.ocurrido_at_utc <= ?
+          AND (SELECT COUNT(*) FROM op_rh_v2_dispositivo_estacion_historial h
+               WHERE h.id_dispositivo = e.id_dispositivo
+                 AND h.valido_desde_utc <= e.ocurrido_at_utc
+                 AND (h.valido_hasta_utc IS NULL OR e.ocurrido_at_utc < h.valido_hasta_utc)) = 1
+          AND EXISTS (SELECT 1 FROM op_rh_v2_dispositivo_estacion_historial h
+               WHERE h.id_dispositivo = e.id_dispositivo AND h.id_estacion = e.id_estacion_resuelta
+                 AND h.valido_desde_utc <= e.ocurrido_at_utc
+                 AND (h.valido_hasta_utc IS NULL OR e.ocurrido_at_utc < h.valido_hasta_utc))');
+    $fromBound = '2026-10-02 00:00:00';
+    $toBound = '2026-10-02 23:59:59';
+    $matchingHistoryStmt->bind_param('sss', $validUuid, $fromBound, $toBound);
+    $matchingHistoryStmt->execute();
+    $matchingHistoryCount = (int) $matchingHistoryStmt->get_result()->fetch_assoc()['total'];
+    $matchingHistoryStmt->close();
+    if ($matchingHistoryCount !== 1) {
+        throw new Exception('Expected the synthetic valid event to match the event-time history query; got ' . $matchingHistoryCount . ': ' . json_encode($validFixture));
+    }
+
+    $controller = new PunchEventReadV2Controller();
+    $authzMethod = reflector_get_method(new ReflectionClass($controller), 'autorizarAccesoBiometricos');
+    $authz = $authzMethod->invoke($controller, $db, ['valid' => true, 'user_id' => 997, 'id_puesto' => 10, 'id_gas' => 55], 'leer');
+    $mapMethod = reflector_get_method(new ReflectionClass($controller), 'resolvePhysicalStationIds');
+    $mappedPhysicalIds = $mapMethod->invoke($controller, $db, [5]);
+    if (($authz['authorized_stations'] ?? []) !== [5] || $mappedPhysicalIds !== [55]) {
+        throw new Exception('Synthetic scope mapping failed before HTTP dispatch: ' . json_encode(['authz' => $authz, 'physical_ids' => $mappedPhysicalIds]));
+    }
+
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . create_test_jwt(['sub' => 997], getenv('JWT_SECRET'));
+    $_GET = [
+        'station_id' => '5',
+        'from' => '2026-10-02T00:00:00Z',
+        'to' => '2026-10-02T23:59:59Z',
+        'per_page' => '50',
+    ];
+    ob_start();
+    $controller->consultarMarcacionesCrudas();
+    $payload = json_decode((string) ob_get_clean(), true);
+    $eventUuids = array_column($payload['data'] ?? [], 'event_uuid');
+    if (($payload['code'] ?? null) !== 200
+        || $eventUuids !== [$validUuid]
+        || (int) ($payload['data'][0]['id_estacion_resuelta'] ?? 0) !== 55) {
+        throw new Exception('Expected only the uniquely attributed physical station 55 event for canonical locality 5; got: ' . json_encode($payload));
+    }
+    $_GET = [];
+    unset($_SERVER['HTTP_AUTHORIZATION']);
+});
+
 echo "\nSummary: " . ($failed === 0 ? "ALL READ API G4D TESTS PASSED ({$passed}/{$passed})" : "SOME TESTS FAILED ({$failed} failed)") . "\n";
 exit($failed === 0 ? 0 : 1);
