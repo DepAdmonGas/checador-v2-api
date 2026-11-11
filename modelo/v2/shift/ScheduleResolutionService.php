@@ -79,7 +79,7 @@ class ScheduleResolutionService
         // 3. Query effective assignment in op_rh_v2_turnos_asignaciones for matching weekday and date interval
         // Supports both current active assignments and closed historical assignments [valido_desde, valido_hasta).
         // Excludes cancelled/revoked assignments (es_activo = 0 with NULL or non-positive interval).
-        $sqlAsig = "SELECT id, id_plantilla, valido_desde, valido_hasta, es_activo
+        $sqlAsig = "SELECT id, id_plantilla, tipo_asignacion, valido_desde, valido_hasta, es_activo
                     FROM op_rh_v2_turnos_asignaciones
                     WHERE id_personal = ? AND id_estacion = ? AND dia_semana = ?
                       AND valido_desde <= ?
@@ -95,40 +95,78 @@ class ScheduleResolutionService
         $resAsig = $stmtAsig->get_result();
 
         $matchingAssignments = [];
+        $temporalAssignments = [];
+        $habitualAssignments = [];
         while ($row = $resAsig->fetch_assoc()) {
             $matchingAssignments[] = $row;
+            $tipo = strtoupper((string)($row['tipo_asignacion'] ?? 'HABITUAL'));
+            if ($tipo === 'TEMPORAL') {
+                $temporalAssignments[] = $row;
+            } else {
+                $habitualAssignments[] = $row;
+            }
         }
+        $stmtAsig->close();
 
         if (count($matchingAssignments) === 0) {
             // Check if worker has ANY assignment in system to distinguish UNSCHEDULED from UNKNOWN
             $stmtAny = $this->db->prepare("SELECT id FROM op_rh_v2_turnos_asignaciones WHERE id_personal = ? LIMIT 1");
             $stmtAny->bind_param("i", $idPersonal);
             $stmtAny->execute();
-            if ($stmtAny->get_result()->num_rows > 0) {
+            $hasAny = ($stmtAny->get_result()->num_rows > 0);
+            $stmtAny->close();
+            return [
+                'id_personal' => $idPersonal,
+                'id_estacion' => $idEstacion,
+                'fecha_local' => $fechaLocal,
+                'estado_jornada' => 'UNSCHEDULED',
+                'reason' => $hasAny
+                    ? 'Worker has active system profile but no shift assigned for target station and weekday'
+                    : 'Worker has no active assignments'
+            ];
+        }
+
+        // Priority resolution: TEMPORAL takes precedence over HABITUAL during its effective interval
+        if (count($temporalAssignments) > 1) {
+            return [
+                'id_personal' => $idPersonal,
+                'id_estacion' => $idEstacion,
+                'fecha_local' => $fechaLocal,
+                'estado_jornada' => 'UNKNOWN',
+                'conflict' => true,
+                'reason' => "Multiple conflicting TEMPORAL shift assignments found for worker {$idPersonal} at station {$idEstacion} on {$fechaLocal} ({$diaSemana})."
+            ];
+        }
+
+        if (count($temporalAssignments) === 1) {
+            $asigRow = $temporalAssignments[0];
+        } else {
+            // No TEMPORAL assignment covers this date; fall back to HABITUAL
+            if (count($habitualAssignments) > 1) {
                 return [
                     'id_personal' => $idPersonal,
                     'id_estacion' => $idEstacion,
                     'fecha_local' => $fechaLocal,
-                    'estado_jornada' => 'UNSCHEDULED',
-                    'reason' => 'Worker has active system profile but no shift assigned for target station and weekday'
+                    'estado_jornada' => 'UNKNOWN',
+                    'conflict' => true,
+                    'reason' => "Multiple conflicting HABITUAL shift assignments found for worker {$idPersonal} at station {$idEstacion} on {$fechaLocal} ({$diaSemana})."
                 ];
+            }
+            if (count($habitualAssignments) === 1) {
+                $asigRow = $habitualAssignments[0];
             } else {
                 return [
                     'id_personal' => $idPersonal,
                     'id_estacion' => $idEstacion,
                     'fecha_local' => $fechaLocal,
                     'estado_jornada' => 'UNSCHEDULED',
-                    'reason' => 'Worker has no active assignments'
+                    'reason' => 'No active assignment covers this date'
                 ];
             }
         }
 
-        if (count($matchingAssignments) > 1) {
-            throw new RuntimeException("AMBIGUOUS_SCHEDULE_ASSIGNMENT: Multiple conflicting shift assignments found for worker {$idPersonal} at station {$idEstacion} on {$fechaLocal} ({$diaSemana}).");
-        }
-
-        $asigRow = $matchingAssignments[0];
         $asigId = (int)$asigRow['id'];
+        $tipoAsig = strtoupper((string)($asigRow['tipo_asignacion'] ?? 'HABITUAL'));
         $plantillaId = $asigRow['id_plantilla'] !== null ? (int)$asigRow['id_plantilla'] : null;
 
         // Explicit Day Off assignment (id_plantilla = NULL)
@@ -140,6 +178,7 @@ class ScheduleResolutionService
                 'estado_jornada' => 'DAY_OFF',
                 'origen' => [
                     'id_asignacion' => $asigId,
+                    'tipo_asignacion' => $tipoAsig,
                     'id_plantilla' => null
                 ],
                 'horario_local' => null,
@@ -217,6 +256,7 @@ class ScheduleResolutionService
             'estado_jornada' => 'SCHEDULED',
             'origen' => [
                 'id_asignacion' => $asigId,
+                'tipo_asignacion' => $tipoAsig,
                 'id_plantilla' => $plantillaId,
                 'clave_plantilla' => $tplRow['clave'],
                 'version_plantilla' => (int)$tplRow['version']
