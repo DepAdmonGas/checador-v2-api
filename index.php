@@ -648,6 +648,11 @@ if ($is_valid_route) {
             if ($server_method === 'GET') {
                 // GET /api/v2/workers/{id_personal}/effective-schedule
                 $idPersonal = (int)$partes_ruta[4];
+                if (($_GET['resolution_context'] ?? '') === 'WORKER_EFFECTIVE') {
+                    include_once "modelo/v2/shift/WorkplaceCoverageV2Controller.php";
+                    (new WorkplaceCoverageV2Controller())->handleWorkerEffectiveSchedule($idPersonal);
+                    exit;
+                }
                 $shiftCtrl->handleGetEffectiveSchedule($idPersonal);
                 exit;
             } else {
@@ -660,6 +665,39 @@ if ($is_valid_route) {
         } else {
             include_once $ruta_elegida;
         }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'workplace-coverages') {
+        include_once "modelo/v2/shift/WorkplaceCoverageV2Controller.php";
+        $coverageCtrl = new WorkplaceCoverageV2Controller();
+        $count = count($partes_ruta);
+        if ($count === 4) {
+            if ($server_method === 'GET') {
+                $coverageCtrl->handleList();
+                exit;
+            }
+            if ($server_method === 'POST') {
+                $coverageCtrl->handleCreate();
+                exit;
+            }
+            http_response_code(405);
+            header('Allow: GET, POST');
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['code' => 405, 'status' => 'METHOD_NOT_ALLOWED'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        if ($count === 5 && $server_method === 'GET') {
+            $coverageCtrl->handleDetail((string)$partes_ruta[4]);
+            exit;
+        }
+        if ($count === 6 && $server_method === 'POST' && in_array($partes_ruta[5], ['authorize', 'reject', 'cancel'], true)) {
+            $coverageCtrl->handleTransition((string)$partes_ruta[4], strtoupper((string)$partes_ruta[5]));
+            exit;
+        }
+        http_response_code($count === 5 || $count === 6 ? 405 : 404);
+        if ($count === 5) header('Allow: GET');
+        if ($count === 6) header('Allow: POST');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['code' => $count === 5 || $count === 6 ? 405 : 404, 'status' => $count === 5 || $count === 6 ? 'METHOD_NOT_ALLOWED' : 'NOT_FOUND'], JSON_UNESCAPED_UNICODE);
+        exit;
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'scheduled-shifts') {
         include_once "modelo/v2/shift/ShiftSchedulingV2Controller.php";
         $shiftCtrl = new ShiftSchedulingV2Controller();
