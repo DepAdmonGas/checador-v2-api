@@ -871,6 +871,21 @@ if ($is_valid_route) {
         } else {
             include_once $ruta_elegida;
         }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'administrative-adjustments') {
+        include_once "modelo/v2/AdministrativeAdjustmentReadV2Controller.php";
+        $adjustmentRead = new AdministrativeAdjustmentReadV2Controller();
+        if (count($partes_ruta) === 4 && $server_method === 'GET') {
+            $adjustmentRead->handleList();
+            exit;
+        } elseif (count($partes_ruta) === 5 && $server_method === 'GET') {
+            $adjustmentRead->handleDetail((string) $partes_ruta[4]);
+            exit;
+        }
+        http_response_code(405);
+        header('Allow: GET');
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(["status" => "error", "code" => 405, "error" => ["code" => "METHOD_NOT_ALLOWED", "message" => "Method not allowed. Read-only boundary."]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
     } else {
         include_once $ruta_elegida;
     }
