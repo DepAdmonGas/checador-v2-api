@@ -2,6 +2,7 @@
 include_once __DIR__ . "/../BD.php";
 include_once __DIR__ . "/Portal3JwtAuthHelper.php";
 include_once __DIR__ . "/PunchEventIntegrityService.php";
+include_once __DIR__ . "/shift/JourneyReadAuthorizationService.php";
 
 class PunchEventReadV2Controller {
     private const BIOMETRICOS_MODULE = 'biometricos';
@@ -33,6 +34,15 @@ class PunchEventReadV2Controller {
 
         // 2. Autorizar permiso funcional 'leer' sobre el módulo 'biometricos' y resolver scope de estaciones
         $authz = $this->autorizarAccesoBiometricos($conexion, $auth, 'leer');
+        $journeyReadPermissionUsed = false;
+        // M05 can read raw observations with its narrow, independent capability.
+        // Do not substitute it for a scope/configuration denial or for other routes.
+        if (!$authz['success']
+            && (int) ($authz['code'] ?? 0) === 403
+            && ($authz['status'] ?? '') === 'FUNCTION_PERMISSION_DENIED') {
+            $authz = JourneyReadAuthorizationService::authorize($conexion, $auth);
+            $journeyReadPermissionUsed = (bool) ($authz['success'] ?? false);
+        }
         if (!$authz['success']) {
             $classBD->desconectarBD($conexion);
             http_response_code($authz['code']);
@@ -47,21 +57,46 @@ class PunchEventReadV2Controller {
         $authorizedStationIds = $authz['authorized_stations']; // Array de IDs en op_rh_localidades
 
         // 3. Validar Parámetros de Consulta (from, to, station_id, external_worker_reference, device_id, capture_method, page, per_page)
-        $stationIdParam = isset($_GET['station_id']) && ctype_digit((string)$_GET['station_id']) ? (int)$_GET['station_id'] : null;
-        if ($stationIdParam !== null) {
-            if (!in_array($stationIdParam, $authorizedStationIds, true)) {
-                $classBD->desconectarBD($conexion);
-                http_response_code(403);
-                echo json_encode(array(
-                    "code" => 403,
-                    "status" => "STATION_SCOPE_DENIED",
-                    "mensaje" => "Acceso denegado: la estación solicitada no está autorizada para su perfil."
-                ), JSON_UNESCAPED_UNICODE);
-                return;
-            }
-            $effectiveStations = [$stationIdParam];
-        } else {
-            $effectiveStations = $authorizedStationIds;
+        $stationIdRaw = $_GET['station_id'] ?? null;
+        if ($journeyReadPermissionUsed
+            && array_key_exists('station_id', $_GET)
+            && (!is_string($stationIdRaw) || !ctype_digit($stationIdRaw) || (int) $stationIdRaw < 1)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array(
+                "code" => 400,
+                "status" => "BAD_REQUEST",
+                "mensaje" => "Identificador de estación inválido."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $stationIdParam = is_string($stationIdRaw) && ctype_digit($stationIdRaw) ? (int)$stationIdRaw : null;
+        $effectiveStations = JourneyReadAuthorizationService::restrictStationScope($authorizedStationIds, $stationIdParam);
+        if ($effectiveStations === null) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(403);
+            echo json_encode(array(
+                "code" => 403,
+                "status" => "STATION_SCOPE_DENIED",
+                "mensaje" => "Acceso denegado: la estación solicitada no está autorizada para su perfil."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        // ACL station IDs are canonical op_rh_localidades IDs, while raw
+        // PunchEvents store the physical tb_estaciones ID resolved at capture
+        // time. Translate through the unique numlista mapping before applying
+        // the SQL scope; numeric equality between the two ID spaces is unsafe.
+        $physicalStationIds = $this->resolvePhysicalStationIds($conexion, $effectiveStations);
+        if ($physicalStationIds === null || $physicalStationIds === []) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(403);
+            echo json_encode(array(
+                "code" => 403,
+                "status" => "STATION_SCOPE_DENIED",
+                "mensaje" => "No se pudo resolver de forma única el alcance de estaciones autorizado."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
         }
 
         // Rango de fechas por omisión (últimos 30 días si ausentes)
@@ -116,9 +151,25 @@ class PunchEventReadV2Controller {
         }
 
         // 4. Construcción segura de consulta WHERE con Prepared Statements
-        $whereClause = "WHERE id_estacion_resuelta IN (" . implode(',', array_fill(0, count($effectiveStations), '?')) . ")";
-        $bindTypes = str_repeat('i', count($effectiveStations));
-        $bindParams = $effectiveStations;
+        $whereClause = "WHERE id_estacion_resuelta IN (" . implode(',', array_fill(0, count($physicalStationIds), '?')) . ")";
+        $bindTypes = str_repeat('i', count($physicalStationIds));
+        $bindParams = $physicalStationIds;
+
+        // A stored station attribution is queryable for attendance only when
+        // the event-time device history has exactly one effective row and that
+        // row agrees with the immutable station value stored on the event.
+        // Missing or conflicting history is omitted; the raw event is never
+        // rewritten or reassigned by this read path.
+        $whereClause .= " AND (SELECT COUNT(*) FROM op_rh_v2_dispositivo_estacion_historial h
+            WHERE h.id_dispositivo = op_rh_v2_marcaciones_crudas.id_dispositivo
+              AND h.valido_desde_utc <= op_rh_v2_marcaciones_crudas.ocurrido_at_utc
+              AND (h.valido_hasta_utc IS NULL OR op_rh_v2_marcaciones_crudas.ocurrido_at_utc < h.valido_hasta_utc)) = 1
+            AND EXISTS (
+                SELECT 1 FROM op_rh_v2_dispositivo_estacion_historial h
+                WHERE h.id_dispositivo = op_rh_v2_marcaciones_crudas.id_dispositivo
+                  AND h.id_estacion = op_rh_v2_marcaciones_crudas.id_estacion_resuelta
+                  AND h.valido_desde_utc <= op_rh_v2_marcaciones_crudas.ocurrido_at_utc
+                  AND (h.valido_hasta_utc IS NULL OR op_rh_v2_marcaciones_crudas.ocurrido_at_utc < h.valido_hasta_utc))";
 
         $whereClause .= " AND ocurrido_at_utc >= ? AND ocurrido_at_utc <= ?";
         $bindTypes .= "ss";
@@ -334,6 +385,63 @@ class PunchEventReadV2Controller {
         } catch (Throwable $e) {
             return ['success' => false, 'code' => 500, 'status' => 'INTERNAL_ERROR', 'error' => 'Error interno al autorizar módulo biométricos.'];
         }
+    }
+
+    /**
+     * Map authorized canonical locality IDs to unique active physical station IDs.
+     * Returns null if any mapping is absent, ambiguous, inactive, or malformed.
+     *
+     * @param array<int,int> $localityIds
+     * @return array<int,int>|null
+     */
+    private function resolvePhysicalStationIds($conexion, array $localityIds): ?array {
+        if ($localityIds === []) {
+            return null;
+        }
+
+        $stmt = $conexion->prepare(
+            'SELECT l.numlista,
+                    (SELECT COUNT(*) FROM op_rh_localidades l2 WHERE l2.numlista = l.numlista) AS locality_count,
+                    (SELECT COUNT(*) FROM tb_estaciones e WHERE e.numlista = l.numlista) AS station_count,
+                    (SELECT MIN(e.id) FROM tb_estaciones e WHERE e.numlista = l.numlista AND e.estatus = 0) AS active_station_id
+             FROM op_rh_localidades l
+             WHERE l.id = ?
+             LIMIT 1'
+        );
+        if (!$stmt) {
+            return null;
+        }
+
+        $physicalIds = [];
+        foreach ($localityIds as $localityId) {
+            $localityId = (int) $localityId;
+            if ($localityId < 1) {
+                $stmt->close();
+                return null;
+            }
+            $stmt->bind_param('i', $localityId);
+            if (!$stmt->execute()) {
+                $stmt->close();
+                return null;
+            }
+            $mapping = $stmt->get_result()->fetch_assoc();
+            $physicalId = (int) ($mapping['active_station_id'] ?? 0);
+            if (!$mapping
+                || (int) ($mapping['numlista'] ?? 0) < 1
+                || (int) ($mapping['locality_count'] ?? 0) !== 1
+                || (int) ($mapping['station_count'] ?? 0) !== 1
+                || $physicalId < 1) {
+                $stmt->close();
+                return null;
+            }
+            $physicalIds[] = $physicalId;
+        }
+        $stmt->close();
+
+        $physicalIds = array_values(array_unique($physicalIds));
+        return count($physicalIds) === count(array_unique(array_map('intval', $localityIds)))
+            ? $physicalIds
+            : null;
     }
 
     private function parseAndFormatIsoUtc(string $val): ?string {

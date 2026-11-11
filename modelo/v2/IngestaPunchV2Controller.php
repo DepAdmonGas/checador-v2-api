@@ -49,7 +49,7 @@ class IngestaPunchV2Controller {
         }
 
         $idDispositivo = (int)$authResult['id_dispositivo'];
-        $idEstacionResuelta = $authResult['id_estacion'];
+        $idEstacionResuelta = null;
         $deviceDefaultTimezone = $authResult['device_timezone'];
 
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -219,6 +219,15 @@ class IngestaPunchV2Controller {
             }
         }
 
+        if ($ocurridoAtUtc !== null) {
+            include_once __DIR__ . "/Level2ServerService.php";
+            $l2Service = new Level2ServerService();
+            $stationResolution = $l2Service->resolverEstacionHistorica($conexion, $idDispositivo, $ocurridoAtUtc);
+            if (!empty($stationResolution['success'])) {
+                $idEstacionResuelta = (int)$stationResolution['id_estacion'];
+            }
+        }
+
         $servicePunch = new PunchEventV2();
 
         $idPersonalResuelto = null;
@@ -294,6 +303,19 @@ class IngestaPunchV2Controller {
             }
         }
 
+        if (($resultado['status_code'] ?? null) === 409
+            && ($resultado['result'] ?? null) === 'IDEMPOTENCY_CONFLICT') {
+            $classBD->desconectarBD($conexion);
+            http_response_code(409);
+            echo json_encode(array(
+                'status_code' => 409,
+                'result' => 'IDEMPOTENCY_CONFLICT',
+                'event_uuid' => $resultado['event_uuid'],
+                'error' => $resultado['error']
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
         $classBD->desconectarBD($conexion);
 
         http_response_code($resultado['status_code']);
@@ -301,7 +323,7 @@ class IngestaPunchV2Controller {
             "code" => $resultado['status_code'],
             "status" => $resultado['result'],
             "event_uuid" => $resultado['event_uuid'],
-            "recibido_at_utc" => $recibidoAtUtc,
+            "recibido_at_utc" => $resultado['recibido_at_utc'] ?? $recibidoAtUtc,
             "processing_status" => $resultado['processing_status'],
             "id_personal_resuelto" => $idPersonalResuelto,
             "validation_flags" => $validationFlags
