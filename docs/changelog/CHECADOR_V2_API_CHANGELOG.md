@@ -1,5 +1,13 @@
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-11-13 — Preproduction Auth 503 Sanitized Diagnostics
+- **Activity:** `DIAGNOSTICO_FOCALIZADO_AUTH_503_PREPRODUCCION`.
+- **Change:** Added internal error-log records at the existing authorization dependency catches. Records contain only a fixed stage label, root exception class, and SQLSTATE or numeric error code when available; exception messages, JWTs, credentials, SQL, parameters, user data, and request headers are excluded.
+- **Response/security invariants:** Existing 503 mappings and response bodies, JWT validation, permissions, scope resolution, contracts, and database behavior are unchanged. No public diagnostic route was added.
+- **Files:** `modelo/v2/Portal3JwtAuthHelper.php`, `modelo/v2/shift/ShiftSchedulingAuthorizationService.php`, `modelo/v2/shift/JourneyReadAuthorizationService.php`, this changelog.
+- **Validation:** PHP lint PASS for all three runtime files; Journey read authorization 16/16 PASS; Shift Scheduling authorization 23/23 PASS; Effective Schedule Authorization 20/20 PASS; `git diff --check` PASS. Workplace timezone endpoint suite could not start because its local MariaDB connection failed before test execution (`mysqli_sql_exception`, `Unknown error while connecting`).
+- **Pending:** An authenticated real PHP-FPM request is required to capture the runtime failure. `ROOT_CAUSE_CONFIRMED: NO`; no functional fix, production change, migration, or database change was made.
+
 ## 2026-11-05 — Shift Assignment Snapshot Pagination (development)
 - **Activity:** `CHECADOR_V2_M03_FINAL_OPERATIONAL_UNBLOCK_APPROVED_V1`.
 - **Approval:** The responsible owner approved the cross-project addendum SHA-256 `50f67f0468f9dfabb38bf7ea3d363f6ad7e618ee6d3a68cc6ce82393ebcc9385`; Portal3 and API copies remain byte-identical. Architecture Freeze and J1/J2 were not changed.
