@@ -4,6 +4,31 @@ class Portal3JwtDependencyException extends RuntimeException {}
 
 class Portal3JwtAuthHelper {
 
+    /** Write only fixed-stage and exception metadata to the internal PHP error log. */
+    public static function logAuthDependencyFailure(string $stage, Throwable $exception): void {
+        $root = $exception;
+        while ($root->getPrevious() instanceof Throwable) {
+            $root = $root->getPrevious();
+        }
+
+        $entry = [
+            'event' => 'CHECADOR_V2_AUTH_DEPENDENCY_FAILURE',
+            'stage' => $stage,
+            'exception_class' => get_class($root),
+        ];
+        if ($root instanceof mysqli_sql_exception && method_exists($root, 'getSqlState')) {
+            $sqlState = $root->getSqlState();
+            if (is_string($sqlState) && preg_match('/^[A-Z0-9]{5}$/', $sqlState)) {
+                $entry['sqlstate'] = $sqlState;
+            }
+        }
+        $code = $root->getCode();
+        if (is_int($code) || (is_string($code) && preg_match('/^[0-9]{1,10}$/', $code))) {
+            $entry['error_code'] = (string) $code;
+        }
+        error_log((string) json_encode($entry, JSON_UNESCAPED_SLASHES));
+    }
+
     public const ENCARGADO_PUESTO_ID = 6;
     public const DIRECCION_OPERACIONES_PUESTO_ID = 13;
     public const ENCARGADO_TURNO_PUESTO_ID = 3;
@@ -70,6 +95,7 @@ class Portal3JwtAuthHelper {
         try {
             $user = self::selectOne($conexion, 'SELECT id, usuario, id_gas, id_puesto FROM tb_usuarios WHERE id = ? AND estatus = 0 LIMIT 1', 'i', [(int) $payload['sub']]);
         } catch (Portal3JwtDependencyException $exception) {
+            self::logAuthDependencyFailure('jwt.active_user_lookup', $exception);
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible validar el usuario Portal3.');
         } catch (Throwable $exception) {
             return self::failure(500, 'INTERNAL_ERROR', 'Error interno al validar el usuario Portal3.');
@@ -192,6 +218,7 @@ class Portal3JwtAuthHelper {
             }
             return ['success' => true, 'code' => 200, 'status' => 'AUTHORIZED', 'authorized_stations' => $authorizedStations];
         } catch (Portal3JwtDependencyException $exception) {
+            self::logAuthDependencyFailure('biometricos.permission_scope_resolution', $exception);
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permisos o alcance de estación.');
         } catch (Throwable $exception) {
             return self::failure(500, 'INTERNAL_ERROR', 'Error interno al resolver autorización.');
@@ -252,6 +279,7 @@ class Portal3JwtAuthHelper {
                 'authorized_physical_station_ids' => array_values(array_unique($authorizedPhysicalStationIds)),
             ];
         } catch (Portal3JwtDependencyException $exception) {
+            self::logAuthDependencyFailure('temporary_access.permission_scope_resolution', $exception);
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permisos o alcance de estación.');
         } catch (Throwable $exception) {
             return self::failure(500, 'INTERNAL_ERROR', 'Error interno al resolver autorización.');

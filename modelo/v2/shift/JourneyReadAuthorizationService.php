@@ -21,6 +21,7 @@ final class JourneyReadAuthorizationService
             return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'El puesto no puede consultar observaciones de jornada.');
         }
 
+        $failedStage = 'journey_read.user_permission_lookup';
         try {
             $userGrant = self::readGrant($connection, 'USER', $userId);
             $positionGrant = $userGrant === null ? self::readGrant($connection, 'POSITION', $positionId) : null;
@@ -30,6 +31,7 @@ final class JourneyReadAuthorizationService
 
             // Reuse the active physical-station → canonical-locality resolver.
             // This returns only stations; department-only exceptions are excluded.
+            $failedStage = 'journey_read.station_scope_resolution';
             $stations = ShiftSchedulingAuthorizationService::resolveStationScope($connection, $user);
             if ($stations === []) {
                 return self::failure(403, 'STATION_SCOPE_DENIED', 'No fue posible resolver localidades de estación autorizadas para jornadas.');
@@ -42,7 +44,8 @@ final class JourneyReadAuthorizationService
                 'error' => '',
                 'authorized_stations' => $stations,
             ];
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            Portal3JwtAuthHelper::logAuthDependencyFailure($failedStage, $exception);
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permiso o alcance de jornadas.');
         }
     }

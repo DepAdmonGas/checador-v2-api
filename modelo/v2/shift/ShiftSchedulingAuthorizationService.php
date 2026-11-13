@@ -34,6 +34,7 @@ final class ShiftSchedulingAuthorizationService
             return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'El puesto no puede ejecutar esta operación de programación.');
         }
 
+        $failedStage = 'shift_scheduling.user_permission_lookup';
         try {
             $userGrant = self::readGrant($connection, $permission, 'USER', $userId);
             $positionGrant = $userGrant === null
@@ -56,6 +57,7 @@ final class ShiftSchedulingAuthorizationService
                 ];
             }
 
+            $failedStage = 'shift_scheduling.station_scope_resolution';
             $scope = self::resolveStationScope($connection, $user);
             if ($scope === []) {
                 return self::failure(403, 'STATION_SCOPE_DENIED', 'No fue posible resolver estaciones canónicas autorizadas para programación.');
@@ -64,6 +66,7 @@ final class ShiftSchedulingAuthorizationService
             if (in_array($permission, [self::READ, self::EDIT], true)) {
                 // M03 assignment scope may include only the individually authorized
                 // Autolavado department. Other department IDs remain excluded.
+                $failedStage = 'shift_scheduling.department_scope_resolution';
                 $explicitDepartments = self::resolveAutolavadoDepartmentScope($connection, $user, $scope);
                 $authorizedWorkplaces = array_values(array_unique(array_merge(
                     $scope,
@@ -79,6 +82,7 @@ final class ShiftSchedulingAuthorizationService
                 'authorized_stations' => $authorizedWorkplaces,
             ];
         } catch (Throwable $exception) {
+            Portal3JwtAuthHelper::logAuthDependencyFailure($failedStage, $exception);
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permisos o alcance de programación.');
         }
     }
