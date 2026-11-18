@@ -14,6 +14,7 @@ require_once __DIR__ . '/ShiftSchedulingAuthorizationService.php';
 require_once __DIR__ . '/ShiftWorkerMembershipService.php';
 require_once __DIR__ . '/ScheduleResolutionService.php';
 require_once __DIR__ . '/ScheduledShiftMaterializationService.php';
+require_once __DIR__ . '/ShiftAssignmentWriteCutover.php';
 
 class ShiftSchedulingV2Controller
 {
@@ -184,6 +185,10 @@ class ShiftSchedulingV2Controller
      */
     public function handleCreateAssignment(): void
     {
+        if (!ShiftAssignmentWriteCutover::enabled()) {
+            $this->sendJsonError('M03_ASSIGNMENT_WRITES_DISABLED', 'Las escrituras M03 de asignaciones están deshabilitadas durante el corte de transporte.', 503);
+            return;
+        }
         $authz = $this->authorizeScheduleWrite();
         $payload = json_decode(file_get_contents('php://input'), true);
         if (!is_array($payload)) {
@@ -219,6 +224,10 @@ class ShiftSchedulingV2Controller
      */
     public function handleCloseAssignment(int $assignmentId): void
     {
+        if (!ShiftAssignmentWriteCutover::enabled()) {
+            $this->sendJsonError('M03_ASSIGNMENT_WRITES_DISABLED', 'Las escrituras M03 de asignaciones están deshabilitadas durante el corte de transporte.', 503);
+            return;
+        }
         $authz = $this->authorizeScheduleWrite();
         $assignmentStation = $this->resolveAssignmentStation($assignmentId);
         if ($assignmentStation === null) {
@@ -265,6 +274,10 @@ class ShiftSchedulingV2Controller
     /** POST /api/v2/shift-assignments/{id}/replace: close and add successor atomically. */
     public function handleReplaceAssignment(int $assignmentId): void
     {
+        if (!ShiftAssignmentWriteCutover::enabled()) {
+            $this->sendJsonError('M03_ASSIGNMENT_WRITES_DISABLED', 'Las escrituras M03 de asignaciones están deshabilitadas durante el corte de transporte.', 503);
+            return;
+        }
         $authz = $this->authorizeScheduleWrite();
         $identity = $this->resolveAssignmentIdentity($assignmentId);
         if ($identity === null) {
