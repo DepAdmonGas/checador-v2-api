@@ -15,6 +15,7 @@ require_once __DIR__ . '/ShiftWorkerMembershipService.php';
 require_once __DIR__ . '/ScheduleResolutionService.php';
 require_once __DIR__ . '/ScheduledShiftMaterializationService.php';
 require_once __DIR__ . '/ShiftAssignmentWriteCutover.php';
+require_once __DIR__ . '/ShiftTemplateStationWriteCutover.php';
 
 class ShiftSchedulingV2Controller
 {
@@ -55,16 +56,29 @@ class ShiftSchedulingV2Controller
                     $this->sendJsonError('FUNCTION_PERMISSION_DENIED', 'La personalización local requiere alcance de estación.', 403);
                     return;
                 }
-                $result = $this->templateService->createStationCustomization(
-                    $payload,
-                    $authInfo['user_id'],
-                    (int) $authInfo['station_id']
+                $guarded = ShiftTemplateStationWriteCutover::execute($authInfo, fn(): array =>
+                    $this->templateService->createStationCustomization(
+                        $payload,
+                        $authInfo['user_id'],
+                        (int) $authInfo['station_id']
+                    )
                 );
+                if (!$guarded['allowed']) {
+                    $this->sendJsonError($guarded['code'], 'La escritura administrativa de plantillas de estación está cerrada durante el corte M04.', $guarded['status']);
+                    return;
+                }
+                $result = $guarded['result'];
                 $this->sendJsonSuccess($result['template'], !empty($result['created']) ? 201 : 200);
                 return;
             }
-            $result = $this->templateService->createTemplate($payload, $authInfo['user_id'], $authInfo['station_id']);
-            $this->sendJsonSuccess($result, 201);
+            $guarded = ShiftTemplateStationWriteCutover::execute($authInfo, fn(): array =>
+                $this->templateService->createTemplate($payload, $authInfo['user_id'], $authInfo['station_id'])
+            );
+            if (!$guarded['allowed']) {
+                $this->sendJsonError($guarded['code'], 'La escritura administrativa de plantillas de estación está cerrada durante el corte M04.', $guarded['status']);
+                return;
+            }
+            $this->sendJsonSuccess($guarded['result'], 201);
         } catch (InvalidArgumentException $e) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', $e->getMessage(), 400);
         } catch (RuntimeException $e) {
@@ -100,8 +114,14 @@ class ShiftSchedulingV2Controller
         $authInfo = $this->authorizeTemplateMutation($payload);
 
         try {
-            $result = $this->templateService->createNewVersion($clave, $payload, $authInfo['user_id'], $authInfo['station_id']);
-            $this->sendJsonSuccess($result, 201);
+            $guarded = ShiftTemplateStationWriteCutover::execute($authInfo, fn(): array =>
+                $this->templateService->createNewVersion($clave, $payload, $authInfo['user_id'], $authInfo['station_id'])
+            );
+            if (!$guarded['allowed']) {
+                $this->sendJsonError($guarded['code'], 'La escritura administrativa de plantillas de estación está cerrada durante el corte M04.', $guarded['status']);
+                return;
+            }
+            $this->sendJsonSuccess($guarded['result'], 201);
         } catch (InvalidArgumentException $e) {
             $this->sendJsonError('INVALID_TEMPLATE_SPECIFICATION', $e->getMessage(), 400);
         } catch (RuntimeException $e) {

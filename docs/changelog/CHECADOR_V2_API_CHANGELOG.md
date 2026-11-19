@@ -1,3 +1,12 @@
+## 2026-11-19 — M04 station-template API writer cutover gate (prepared, not activated)
+- **Activity:** `CHECADOR_V2_M04_API_STATION_TEMPLATE_WRITER_CUTOVER_GATE`.
+- **Authorization:** The owner explicitly requested a narrow API gate PR to prepare the controlled cut. The M04 addendum remains DRAFT and Architecture Freeze V1.0 is unchanged.
+- **Change:** Added `CHECADOR_M04_API_STATION_TEMPLATE_WRITES_ENABLED` to gate only server-authorized `STATION` mutations for create, global-to-station customization, and immutable version append. The flag is intentionally unset-compatible: when absent, existing API behavior is preserved; an operator closes the station writer by explicitly setting `0`/`false`. Invalid explicit values fail closed. A closed gate returns HTTP 503 `M04_STATION_TEMPLATE_WRITES_DISABLED` before the template service is invoked.
+- **Preserved:** `GLOBAL` template administration and its existing authorization, all GET catalog/detail endpoints, M03 assignment endpoints, other API modules, scopes, data, schema, migrations, and contracts. API authorization is evaluated before the cutover gate. No API writer was disabled in this PR, no environment flag was changed, and no deployment occurred.
+- **Files:** `modelo/v2/shift/ShiftTemplateStationWriteCutover.php`, `modelo/v2/shift/ShiftSchedulingV2Controller.php`, `tests/v2_m04_station_template_write_cutover_tests.php`, this changelog.
+- **Validation:** M04 station writer gate 10/10 PASS; existing station-template customization 11/11, scheduling write authorization 31/31, and Autolavado scope 19/19 PASS; PHP syntax PASS for controller, gate, and test. Test evidence is isolated/static; no authenticated API request or database mutation was performed.
+- **Pending before coordinated cut:** Plesk MariaDB read-only schema/grants preflight, approval of the M04 addendum, API deployment with the station gate explicitly closed, verification that all three station mutation operations reject without mutation, then separate authorization to open Portal3 SQL writer gates.
+
 # CHECADOR V2 API — CHANGELOG
 
 ## 2026-11-13 — Preproduction Auth 503 Sanitized Diagnostics
