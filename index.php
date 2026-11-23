@@ -793,9 +793,19 @@ if ($is_valid_route) {
             include_once $ruta_elegida;
         }
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'incidences') {
+        $count = count($partes_ruta);
+        $m06WriteAction = $server_method === 'POST' && (
+            $count === 4
+            || ($count === 6 && in_array($partes_ruta[5], ['revisions', 'resolve', 'authorize', 'reject', 'revoke'], true))
+        );
+        if ($m06WriteAction) {
+            require_once "modelo/v2/M06IncidenceWriteCutover.php";
+            M06IncidenceWriteCutover::sendDisabledResponse();
+            exit;
+        }
+
         include_once "modelo/v2/AdministrativeIncidenceV2Controller.php";
         $incCtrl = new AdministrativeIncidenceV2Controller();
-        $count = count($partes_ruta);
         if ($count == 4) {
             if ($server_method === 'GET') {
                 $incCtrl->handleReadApplicableIncidences();

@@ -1,3 +1,11 @@
+## 2026-11-23 — M06 API incidence writer cutover prepared on origin/work
+- **Activity:** `CHECADOR_V2_M06_API_INCIDENCE_WRITER_CUTOVER`.
+- **Authorization:** The owner approved the M06 full-lifecycle Portal3 SQL addendum. This source change prepares the API side only; it does not authorize Plesk deployment or claim that a live API runtime has been cut over.
+- **Cutover:** The six administrative incidence POSTs now return HTTP 503 with stable code `M06_INCIDENCE_WRITES_DISABLED` in the API router before loading the mutating controller: create, create revision, resolve, authorize, reject, and revoke. The API GET incidence routes and administrative-evaluation routes retain their prior dispatch.
+- **Contract:** Added the byte-identical approved M06 addendum copied from Portal3. Architecture Freeze V1.0, J1/J2, schema, and environment configuration were not changed.
+- **Validation:** The isolated route regression invokes the real index router through PHP CGI for all six POSTs and verifies the HTTP 503 status and stable body. The router gate precedes controller dispatch, so no API database connection or incidence/audit mutation is reached. No operational API, MariaDB, or Plesk runtime was contacted.
+- **Deployment:** Repository inspection found no GitHub Actions workflow or deployment manifest in `origin/work`; the documented deployment runbook describes manual server publication. Plesk-side Git hooks or external auto-deploy settings were not accessible and remain unverified. Do not publish this hard cutoff until that external deployment behavior is confirmed.
+
 ## 2026-11-19 — M04 station-template API writer cutover gate (default closed)
 - **Activity:** `CHECADOR_V2_M04_API_STATION_TEMPLATE_WRITER_CUTOVER_GATE`.
 - **Authorization:** The Portal3 owner approved the unified M04 SQL read/write agreement and explicitly requested local development closure before Portal3 SQL activation. No production deployment was authorized.
