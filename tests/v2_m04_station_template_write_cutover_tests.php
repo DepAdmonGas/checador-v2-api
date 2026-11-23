@@ -14,14 +14,22 @@ $assert = static function (bool $ok, string $message) use (&$passed, &$failed): 
     $ok ? $passed++ : $failed++;
 };
 
-$assert(ShiftTemplateStationWriteCutover::stationWritesEnabled('')
+$savedApiFlag = [array_key_exists(ShiftTemplateStationWriteCutover::FLAG, $_ENV), $_ENV[ShiftTemplateStationWriteCutover::FLAG] ?? null, getenv(ShiftTemplateStationWriteCutover::FLAG)];
+unset($_ENV[ShiftTemplateStationWriteCutover::FLAG], $_SERVER[ShiftTemplateStationWriteCutover::FLAG]);
+putenv(ShiftTemplateStationWriteCutover::FLAG);
+$assert(!ShiftTemplateStationWriteCutover::stationWritesEnabled()
+    && !ShiftTemplateStationWriteCutover::stationWritesEnabled('')
     && ShiftTemplateStationWriteCutover::stationWritesEnabled('1')
     && ShiftTemplateStationWriteCutover::stationWritesEnabled('true'),
-    'unset/empty and explicit true preserve current API writer behavior until the operator closes the cut');
+    'unset and empty station-write flag fail closed; explicit true is required to open the API writer');
 $assert(!ShiftTemplateStationWriteCutover::stationWritesEnabled('0')
     && !ShiftTemplateStationWriteCutover::stationWritesEnabled('false')
     && !ShiftTemplateStationWriteCutover::stationWritesEnabled('unexpected'),
     'explicit false and malformed station-gate values fail closed');
+if ($savedApiFlag[0]) $_ENV[ShiftTemplateStationWriteCutover::FLAG] = $savedApiFlag[1];
+else unset($_ENV[ShiftTemplateStationWriteCutover::FLAG]);
+if ($savedApiFlag[2] === false) putenv(ShiftTemplateStationWriteCutover::FLAG);
+else putenv(ShiftTemplateStationWriteCutover::FLAG . '=' . $savedApiFlag[2]);
 
 $mutations = 0;
 $stationClosed = ShiftTemplateStationWriteCutover::execute(['scope' => 'STATION', 'station_id' => 1], static function () use (&$mutations): array {
@@ -32,6 +40,47 @@ $assert(($stationClosed['allowed'] ?? true) === false
     && ($stationClosed['code'] ?? '') === ShiftTemplateStationWriteCutover::ERROR_CODE
     && ($stationClosed['status'] ?? 0) === 503 && $mutations === 0,
     'closed station create/customize/version gate rejects with 503 without invoking the mutation callback');
+
+$fixtureRecords = [
+    'templates' => [['id' => 10, 'name' => 'fixture-before']],
+    'segments' => [['template_id' => 10, 'kind' => 'WORK']],
+    'lineage' => [['template_id' => 10, 'source_id' => 4]],
+    'audit' => [['id' => 7, 'event' => 'existing']],
+];
+foreach (['create', 'customize', 'version'] as $operation) {
+    $before = $fixtureRecords;
+    $rejected = ShiftTemplateStationWriteCutover::execute(
+        ['scope' => 'STATION', 'station_id' => 1],
+        static function () use (&$fixtureRecords, $operation): array {
+            foreach (array_keys($fixtureRecords) as $table) $fixtureRecords[$table][] = ['operation' => $operation];
+            return ['written' => true];
+        },
+        '0'
+    );
+    $assert(($rejected['allowed'] ?? true) === false
+        && ($rejected['status'] ?? 0) === 503
+        && ($rejected['code'] ?? '') === ShiftTemplateStationWriteCutover::ERROR_CODE
+        && $fixtureRecords === $before,
+        "closed {$operation} request returns 503 and leaves isolated template/segment/lineage/audit snapshots unchanged");
+}
+foreach (['create', 'customize', 'version'] as $operation) {
+    $before = $fixtureRecords;
+    $accepted = ShiftTemplateStationWriteCutover::execute(
+        ['scope' => 'STATION', 'station_id' => 1],
+        static function () use (&$fixtureRecords, $operation): array {
+            foreach (array_keys($fixtureRecords) as $table) $fixtureRecords[$table][] = ['operation' => $operation];
+            return ['written' => true];
+        },
+        '1'
+    );
+    $assert(($accepted['allowed'] ?? false) === true
+        && ($accepted['result']['written'] ?? false) === true
+        && count($fixtureRecords['templates']) === count($before['templates']) + 1
+        && count($fixtureRecords['segments']) === count($before['segments']) + 1
+        && count($fixtureRecords['lineage']) === count($before['lineage']) + 1
+        && count($fixtureRecords['audit']) === count($before['audit']) + 1,
+        "explicitly opened {$operation} request changes only its isolated fixture records");
+}
 
 $global = ShiftTemplateStationWriteCutover::execute(['scope' => 'GLOBAL'], static function () use (&$mutations): array {
     $mutations++;

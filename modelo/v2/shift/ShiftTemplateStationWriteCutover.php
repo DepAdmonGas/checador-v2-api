@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-/** Scope-specific M04 API writer gate; unset preserves existing behavior until an operator closes the cut. */
+/** Scope-specific M04 API writer gate; station mutations fail closed unless explicitly enabled. */
 final class ShiftTemplateStationWriteCutover
 {
     public const FLAG = 'CHECADOR_M04_API_STATION_TEMPLATE_WRITES_ENABLED';
@@ -14,10 +14,10 @@ final class ShiftTemplateStationWriteCutover
     {
         if ($configuredValue === null) {
             $raw = $_ENV[self::FLAG] ?? $_SERVER[self::FLAG] ?? getenv(self::FLAG);
-            if ($raw === false || $raw === null || trim((string) $raw) === '') return true;
+            if ($raw === false || $raw === null || trim((string) $raw) === '') return false;
             $configuredValue = (string) $raw;
         } elseif (trim($configuredValue) === '') {
-            return true;
+            return false;
         }
 
         return in_array(strtolower(trim($configuredValue)), ['1', 'true', 'yes', 'on'], true);
