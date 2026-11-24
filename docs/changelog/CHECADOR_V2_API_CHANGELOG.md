@@ -27,6 +27,16 @@
 
 # CHECADOR V2 API — CHANGELOG
 
+## 2026-11-23 — Validate positive integer Level 2 device sequence
+- **Activity:** `API_L2_DEVICE_SEQUENCE_VALIDATION_FIX` against the inspected `origin/work` baseline `8e7e6488ce5180526c9a50eb721f10684505e37b`; no branch switch, commit, or push.
+- **Root cause and correction:** `IngestaPunchV2Controller` cast `device_sequence` to integer before validating it, allowing invalid JSON types, zero, negative values, and overflow conversion. It now accepts only a JSON integer greater than or equal to 1 and returns HTTP 400 `BAD_REQUEST` before raw persistence otherwise. Numeric strings are rejected, consistent with the Level 2 Lector contract's `integer` type.
+- **Compatibility:** Level 1 remains accepted when both Level 2 fields are absent or both null. Supplying only one still returns HTTP 400. Authentication, idempotency, HMAC, worker resolution, and Level 2 linking behavior were not changed.
+- **Files:** `modelo/v2/IngestaPunchV2Controller.php`; extended `tests/v2_l2_false_success_controller_integration_tests.php`; added `tests/run_v2_l2_sequence_validation_tests.sh`; this changelog.
+- **Database:** Tests ran only in a rootless disposable MariaDB 10.11.19 container. Before migrations/fixtures, database name `bd_admongas_v2_test_20261002`, generated container hostname, loopback host/port, and MariaDB version were verified. Container and test data were removed by the runner. No access to `bd_admongas` or `bd_admongas_v2_preprod`.
+- **Tests:** Focused HTTP/controller suite 51/51 PASS, including valid 1 and >1, invalid zero/negative/decimal/boolean/array/object/numeric text/invalid text/overflow with no raw or Level 2 metadata, absent/null Level 1, partial tuples, and exact idempotent retry. PHP syntax and runner shell syntax PASS; `git diff --check` PASS.
+- **Observed pre-existing warning:** The isolated PHP server logs an `Undefined array key "processing_status"` warning at the existing success-response assembly (`IngestaPunchV2Controller.php:343` in the test tree). It did not fail assertions and was not changed in this sequence-validation scope.
+- **Invariants:** Architecture Freeze V1.0, J1/J2, frozen contracts, schema/migrations, production, Plesk, Portal3, and database configuration unchanged.
+
 ## 2026-11-13 — Preproduction Auth 503 Sanitized Diagnostics
 - **Activity:** `DIAGNOSTICO_FOCALIZADO_AUTH_503_PREPRODUCCION`.
 - **Change:** Added internal error-log records at the existing authorization dependency catches. Records contain only a fixed stage label, root exception class, and SQLSTATE or numeric error code when available; exception messages, JWTs, credentials, SQL, parameters, user data, and request headers are excluded.

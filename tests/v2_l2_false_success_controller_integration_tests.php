@@ -1,15 +1,51 @@
 <?php
 
 // Focused HTTP/controller integration test. Run only on a fresh disposable DB.
+require_once __DIR__ . '/../modelo/BD.php';
+
+function l2_open_verified_disposable_db(): mysqli {
+    $expectedDb = 'bd_admongas_v2_test_20261002';
+    $expectedHost = (string)(getenv('CHECADOR_TEST_DB_EXPECTED_HOSTNAME') ?: '');
+    $configuredHost = (string)(getenv('DB_HOST') ?: '');
+    $configuredDb = (string)(getenv('DB_NAME') ?: '');
+    $configuredPort = (string)(getenv('DB_PORT') ?: '');
+
+    if (getenv('CHECADOR_L2_TEST_DISPOSABLE') !== '1'
+        || $expectedHost === ''
+        || $configuredHost !== '127.0.0.1'
+        || $configuredDb !== $expectedDb
+        || !ctype_digit($configuredPort)
+        || (int)$configuredPort < 1) {
+        throw new RuntimeException('Refusing DB connection: the isolated Level 2 runner is required.');
+    }
+
+    $db = (new BD())->conectarBD();
+    $identity = $db->query('SELECT DATABASE() AS db_name, @@hostname AS server_name, @@port AS server_port, VERSION() AS server_version')->fetch_assoc();
+    $isExpectedTarget = ($identity['db_name'] ?? '') === $expectedDb
+        && ($identity['server_name'] ?? '') === $expectedHost
+        && (string)($identity['server_port'] ?? '') === '3306'
+        && str_contains(strtolower((string)($identity['server_version'] ?? '')), 'mariadb');
+    if (!$isExpectedTarget) {
+        (new BD())->desconectarBD($db);
+        throw new RuntimeException('Refusing DB writes: disposable MariaDB identity did not match the isolated runner.');
+    }
+
+    if (PHP_SAPI !== 'cli-server') {
+        echo "TEST_DATABASE_IDENTITY_VERIFIED: {$identity['db_name']} @ {$identity['server_name']}:{$identity['server_port']} ({$identity['server_version']})\n";
+    }
+    return $db;
+}
+
 if (PHP_SAPI === 'cli-server') {
-    require_once __DIR__ . '/test_bootstrap_guard.php';
+    $requestGuardDb = l2_open_verified_disposable_db();
+    (new BD())->desconectarBD($requestGuardDb);
+    mysqli_report(MYSQLI_REPORT_OFF);
+    ini_set('display_errors', '0');
     require_once __DIR__ . '/../modelo/v2/IngestaPunchV2Controller.php';
     (new IngestaPunchV2Controller())->procesarIngesta();
     return;
 }
 
-require_once __DIR__ . '/test_bootstrap_guard.php';
-require_once __DIR__ . '/../modelo/BD.php';
 require_once __DIR__ . '/../modelo/v2/Level2ServerService.php';
 require_once __DIR__ . '/../modelo/v2/PunchEventV2.php';
 
@@ -20,11 +56,7 @@ putenv('RAW_PUNCH_KEY_RING=' . json_encode(['l2-test-key' => 'disposable-l2-test
 
 $dbName = 'bd_admongas_v2_test_20261002';
 $bd = new BD();
-$db = $bd->conectarBD();
-$identity = $db->query('SELECT DATABASE() AS db_name')->fetch_assoc()['db_name'] ?? '';
-if ($identity !== $dbName || $identity === 'bd_admongas') {
-    throw new RuntimeException("Refusing DDL/DML: unexpected database identity '{$identity}'.");
-}
+$db = l2_open_verified_disposable_db();
 
 function l2_test_assert(bool $condition, string $label): void {
     global $passed, $failed;
@@ -106,6 +138,24 @@ function l2_count(mysqli $db, string $table, string $where, string $value): int 
     return $n;
 }
 
+function l2_count_generation_sidecars(mysqli $db, string $generation): int {
+    $stmt = $db->prepare('SELECT COUNT(*) AS n FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_dispositivo = 9501 AND device_generation = ?');
+    $stmt->bind_param('s', $generation);
+    $stmt->execute();
+    $count = (int)$stmt->get_result()->fetch_assoc()['n'];
+    $stmt->close();
+    return $count;
+}
+
+function l2_count_raw_sidecars(mysqli $db, int $rawId): int {
+    $stmt = $db->prepare('SELECT COUNT(*) AS n FROM op_rh_v2_marcaciones_nivel2_metadata WHERE id_raw_punch = ?');
+    $stmt->bind_param('i', $rawId);
+    $stmt->execute();
+    $count = (int)$stmt->get_result()->fetch_assoc()['n'];
+    $stmt->close();
+    return $count;
+}
+
 function l2_body(string $uuid, int $sequence, ?string $generation = null, string $workerRef = 'EMP-L2-TEST'): array {
     $body = [
         'event_uuid' => $uuid,
@@ -120,7 +170,7 @@ function l2_body(string $uuid, int $sequence, ?string $generation = null, string
     return $body;
 }
 
-function l2_http(string $url, array $body): array {
+function l2_http_payload(string $url, string $jsonPayload): array {
     $handle = curl_init($url);
     curl_setopt_array($handle, [
         CURLOPT_POST => true,
@@ -132,7 +182,7 @@ function l2_http(string $url, array $body): array {
             'X-Credential-Key: l2-test-credential',
             'Authorization: Bearer l2-test-secret'
         ],
-        CURLOPT_POSTFIELDS => json_encode($body),
+        CURLOPT_POSTFIELDS => $jsonPayload,
         CURLOPT_TIMEOUT => 20
     ]);
     $payload = curl_exec($handle);
@@ -140,7 +190,24 @@ function l2_http(string $url, array $body): array {
     $error = curl_error($handle);
     curl_close($handle);
     if ($payload === false) throw new RuntimeException('HTTP test request failed: ' . $error);
-    return ['code' => $code, 'body' => json_decode($payload, true) ?: []];
+    $decoded = json_decode($payload, true);
+    return ['code' => $code, 'body' => is_array($decoded) ? $decoded : []];
+}
+
+function l2_http(string $url, array $body): array {
+    return l2_http_payload($url, json_encode($body, JSON_THROW_ON_ERROR));
+}
+
+function l2_sequence_payload(string $eventUuid, string $sequenceJson): string {
+    return '{'
+        . '"event_uuid":' . json_encode($eventUuid, JSON_THROW_ON_ERROR) . ','
+        . '"external_worker_reference":"EMP-L2-TEST",'
+        . '"source_timestamp":"2026-10-09 08:00:00",'
+        . '"source_timezone":"America/Mexico_City",'
+        . '"device_generation":"gen-sequence-validation",'
+        . '"device_sequence":' . $sequenceJson . ','
+        . '"metadata":[]'
+        . '}';
 }
 
 function l2_assert_response(array $response, int $code, string $status, string $label): void {
@@ -202,6 +269,42 @@ try {
     l2_assert_response($r01, 201, 'ACCEPTED', 'R01 new raw plus sidecar returns 201 ACCEPTED');
     l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-r01-success') === 1 && l2_count($db, 'op_rh_v2_marcaciones_nivel2_metadata', 'id_dispositivo', '9501') === 1, 'R01 raw and sidecar each exist once');
 
+    l2_register_generation($db, 'gen-sequence-validation');
+    $validSequenceOne = l2_http($url, l2_body('l2-sequence-valid-one', 1, 'gen-sequence-validation'));
+    l2_assert_response($validSequenceOne, 201, 'ACCEPTED', 'SV01 positive integer sequence 1 is accepted');
+    $validSequenceTwoBody = l2_body('l2-sequence-valid-two', 2, 'gen-sequence-validation');
+    $validSequenceTwo = l2_http($url, $validSequenceTwoBody);
+    l2_assert_response($validSequenceTwo, 201, 'ACCEPTED', 'SV02 positive integer sequence greater than 1 is accepted');
+    l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-sequence-valid-two') === 1
+        && l2_count_generation_sidecars($db, 'gen-sequence-validation') === 2,
+        'SV02 valid greater-than-1 sequence has exactly one raw event and one sidecar');
+    $validSequenceRetry = l2_http($url, $validSequenceTwoBody);
+    l2_assert_response($validSequenceRetry, 200, 'ALREADY_RECEIVED', 'SV03 identical retry of a valid Level 2 event is idempotent');
+    l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-sequence-valid-two') === 1
+        && l2_count_generation_sidecars($db, 'gen-sequence-validation') === 2,
+        'SV03 identical retry does not create a second raw event or sidecar');
+
+    $invalidSequenceCases = [
+        'zero' => '0',
+        'negative' => '-1',
+        'decimal' => '1.5',
+        'boolean' => 'true',
+        'array' => '[]',
+        'object' => '{}',
+        'numeric text' => '"3"',
+        'invalid text' => '"not-a-number"',
+        'integer overflow' => '9223372036854775808',
+    ];
+    foreach ($invalidSequenceCases as $caseName => $sequenceJson) {
+        $eventUuid = 'l2-sequence-invalid-' . str_replace(' ', '-', $caseName);
+        $beforeSidecars = l2_count_generation_sidecars($db, 'gen-sequence-validation');
+        $invalidSequence = l2_http_payload($url, l2_sequence_payload($eventUuid, $sequenceJson));
+        l2_assert_response($invalidSequence, 400, 'BAD_REQUEST', 'SV invalid ' . $caseName . ' sequence is rejected');
+        l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', $eventUuid) === 0
+            && l2_count_generation_sidecars($db, 'gen-sequence-validation') === $beforeSidecars,
+            'SV invalid ' . $caseName . ' sequence creates neither raw event nor Level 2 metadata');
+    }
+
     $r02body = l2_body('l2-r02-refresh', 2, 'gen-not-yet-registered');
     $r02 = l2_http($url, $r02body);
     l2_assert_response($r02, 400, 'INVALID_GENERATION', 'R02 invalid generation propagates 400');
@@ -250,7 +353,10 @@ try {
     $r08body = l2_body('l2-r08-conflict', 30, 'gen-idempotency');
     l2_assert_response(l2_http($url, $r08body), 201, 'ACCEPTED', 'R08 setup event accepted');
     $r08changed = l2_http($url, l2_body('l2-r08-conflict', 30, 'gen-idempotency', 'OTHER-WORKER'));
-    l2_assert_response($r08changed, 409, 'IDEMPOTENCY_CONFLICT', 'R08 raw idempotency conflict prevents L2 success');
+    l2_test_assert($r08changed['code'] === 409
+        && ($r08changed['body']['status_code'] ?? null) === 409
+        && ($r08changed['body']['result'] ?? null) === 'IDEMPOTENCY_CONFLICT',
+        'R08 raw idempotency conflict follows the documented HTTP 409 response without L2 success');
 
     l2_register_generation($db, 'gen-integrity');
     $integrityId = l2_seed_raw($db, 'l2-r09-invalid-integrity', 40, 'EMP-L2-TEST', ['version' => 'v1', 'key_id' => 'l2-test-key', 'seal' => str_repeat('0', 64)]);
@@ -261,12 +367,27 @@ try {
     unset($r10body['device_sequence']);
     $r10body['device_generation'] = 'gen-main';
     l2_test_assert(l2_http($url, $r10body)['code'] === 400 && l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-r10-generation-only') === 0, 'R10 generation-only tuple rejected before raw persistence');
+    l2_test_assert(l2_count_generation_sidecars($db, 'gen-main') === 1, 'R10 partial Level 2 tuple creates no metadata sidecar');
     $r11body = l2_body('l2-r11-sequence-only', 51);
     unset($r11body['device_generation']);
     l2_test_assert(l2_http($url, $r11body)['code'] === 400 && l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-r11-sequence-only') === 0, 'R11 sequence-only tuple rejected before raw persistence');
+    l2_test_assert(l2_count_generation_sidecars($db, 'gen-main') === 1, 'R11 partial Level 2 tuple creates no metadata sidecar');
 
     $r12 = l2_http($url, ['event_uuid' => 'l2-r12-level1', 'external_worker_reference' => 'EMP-L2-TEST', 'source_timestamp' => '2026-10-09 08:00:00', 'source_timezone' => 'America/Mexico_City']);
     l2_assert_response($r12, 201, 'ACCEPTED', 'R12 Level 1 request remains accepted');
+    $levelOneRawId = l2_raw_id($db, 'l2-r12-level1');
+    l2_test_assert($levelOneRawId > 0 && l2_count_raw_sidecars($db, $levelOneRawId) === 0, 'R12 Level 1 event without sequence persists without Level 2 metadata');
+    $r12NullFields = l2_http($url, [
+        'event_uuid' => 'l2-r12-null-level1',
+        'external_worker_reference' => 'EMP-L2-TEST',
+        'source_timestamp' => '2026-10-09 08:00:00',
+        'source_timezone' => 'America/Mexico_City',
+        'device_generation' => null,
+        'device_sequence' => null,
+    ]);
+    l2_assert_response($r12NullFields, 201, 'ACCEPTED', 'R12b Level 1 remains compatible when both Level 2 fields are null');
+    $levelOneNullRawId = l2_raw_id($db, 'l2-r12-null-level1');
+    l2_test_assert($levelOneNullRawId > 0 && l2_count_raw_sidecars($db, $levelOneNullRawId) === 0, 'R12b null Level 2 fields create no metadata sidecar');
 
     l2_register_generation($db, 'gen-race');
     $raceBody = l2_body('l2-r13-race', 1, 'gen-race');

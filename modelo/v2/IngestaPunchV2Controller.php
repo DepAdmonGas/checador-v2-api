@@ -118,7 +118,8 @@ class IngestaPunchV2Controller {
         $hasDeviceGeneration = array_key_exists('device_generation', $body) && $body['device_generation'] !== null;
         $hasDeviceSequence = array_key_exists('device_sequence', $body) && $body['device_sequence'] !== null;
         $deviceGeneration = $hasDeviceGeneration ? trim((string)$body['device_generation']) : null;
-        $deviceSequence = $hasDeviceSequence ? (int)$body['device_sequence'] : null;
+        $rawDeviceSequence = $hasDeviceSequence ? $body['device_sequence'] : null;
+        $deviceSequence = null;
         $metadata = isset($body['metadata']) && is_array($body['metadata']) ? $body['metadata'] : array();
 
         if (empty($eventUuid) || empty($externalWorkerRef) || empty($sourceTimestampRaw)) {
@@ -174,6 +175,21 @@ class IngestaPunchV2Controller {
                 "mensaje" => "device_generation y device_sequence deben enviarse juntos para eventos Nivel 2."
             ), JSON_UNESCAPED_UNICODE);
             return;
+        }
+
+        if ($hasDeviceSequence && (!is_int($rawDeviceSequence) || $rawDeviceSequence < 1)) {
+            $classBD->desconectarBD($conexion);
+            http_response_code(400);
+            echo json_encode(array(
+                "code" => 400,
+                "status" => "BAD_REQUEST",
+                "mensaje" => "device_sequence debe ser un entero positivo desde 1."
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($hasDeviceSequence) {
+            $deviceSequence = $rawDeviceSequence;
         }
 
         $validationFlags = array();
