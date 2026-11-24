@@ -274,9 +274,10 @@ class IngestaPunchV2Controller {
         );
 
         $resultado = $servicePunch->registrarPunchEvent($conexion, $datosIngesta);
+        $resultadoStatusCode = $resultado['status_code'] ?? null;
 
         // Los eventos con tupla Nivel 2 sólo pueden confirmar entrega cuando el sidecar quedó vinculado.
-        if (($resultado['status_code'] === 201 || $resultado['status_code'] === 200) && $hasDeviceGeneration && $hasDeviceSequence) {
+        if (in_array($resultadoStatusCode, array(201, 200), true) && $hasDeviceGeneration && $hasDeviceSequence) {
             $idRawPunch = (int)($resultado['id_raw_punch'] ?? $resultado['id'] ?? 0);
             if ($idRawPunch <= 0) {
                 // Consultar id_raw_punch si no fue retornado directamente
@@ -307,7 +308,12 @@ class IngestaPunchV2Controller {
                     $l2Code = 500;
                 }
                 $l2Status = (string)($l2Res['status'] ?? 'INTERNAL_ERROR');
-                $l2Message = (string)($l2Res['error'] ?? 'Error interno al completar el vínculo Nivel 2.');
+                $l2Message = $l2Code >= 500
+                    ? 'No fue posible completar el procesamiento de la marcación.'
+                    : (string)($l2Res['error'] ?? 'No fue posible completar el vínculo Nivel 2.');
+                if ($l2Code >= 500) {
+                    $l2Status = 'INTERNAL_ERROR';
+                }
                 $classBD->desconectarBD($conexion);
                 http_response_code($l2Code);
                 echo json_encode(array(
@@ -326,21 +332,38 @@ class IngestaPunchV2Controller {
             echo json_encode(array(
                 'status_code' => 409,
                 'result' => 'IDEMPOTENCY_CONFLICT',
-                'event_uuid' => $resultado['event_uuid'],
-                'error' => $resultado['error']
+                'event_uuid' => $resultado['event_uuid'] ?? $eventUuid,
+                'error' => $resultado['error'] ?? 'Same event_uuid submitted with divergent client payload.'
             ), JSON_UNESCAPED_UNICODE);
             return;
         }
 
         $classBD->desconectarBD($conexion);
 
-        http_response_code($resultado['status_code']);
+        if (!in_array($resultadoStatusCode, array(200, 201), true)) {
+            $errorStatusCode = is_int($resultadoStatusCode) && $resultadoStatusCode >= 400 && $resultadoStatusCode <= 599
+                ? $resultadoStatusCode
+                : 500;
+            $errorStatus = $errorStatusCode >= 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR';
+            $errorMessage = $errorStatusCode >= 500
+                ? 'No fue posible procesar la marcación.'
+                : 'La marcación no pudo procesarse.';
+            http_response_code($errorStatusCode);
+            echo json_encode(array(
+                'code' => $errorStatusCode,
+                'status' => $errorStatus,
+                'mensaje' => $errorMessage
+            ), JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        http_response_code($resultadoStatusCode);
         echo json_encode(array(
-            "code" => $resultado['status_code'],
-            "status" => $resultado['result'],
-            "event_uuid" => $resultado['event_uuid'],
+            "code" => $resultadoStatusCode,
+            "status" => $resultado['result'] ?? ($resultadoStatusCode === 201 ? 'ACCEPTED' : 'ALREADY_RECEIVED'),
+            "event_uuid" => $resultado['event_uuid'] ?? $eventUuid,
             "recibido_at_utc" => $resultado['recibido_at_utc'] ?? $recibidoAtUtc,
-            "processing_status" => $resultado['processing_status'],
+            "processing_status" => $resultado['processing_status'] ?? $processingStatus,
             "id_personal_resuelto" => $idPersonalResuelto,
             "validation_flags" => $validationFlags
         ), JSON_UNESCAPED_UNICODE);

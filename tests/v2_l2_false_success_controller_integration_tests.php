@@ -40,7 +40,7 @@ if (PHP_SAPI === 'cli-server') {
     $requestGuardDb = l2_open_verified_disposable_db();
     (new BD())->desconectarBD($requestGuardDb);
     mysqli_report(MYSQLI_REPORT_OFF);
-    ini_set('display_errors', '0');
+    ini_set('display_errors', getenv('CHECADOR_L2_TEST_DISPLAY_ERRORS') === '1' ? '1' : '0');
     require_once __DIR__ . '/../modelo/v2/IngestaPunchV2Controller.php';
     (new IngestaPunchV2Controller())->procesarIngesta();
     return;
@@ -191,7 +191,12 @@ function l2_http_payload(string $url, string $jsonPayload): array {
     curl_close($handle);
     if ($payload === false) throw new RuntimeException('HTTP test request failed: ' . $error);
     $decoded = json_decode($payload, true);
-    return ['code' => $code, 'body' => is_array($decoded) ? $decoded : []];
+    return [
+        'code' => $code,
+        'body' => is_array($decoded) ? $decoded : [],
+        'json_valid' => json_last_error() === JSON_ERROR_NONE,
+        'raw_body' => $payload
+    ];
 }
 
 function l2_http(string $url, array $body): array {
@@ -211,7 +216,10 @@ function l2_sequence_payload(string $eventUuid, string $sequenceJson): string {
 }
 
 function l2_assert_response(array $response, int $code, string $status, string $label): void {
-    $matches = $response['code'] === $code && ($response['body']['status'] ?? null) === $status;
+    $matches = $response['json_valid'] === true
+        && $response['code'] === $code
+        && ($response['body']['code'] ?? null) === $code
+        && ($response['body']['status'] ?? null) === $status;
     l2_test_assert($matches, $matches ? $label : $label . ' — got ' . json_encode($response));
 }
 
@@ -251,7 +259,8 @@ try {
         'DB_NAME' => $dbName,
         'RAW_PUNCH_INTEGRITY_MANDATORY' => 'true',
         'RAW_PUNCH_ACTIVE_KEY_ID' => 'l2-test-key',
-        'RAW_PUNCH_KEY_RING' => json_encode(['l2-test-key' => 'disposable-l2-test-secret'])
+        'RAW_PUNCH_KEY_RING' => json_encode(['l2-test-key' => 'disposable-l2-test-secret']),
+        'CHECADOR_L2_TEST_DISPLAY_ERRORS' => '1'
     ]);
     $server = proc_open([PHP_BINARY, '-d', 'mysqli.default_socket=' . (string)ini_get('mysqli.default_socket'), '-S', "127.0.0.1:{$port}", __FILE__], [0 => ['pipe', 'r'], 1 => $serverLog, 2 => $serverLog], $pipes, dirname(__DIR__), $environment);
     if (!is_resource($server)) throw new RuntimeException('Could not launch local PHP HTTP test server.');
@@ -343,6 +352,9 @@ try {
     $r05body = l2_body('l2-r05-recover', 20, 'gen-failure');
     $r05 = l2_http($url, $r05body);
     l2_assert_response($r05, 500, 'INTERNAL_ERROR', 'R05 L2 server failure propagates 500');
+    l2_test_assert(!str_contains($r05['raw_body'], 'controlled disposable test failure')
+        && !str_contains($r05['raw_body'], 'SQLSTATE'),
+        'R05 internal Level 2 failure response does not disclose database details');
     l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', 'l2-r05-recover') === 1, 'R05 raw remains exactly once after L2 500');
     $db->query('DROP TRIGGER tr_l2_test_forced_failure');
     $triggerCreated = false;
@@ -353,7 +365,8 @@ try {
     $r08body = l2_body('l2-r08-conflict', 30, 'gen-idempotency');
     l2_assert_response(l2_http($url, $r08body), 201, 'ACCEPTED', 'R08 setup event accepted');
     $r08changed = l2_http($url, l2_body('l2-r08-conflict', 30, 'gen-idempotency', 'OTHER-WORKER'));
-    l2_test_assert($r08changed['code'] === 409
+    l2_test_assert($r08changed['json_valid'] === true
+        && $r08changed['code'] === 409
         && ($r08changed['body']['status_code'] ?? null) === 409
         && ($r08changed['body']['result'] ?? null) === 'IDEMPOTENCY_CONFLICT',
         'R08 raw idempotency conflict follows the documented HTTP 409 response without L2 success');
@@ -361,7 +374,60 @@ try {
     l2_register_generation($db, 'gen-integrity');
     $integrityId = l2_seed_raw($db, 'l2-r09-invalid-integrity', 40, 'EMP-L2-TEST', ['version' => 'v1', 'key_id' => 'l2-test-key', 'seal' => str_repeat('0', 64)]);
     $r09 = l2_http($url, l2_body('l2-r09-invalid-integrity', 40, 'gen-integrity'));
-    l2_test_assert($r09['code'] === 500 && ($r09['body']['status'] ?? null) !== 'ALREADY_RECEIVED' && l2_count($db, 'op_rh_v2_marcaciones_nivel2_metadata', 'id_raw_punch', (string)$integrityId) === 0, 'R09 integrity failure remains fail-closed and skips L2');
+    l2_test_assert($r09['json_valid'] === true
+        && $r09['code'] === 500
+        && ($r09['body']['code'] ?? null) === 500
+        && ($r09['body']['status'] ?? null) === 'INTERNAL_ERROR'
+        && !str_contains($r09['raw_body'], 'Warning:')
+        && !str_contains($r09['raw_body'], 'Undefined array key')
+        && l2_count($db, 'op_rh_v2_marcaciones_nivel2_metadata', 'id_raw_punch', (string)$integrityId) === 0,
+        'R09 integrity failure returns clean JSON 500 without warning and skips L2');
+
+    l2_register_generation($db, 'gen-hmac-failure');
+    $hmacFailureLog = tmpfile();
+    $hmacFailurePipes = [];
+    $hmacFailureServer = null;
+    try {
+        $hmacListener = stream_socket_server('tcp://127.0.0.1:0', $hmacErrno, $hmacError);
+        if (!$hmacListener) throw new RuntimeException('Could not reserve HMAC failure test port: ' . $hmacError);
+        $hmacAddress = stream_socket_get_name($hmacListener, false);
+        fclose($hmacListener);
+        $hmacPort = (int)substr(strrchr($hmacAddress, ':'), 1);
+        $hmacEnvironment = array_merge($environment, [
+            'RAW_PUNCH_ACTIVE_KEY_ID' => 'missing-test-key',
+            'RAW_PUNCH_KEY_RING' => '{}'
+        ]);
+        $hmacFailureServer = proc_open([PHP_BINARY, '-d', 'mysqli.default_socket=' . (string)ini_get('mysqli.default_socket'), '-S', "127.0.0.1:{$hmacPort}", __FILE__], [0 => ['pipe', 'r'], 1 => $hmacFailureLog, 2 => $hmacFailureLog], $hmacFailurePipes, dirname(__DIR__), $hmacEnvironment);
+        if (!is_resource($hmacFailureServer)) throw new RuntimeException('Could not launch HMAC failure HTTP test server.');
+        if (isset($hmacFailurePipes[0]) && is_resource($hmacFailurePipes[0])) fclose($hmacFailurePipes[0]);
+        $hmacFailureUrl = "http://127.0.0.1:{$hmacPort}/api/v2/punch-events";
+        $hmacReady = false;
+        for ($attempt = 0; $attempt < 50; $attempt++) {
+            $probe = @fsockopen('127.0.0.1', $hmacPort, $probeErrno, $probeError, 0.2);
+            if (is_resource($probe)) { fclose($probe); $hmacReady = true; break; }
+            usleep(100000);
+        }
+        if (!$hmacReady) throw new RuntimeException('HMAC failure HTTP test server did not become ready.');
+
+        $hmacEventUuid = 'l2-r15-hmac-seal-fail-closed';
+        $hmacFailure = l2_http($hmacFailureUrl, l2_body($hmacEventUuid, 1, 'gen-hmac-failure'));
+        l2_test_assert($hmacFailure['json_valid'] === true
+            && $hmacFailure['code'] === 500
+            && ($hmacFailure['body']['code'] ?? null) === 500
+            && ($hmacFailure['body']['status'] ?? null) === 'INTERNAL_ERROR'
+            && !str_contains($hmacFailure['raw_body'], 'Warning:')
+            && !str_contains($hmacFailure['raw_body'], 'Undefined array key')
+            && !str_contains($hmacFailure['raw_body'], 'missing-test-key')
+            && !str_contains($hmacFailure['raw_body'], 'disposable-l2-test-secret')
+            && !str_contains($hmacFailure['raw_body'], 'Integrity seal generation failed'),
+            'R15 mandatory HMAC failure returns valid sanitized JSON HTTP 500 with display_errors=1');
+        l2_test_assert(l2_count($db, 'op_rh_v2_marcaciones_crudas', 'event_uuid', $hmacEventUuid) === 0
+            && l2_count_generation_sidecars($db, 'gen-hmac-failure') === 0,
+            'R15 mandatory HMAC failure persists neither raw punch nor Level 2 sidecar');
+    } finally {
+        if (is_resource($hmacFailureServer)) { proc_terminate($hmacFailureServer); proc_close($hmacFailureServer); }
+        if (is_resource($hmacFailureLog)) fclose($hmacFailureLog);
+    }
 
     $r10body = l2_body('l2-r10-generation-only', 50);
     unset($r10body['device_sequence']);
