@@ -3,12 +3,19 @@ include_once __DIR__ . "/../BD.php";
 
 class PunchEventV2 {
 
-    public function registrarIdentidadPersonal($conexion, $idDispositivo, $referenciaExterna, $idPersonal, $validoDesde, $validoHasta = null) {
-        mysqli_begin_transaction($conexion);
+    public function registrarIdentidadPersonal($conexion, $idDispositivo, $referenciaExterna, $idPersonal, $validoDesde, $validoHasta = null, bool $transaccionExistente = false) {
+        if (!$transaccionExistente) mysqli_begin_transaction($conexion);
         try {
             $idDispositivo = (int)$idDispositivo;
             $referenciaEscaped = mysqli_real_escape_string($conexion, $referenciaExterna);
             $idPersonal = (int)$idPersonal;
+            if ($transaccionExistente && (int) mysqli_fetch_row(mysqli_query($conexion, 'SELECT @@in_transaction'))[0] !== 1) {
+                throw new RuntimeException('TRANSACTION_REQUIRED');
+            }
+            $deviceLock = mysqli_query($conexion, "SELECT id FROM op_rh_v2_dispositivos WHERE id = $idDispositivo FOR UPDATE");
+            if (!$deviceLock || mysqli_num_rows($deviceLock) !== 1) throw new RuntimeException('DEVICE_NOT_FOUND');
+            $workerLock = mysqli_query($conexion, "SELECT id FROM op_rh_personal WHERE id = $idPersonal FOR UPDATE");
+            if (!$workerLock || mysqli_num_rows($workerLock) !== 1) throw new RuntimeException('WORKER_NOT_FOUND');
             $validoDesdeEscaped = mysqli_real_escape_string($conexion, $validoDesde);
             $validoHastaSql = $validoHasta !== null ? "'" . mysqli_real_escape_string($conexion, $validoHasta) . "'" : "NULL";
             $validoHastaCmp = $validoHasta !== null ? "'" . mysqli_real_escape_string($conexion, $validoHasta) . "'" : "'9999-12-31 23:59:59'";
@@ -21,8 +28,9 @@ class PunchEventV2 {
                            FOR UPDATE";
 
             $resOverlap = mysqli_query($conexion, $sqlOverlap);
-            if ($resOverlap && mysqli_num_rows($resOverlap) > 0) {
-                mysqli_rollback($conexion);
+            if (!$resOverlap) throw new RuntimeException('IDENTITY_LOOKUP_FAILED');
+            if (mysqli_num_rows($resOverlap) > 0) {
+                if (!$transaccionExistente) mysqli_rollback($conexion);
                 return array('success' => false, 'error' => 'OVERLAPPING_PERIOD');
             }
 
@@ -31,14 +39,14 @@ class PunchEventV2 {
                           VALUES ($idDispositivo, '$referenciaEscaped', $idPersonal, '$validoDesdeEscaped', $validoHastaSql, 1)";
 
             if (!mysqli_query($conexion, $sqlInsert)) {
-                mysqli_rollback($conexion);
+                if (!$transaccionExistente) mysqli_rollback($conexion);
                 return array('success' => false, 'error' => 'INSERT_FAILED: ' . mysqli_error($conexion));
             }
 
-            mysqli_commit($conexion);
+            if (!$transaccionExistente) mysqli_commit($conexion);
             return array('success' => true, 'id' => mysqli_insert_id($conexion));
-        } catch (Exception $e) {
-            mysqli_rollback($conexion);
+        } catch (Throwable $e) {
+            if (!$transaccionExistente) mysqli_rollback($conexion);
             return array('success' => false, 'error' => $e->getMessage());
         }
     }

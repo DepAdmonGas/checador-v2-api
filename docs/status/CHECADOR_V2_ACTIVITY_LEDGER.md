@@ -1163,3 +1163,37 @@
 - **VALIDATION:** Coverage policy 45/45; route/gate static 12/12; schema-type tests 8/8; scheduling authorization 23/23; template station-customization contract 11/11; Autolavado scope 19/19; assignment read-scope fixture 25/25; membership coverage 8/8. PHP lint and whitespace checks PASS. Broader scheduling write suite remains 28/31 due the three stale assertions above. Resolver policy/precedence is fixture-tested; MariaDB writer transactions, idempotent/concurrent replay, cancellation readback, and Chrome remain NOT TESTED because the required schema is absent and this task forbids migration/activation.
 - **ACL:** No dedicated Comodines grants exist in local `op_rh_v2_permission_grants`. Future minimum position grants were prepared conceptually (position 6: read/request; position 13: read/approve/cancel), subject to separate approval and effective canonical scope. No ACL write was made.
 - **PRESERVED:** No operational data, schedule, membership, Journey, incidence, PunchEvent, ACL, migration, feature flag, Portal3, Architecture Freeze, J1/J2, M02–M07, PIN, production, commit or push was changed.
+
+### Entry 068
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_STATION_BIOMETRIC_ROSTER_PREPROD_V1_1`
+- **PROJECT:** Checador API V2
+- **TYPE:** OWNER_APPROVED_PREPRODUCTION_IMPLEMENTATION
+- **STATUS:** `IMPLEMENTATION_AUTHORIZED; IMPLEMENTED_LOCALLY; PREPRODUCTION_VERIFICATION_AND_DEPLOYMENT_GATES_OPEN`
+- **APPROVAL:** The project owner expressly approved implementation and preproduction scope in the 2026-11-24 task instruction. Contract base: `docs/v2/CHECADOR_V2_STATION_BIOMETRIC_ROSTER_CONTRACT_DRAFT_V1.1.md`; Architecture Freeze V1.0 remains unchanged.
+- **SCOPE:** Concurrent device credential + Portal3 JWT, `biometricos.leer`, canonical station jurisdiction, native active station workers with current device-specific identity, optional fingerprint template, no PIN/password, no-cache, and safe audit metadata. First E2E may use native staff only. Legacy comodines are excluded until an authorized canonical coverage source is verified.
+- **API PREPARATION:** `BiometricRosterV2Controller` and projection are implemented; the GET route is registered in the local `index.php`. A dedicated disposable-MariaDB route test runner is prepared. This is not evidence of preproduction deployment or operation.
+- **IDENTITY CONSISTENCY FIX:** Temporary Access identity resolution now uses UTC and the half-open validity interval matching PunchEvent V2. The isolated integration suite checks device-specific resolution and expired identity; the full Temporary Access DB regression remains pending.
+- **VALIDATION:** Owner reports 17/17 PASS on Fedora, MariaDB 11.8.8, isolated database `bd_admongas_v2_biometric_roster_test_20261124`; Codex did not directly observe that run. Local focused/static API regressions: roster 24/24, SEC-L03 42/42, coverage policy 51/51, coverage routes 12/12, C01/C02 HTTP mapping 13/13, coverage writer 6/6, membership 8/8, schedule write authorization 31/31, scheduling authorization 23/23. Preproduction schema and deployment remain unverified.
+- **NOT DONE:** No migration or operational DB write, Plesk change, deployment, Lector change, real template read, authorized preproduction HTTP 200, physical reader test, commit, or push.
+
+### Entry 069
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_INITIAL_DEVICE_IDENTITY_PROVISIONING_DEVELOPMENT`
+- **STATUS:** `IMPLEMENTED_LOCALLY; PREPRODUCTION_APPLY_DISABLED`
+- **OWNER-REPORTED VALIDATION:** Provisioning suite 6/6 PASS in isolated MariaDB 11.8.8, including dry run, concurrency, UUID v4 persistence, idempotence and rollback. Codex did not directly observe the run.
+- **PENDING:** Roster integration after `PunchEventV2.php` changes, full Temporary Access MariaDB regression, Windows UUID compatibility and coordination of external identity writers. Preproduction apply remains disabled by the CLI.
+- **PROTECTION:** No preproduction identity writes or Plesk deployment performed.
+
+### Entry 070
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_TEMPORARY_ACCESS_REGRESSION_FIXTURES`
+- **OWNER-REPORTED VALIDATION:** Roster 17/17, provisioning 6/6, Temporary Access 60/62 on disposable MariaDB; Codex did not directly observe those runs.
+- **CHANGE:** The Temporary Access test runner prepares current synthetic ACL fixtures and separately checks permission, jurisdiction, successful authorization and unavailable dependency. The noncontractual status route is tested through the actual router.
+- **VALIDATION:** PHP lint and standalone GET route 404 PASS. Full MariaDB rerun pending; no functional production code changed by this activity.
+
+### Entry 071
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_BIOMETRIC_ROSTER_FINAL_VALIDATION`
+- **VALIDATION:** Owner reports Fedora API regression 210/210, biometric roster 17/17, provisioning 6/6, Temporary Access 65/65; total 298/298 PASS. Codex did not directly observe those runs.
+- **GOVERNANCE:** Architecture Freeze V1.0 and Temporary Access Contract V1.0 unchanged. Publication to work authorized by owner; preproduction provisioning apply remains disabled pending separate authorization and Windows UUID verification.

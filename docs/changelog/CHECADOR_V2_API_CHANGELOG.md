@@ -959,3 +959,26 @@
 - **Database:** Regression tests ran against rootless disposable MariaDB 10.11.19 at `bd_admongas_v2_test_20261002`; database name, generated container hostname, port, and version were verified before fixtures. The runner removed the disposable container. No real databases were accessed.
 - **Tests:** Focused HTTP/controller and Level 2 regression suite 54/54 PASS, including JSON-valid HTTP 201/200/409/500 with `display_errors=1`, sanitized integrity/Level 2 failures, and zero raw or sidecar rows for mandatory HMAC failure. PHP lint, runner shell syntax, and `git diff --check` PASS.
 - **Invariants:** Architecture Freeze V1.0 and ingestion contract unchanged; no Plesk, Portal3, Lector, production, migration, commit, or push changes.
+
+## 2026-11-24 — Station biometric roster V1.1 implementation
+- **Authorization:** Owner-approved for preproduction implementation. The reconciled V1.1 draft is the implementation basis; Architecture Freeze and frozen contracts are unchanged.
+- **API:** Registered read-only `GET /api/v2/devices/station/biometric-roster` with concurrent Device Auth and Portal3 JWT, `biometricos.leer`, physical-to-canonical station mapping, active native worker filtering, one current device-specific identity mapping, huella-only selection, no-store headers, and template-free audit metadata. Legacy comodines are not inferred; first E2E may use native staff only until canonical coverage eligibility is verified.
+- **Identity correction:** Temporary Access identity resolution uses UTC and exclusive `valido_hasta`, matching PunchEvent resolution. The isolated roster suite covers device-specific and expired identity resolution; full Temporary Access DB regression remains pending.
+- **Files:** `index.php`; `modelo/v2/BiometricRosterV2Controller.php`; `modelo/v2/BiometricRosterV2Projection.php`; `modelo/v2/TemporaryAccessV2Service.php`; `tests/v2_biometric_roster_contract_tests.php`; `tests/v2_biometric_roster_mariadb_tests.php`; `docs/v2/CHECADOR_V2_STATION_BIOMETRIC_ROSTER_CONTRACT_DRAFT_V1.1.md`; Activity Ledger Entry 068; this changelog.
+- **Tests:** Owner reports MariaDB 11.8.8 isolated integration 17/17 PASS on `bd_admongas_v2_biometric_roster_test_20261124`; Codex did not directly observe the run. Local focused/static tests 210/210 PASS and PHP lint PASS. Full API DB regressions, preproduction schema, Windows E2E, Plesk deployment, and authorized preproduction HTTP 200 remain unverified; see Activity Ledger Entry 068.
+- **Protection:** No migrations, operational database writes, Plesk changes, deployment, legacy route changes, Lector source changes, commit, or push.
+
+## 2026-11-24 — Initial device identity provisioning development
+- **Scope:** Initial native workers for device 2 / station 1. Canonical identity registration locks device and worker rows and can participate in an existing transaction; provisioner validates history, preserves existing references and inserts UUID v4 only for workers without V2 identity history.
+- **Gate:** CLI apply is restricted to the local disposable roster database. Preproduction apply remains disabled until runtime tests and Windows UUID compatibility are verified. The shared lock coordinates API writers using the canonical method; external direct SQL writers require separate operational exclusion.
+- **Files:** `modelo/v2/PunchEventV2.php`, `modelo/v2/InitialDeviceIdentityProvisioner.php`, `scripts/provision_initial_device_identities.php`, `tests/v2_initial_identity_provisioning_mariadb_tests.php`.
+- **Tests:** Owner reports provisioning suite 6/6 PASS on isolated MariaDB 11.8.8, including dry run, concurrency, persistent UUID v4, idempotence and rollback; Codex did not directly observe the run. PHP lint, diff check, and focused/static API checks 210/210 PASS. Roster integration after the canonical registration change and full Temporary Access MariaDB regression remain pending; no preproduction writes or migrations.
+
+## 2026-11-24 — Temporary Access regression fixture correction
+- **Evidence:** Owner reports roster 17/17, provisioning 6/6 and Temporary Access 60/62 on isolated MariaDB. Codex did not directly observe those runs.
+- **Tests:** `tests/run_v2_temporary_access_tests.php` now prepares synthetic current ACL fixtures and checks functional permission denial, missing jurisdiction, successful scope and dependency failure independently. The removed noncontractual status route is exercised through `index.php` as a 404, rather than searching all source text for `status`.
+- **Status:** PHP lint, diff check and standalone status-route 404 probe PASS. Full MariaDB Temporary Access rerun remains pending. No operational behavior or frozen contract changed.
+
+## 2026-11-24 — Owner-confirmed final integration results
+- **Validation:** Owner reports API focused regressions 210/210, biometric roster 17/17, identity provisioning 6/6 and Temporary Access 65/65 PASS, total 298/298, executed in Fedora. Codex did not directly observe those runs.
+- **Governance:** Architecture Freeze V1.0 and Temporary Access contract remain unchanged. Provisioning CLI continues to refuse preproduction apply. Windows UUID compatibility, external writer coordination and deployment verification remain outstanding.

@@ -500,7 +500,20 @@ if ($is_valid_route) {
         include_once "modelo/v2/Level2ServerController.php";
         $l2Ctrl = new Level2ServerController();
         $count = count($partes_ruta);
-        if ($count == 5 && $partes_ruta[4] === 'context') {
+        if ($count == 6 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'biometric-roster') {
+            if ($server_method === 'GET') {
+                include_once "modelo/v2/BiometricRosterV2Controller.php";
+                $rosterCtrl = new BiometricRosterV2Controller();
+                $rosterCtrl->handle();
+                exit;
+            } else {
+                http_response_code(405);
+                header('Allow: GET');
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(["code" => 405, "status" => "METHOD_NOT_ALLOWED"], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        } else if ($count == 5 && $partes_ruta[4] === 'context') {
             if ($server_method === 'GET') {
                 $l2Ctrl->handleGetDeviceContext();
                 exit;

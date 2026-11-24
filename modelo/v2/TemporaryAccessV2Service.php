@@ -561,12 +561,14 @@ class TemporaryAccessV2Service {
     }
 
     private function resolverPersonalId($conexion, $idDispositivo, $refExternaPersonal) {
-        $nowStr = date('Y-m-d H:i:s');
+        // Identity validity is a UTC half-open interval [valido_desde, valido_hasta),
+        // matching PunchEventV2 historical resolution.
+        $nowStr = gmdate('Y-m-d H:i:s');
 
         $stmt = $conexion->prepare(
             "SELECT id_personal FROM op_rh_v2_dispositivo_identidad_personal 
              WHERE id_dispositivo = ? AND referencia_externa_personal = ? AND es_activo = 1 
-               AND valido_desde <= ? AND (valido_hasta IS NULL OR valido_hasta >= ?) 
+               AND valido_desde <= ? AND (valido_hasta IS NULL OR valido_hasta > ?)
              ORDER BY valido_desde DESC LIMIT 1"
         );
         $stmt->bind_param("isss", $idDispositivo, $refExternaPersonal, $nowStr, $nowStr);

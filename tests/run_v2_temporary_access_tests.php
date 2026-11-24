@@ -84,6 +84,30 @@ class TemporaryAccessV2StrictTestSuite {
 
         // Usuario Portal3 sintético ID 99 con estatus=0 (activo) para validación de tokens en tests
         mysqli_query($this->conexion, "INSERT IGNORE INTO tb_usuarios (id, nombre, usuario, estatus) VALUES (99, 'Supervisor Test 99', 'super99', 0)");
+
+        // ACL fixtures are confined to the disposable database guarded by test_bootstrap_guard.php.
+        $aclDdl = [
+            'CREATE TABLE IF NOT EXISTS modulos_dpto_operativo (id INT PRIMARY KEY, clave VARCHAR(100) NOT NULL, activo INT NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS modulos_usuarios_do (id INT PRIMARY KEY, id_modulo INT NOT NULL, id_usuario INT NOT NULL, leer INT NOT NULL DEFAULT 0, crear INT NOT NULL DEFAULT 0, editar INT NOT NULL DEFAULT 0, eliminar INT NOT NULL DEFAULT 0, descargar INT NOT NULL DEFAULT 0)',
+            'CREATE TABLE IF NOT EXISTS modulos_puestos_do (id INT PRIMARY KEY, id_modulo INT NOT NULL, id_puesto INT NOT NULL, leer INT NOT NULL DEFAULT 0, crear INT NOT NULL DEFAULT 0, editar INT NOT NULL DEFAULT 0, eliminar INT NOT NULL DEFAULT 0, descargar INT NOT NULL DEFAULT 0)',
+            'CREATE TABLE IF NOT EXISTS tb_modulos_config (id INT PRIMARY KEY, modulo_key VARCHAR(100) NOT NULL, activo INT NOT NULL, estaciones_soportadas TEXT, tipo_departamento VARCHAR(32))',
+            'CREATE TABLE IF NOT EXISTS tb_estaciones (id INT PRIMARY KEY, numlista INT NOT NULL, estatus INT NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS op_rh_localidades (id INT PRIMARY KEY, numlista INT NOT NULL)',
+        ];
+        foreach ($aclDdl as $sql) {
+            if (!mysqli_query($this->conexion, $sql)) throw new RuntimeException('ACL_FIXTURE_SCHEMA_FAILED');
+        }
+        $aclFixtures = [
+            "INSERT INTO modulos_dpto_operativo (id, clave, activo) VALUES (990001, 'acceso-temporal', 1) ON DUPLICATE KEY UPDATE clave=VALUES(clave), activo=VALUES(activo)",
+            "INSERT INTO tb_modulos_config (id, modulo_key, activo, estaciones_soportadas, tipo_departamento) VALUES (990001, 'acceso-temporal', 1, '[990001]', 'localidades') ON DUPLICATE KEY UPDATE modulo_key=VALUES(modulo_key), activo=VALUES(activo), estaciones_soportadas=VALUES(estaciones_soportadas), tipo_departamento=VALUES(tipo_departamento)",
+            'INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (990001, 990001, 0) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista), estatus=VALUES(estatus)',
+            'INSERT INTO op_rh_localidades (id, numlista) VALUES (990001, 990001) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista)',
+            'INSERT INTO modulos_usuarios_do (id, id_modulo, id_usuario, leer) VALUES (990001, 990001, 990001, 0), (990002, 990001, 990002, 1), (990003, 990001, 990003, 1) ON DUPLICATE KEY UPDATE id_modulo=VALUES(id_modulo), id_usuario=VALUES(id_usuario), leer=VALUES(leer)',
+        ];
+        foreach ($aclFixtures as $sql) {
+            if (!mysqli_query($this->conexion, $sql)) throw new RuntimeException('ACL_FIXTURE_SEED_FAILED');
+        }
+        Portal3JwtAuthHelper::clearCache();
     }
 
     public function execSqlFile($filePath) {
@@ -309,9 +333,16 @@ class TemporaryAccessV2StrictTestSuite {
         $jwtNoSubRes = Portal3JwtAuthHelper::validateToken($this->conexion, $jwtNoSub);
         $this->assert($jwtNoSubRes['valid'] === false, "39. JWT Helper rechaza token sin claim sub");
 
-        // 40. Supervisor without station scope / ACL
-        $stNoAccess = Portal3JwtAuthHelper::authorizeTemporaryAccess($this->conexion, array('user_id' => 99999, 'id_puesto' => 99999), 'leer');
-        $this->assert($stNoAccess['success'] === false && $stNoAccess['status'] === 'FUNCTION_PERMISSION_DENIED', "40. Supervisor sin asignación en localidades_perfil/personal retorna 0 estaciones autorizadas");
+        // 40. Permission, jurisdiction and dependency failures are distinct.
+        $noPermission = Portal3JwtAuthHelper::authorizeTemporaryAccess($this->conexion, ['user_id' => 990001, 'id_puesto' => 6, 'id_gas' => 990001], 'leer');
+        $noScope = Portal3JwtAuthHelper::authorizeTemporaryAccess($this->conexion, ['user_id' => 990002, 'id_puesto' => 6, 'id_gas' => 0], 'leer');
+        $allowed = Portal3JwtAuthHelper::authorizeTemporaryAccess($this->conexion, ['user_id' => 990003, 'id_puesto' => 6, 'id_gas' => 990001], 'leer');
+        $brokenConnection = new class { public function prepare($sql) { return false; } };
+        $dependency = Portal3JwtAuthHelper::authorizeTemporaryAccess($brokenConnection, ['user_id' => 990003, 'id_puesto' => 6, 'id_gas' => 990001], 'leer');
+        $this->assert(($noPermission['code'] ?? null) === 403 && ($noPermission['status'] ?? '') === 'FUNCTION_PERMISSION_DENIED', '40a. Sin permiso funcional retorna HTTP 403');
+        $this->assert(($noScope['code'] ?? null) === 403 && ($noScope['status'] ?? '') === 'STATION_SCOPE_DENIED', '40b. Sin jurisdiccion retorna HTTP 403');
+        $this->assert(($allowed['code'] ?? null) === 200 && ($allowed['authorized_physical_station_ids'] ?? []) === [990001] && ($allowed['authorized_stations'] ?? []) === [990001], '40c. Permiso y jurisdiccion validos autorizan estacion y localidad');
+        $this->assert(($dependency['code'] ?? null) === 503 && ($dependency['status'] ?? '') === 'AUTH_DEPENDENCY_UNAVAILABLE', '40d. Dependencia ACL indisponible retorna HTTP 503');
 
         // 41. Permission denied
         $getEmpty = $service->getPendingRequestsForPortal3($this->conexion, array());
@@ -343,7 +374,14 @@ class TemporaryAccessV2StrictTestSuite {
 
         // 46. No extra endpoint /status
         $indexSrc = file_get_contents(__DIR__ . '/../index.php');
-        $this->assert(strpos($indexSrc, "'status'") === false, "46. Ruta no contractual GET /status eliminada de index.php");
+        $probeCode = '$_SERVER["REQUEST_METHOD"]="GET"; $_SERVER["REQUEST_URI"]="/api/v2/temporary-access/status"; register_shutdown_function(function(){fwrite(STDERR, "HTTP_STATUS=" . http_response_code());}); require "index.php";';
+        $pipes = [];
+        $probe = proc_open([PHP_BINARY, '-r', $probeCode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__));
+        if (!is_resource($probe)) throw new RuntimeException('TEMPORARY_ACCESS_ROUTE_PROBE_FAILED');
+        fclose($pipes[0]); $probeBody = stream_get_contents($pipes[1]); fclose($pipes[1]);
+        $probeError = stream_get_contents($pipes[2]); fclose($pipes[2]); $probeExit = proc_close($probe);
+        $probeJson = json_decode($probeBody, true);
+        $this->assert($probeExit === 0 && trim($probeError) === 'HTTP_STATUS=404' && ($probeJson['code'] ?? null) === 404 && ($probeJson['status'] ?? '') === 'NOT_FOUND', '46. GET /api/v2/temporary-access/status devuelve 404');
 
         // 47. No extra /request endpoint
         $this->assert(strpos($indexSrc, "'request'") === false, "47. Ruta no contractual POST /request eliminada de index.php");
