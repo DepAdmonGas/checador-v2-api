@@ -123,6 +123,7 @@ class DispositivoV2 {
         return array(
             'auth' => true,
             'id_dispositivo' => (int)$row['id_dispositivo'],
+            'credential_id' => (int)$row['credential_id'],
             'uuid_dispositivo' => $row['uuid_dispositivo'],
             'device_name' => $row['device_name'] ?? '',
             'id_estacion' => (int)$row['id_estacion'],

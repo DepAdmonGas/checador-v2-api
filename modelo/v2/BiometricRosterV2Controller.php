@@ -7,6 +7,7 @@ require_once __DIR__ . '/DispositivoV2.php';
 require_once __DIR__ . '/Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/WorkplacePhysicalStationResolver.php';
 require_once __DIR__ . '/BiometricRosterV2Projection.php';
+require_once __DIR__ . '/DeviceBiometricGrantV2.php';
 
 /** Owner-approved preproduction read-only boundary; runtime deployment remains gated. */
 final class BiometricRosterV2Controller
@@ -25,7 +26,8 @@ final class BiometricRosterV2Controller
         $credentialKey = trim((string) ($_SERVER['HTTP_X_CREDENTIAL_KEY'] ?? ''));
         $supervisorToken = trim((string) ($_SERVER['HTTP_X_SUPERVISOR_TOKEN'] ?? ''));
         $secret = $this->bearerToken((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
-        if ($deviceId === '' || $credentialKey === '' || $supervisorToken === '' || $secret === '') {
+        $deviceGrantMode = getenv('CHECADOR_DEVICE_BIOMETRIC_GRANT_ENABLED') === '1';
+        if ($deviceId === '' || $credentialKey === '' || (!$deviceGrantMode && $supervisorToken === '') || $secret === '') {
             $this->respondError(400, 'MISSING_HEADERS');
         }
 
@@ -41,29 +43,35 @@ final class BiometricRosterV2Controller
             $device = (new DispositivoV2())->autenticarCredencial($this->db, $deviceId, $credentialKey, $secret);
             if (empty($device['auth'])) $this->respondError(401, 'DEVICE_UNAUTHORIZED');
 
-            // Portal3JwtAuthHelper validates the same JWT contract using its required Bearer form.
-            $human = Portal3JwtAuthHelper::validateToken($this->db, 'Bearer ' . $supervisorToken);
-            if (empty($human['valid'])) $this->respondError(401, 'SUPERVISOR_UNAUTHORIZED');
-            $acl = Portal3JwtAuthHelper::authorizeBiometricos($this->db, $human, 'leer');
-            if (empty($acl['success'])) {
-                $status = (int) ($acl['code'] ?? 403);
-                $this->respondError(in_array($status, [500, 503], true) ? $status : 403,
-                    in_array($status, [500, 503], true) ? 'AUTH_DEPENDENCY_UNAVAILABLE' : 'FUNCTION_PERMISSION_DENIED');
+            $supervisorId = null;
+            if (!$deviceGrantMode) {
+                $human = Portal3JwtAuthHelper::validateToken($this->db, 'Bearer ' . $supervisorToken);
+                if (empty($human['valid'])) $this->respondError(401, 'SUPERVISOR_UNAUTHORIZED');
+                $acl = Portal3JwtAuthHelper::authorizeBiometricos($this->db, $human, 'leer');
+                if (empty($acl['success'])) {
+                    $status = (int) ($acl['code'] ?? 403);
+                    $this->respondError(in_array($status, [500, 503], true) ? $status : 403,
+                        in_array($status, [500, 503], true) ? 'AUTH_DEPENDENCY_UNAVAILABLE' : 'FUNCTION_PERMISSION_DENIED');
+                }
+                $supervisorId = (int)$human['user_id'];
             }
-
             $physicalStationId = (int) ($device['id_estacion'] ?? 0);
             $canonicalLocalityId = WorkplacePhysicalStationResolver::resolveCanonicalLocality($this->db, $physicalStationId);
             if ($canonicalLocalityId === null) $this->respondError(404, 'STATION_NOT_FOUND');
-            $authorizedLocalities = array_map('intval', $acl['authorized_stations'] ?? []);
-            if (!in_array($canonicalLocalityId, $authorizedLocalities, true)) {
-                $this->respondError(403, 'STATION_JURISDICTION_MISMATCH');
+            if ($deviceGrantMode) {
+                if (!DeviceBiometricGrantV2::authorized($this->db, (int)$device['id_dispositivo'], $physicalStationId, (int)$device['credential_id'])) {
+                    $this->respondError(403, 'DEVICE_BIOMETRIC_PERMISSION_DENIED');
+                }
+            } else {
+                $authorizedLocalities = array_map('intval', $acl['authorized_stations'] ?? []);
+                if (!in_array($canonicalLocalityId, $authorizedLocalities, true)) $this->respondError(403, 'STATION_JURISDICTION_MISMATCH');
             }
 
             [$stationName, $rows] = $this->readNativeWorkers($physicalStationId, (int) $device['id_dispositivo']);
             $timestamp = $this->timestampForDevice((string) ($device['device_timezone'] ?? ''));
             $response = BiometricRosterV2Projection::project($rows, $physicalStationId, $stationName, $timestamp);
             $this->db->commit();
-            $this->auditSuccessfulRead((int) $device['id_dispositivo'], $physicalStationId, (int) $human['user_id'], $response);
+            $this->auditSuccessfulRead((int) $device['id_dispositivo'], $physicalStationId, $supervisorId, $response);
             $this->respond(200, $response);
         } catch (Throwable) {
             if ($this->db instanceof mysqli) @$this->db->rollback();
@@ -127,7 +135,7 @@ final class BiometricRosterV2Controller
     }
 
     /** Logs request metadata only; never log templates, identity references, JWTs, or device secrets. */
-    private function auditSuccessfulRead(int $deviceId, int $physicalStationId, int $supervisorId, array $response): void
+    private function auditSuccessfulRead(int $deviceId, int $physicalStationId, ?int $supervisorId, array $response): void
     {
         $entry = [
             'event' => 'CHECADOR_V2_BIOMETRIC_ROSTER_READ',

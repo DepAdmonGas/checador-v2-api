@@ -982,3 +982,15 @@
 ## 2026-11-24 — Owner-confirmed final integration results
 - **Validation:** Owner reports API focused regressions 210/210, biometric roster 17/17, identity provisioning 6/6 and Temporary Access 65/65 PASS, total 298/298, executed in Fedora. Codex did not directly observe those runs.
 - **Governance:** Architecture Freeze V1.0 and Temporary Access contract remain unchanged. Provisioning CLI continues to refuse preproduction apply. Windows UUID compatibility, external writer coordination and deployment verification remain outstanding.
+
+## 2026-11-24 — Device link and biometric grant V1.2 development
+- **Authorization:** Owner approved development of Portal3 direct shared-token issuance, one-use API link, device-scoped biometric authorization and recovery via new token; scoped exception to the M11 API-only device boundary documented in V1.2 draft. Architecture Freeze and frozen contracts unchanged.
+- **API:** Added feature-gated device linking and optional feature-gated device-specific biometric grant mode; both flags default off. Link consumes SHA-256 token atomically, rotates bcrypt device credentials and fails closed. Administrative PIN authorization remains unchanged.
+- **Schema:** `docs/v2/CHECADOR_V2_DEVICE_LINK_SCHEMA_PROPOSAL_V1.0.sql` is a proposal only; no DDL has been applied. Portal3/Windows implementations, schema approval, runtime security tests and deployment remain pending.
+- **Tests:** Local token tests, focused source regressions, route-disabled and method checks executed; isolated MariaDB link tests prepared but not executed because no DB was available in the Codex environment. No preproduction writes, deployment, commit or push.
+
+## 2026-11-24 — Device link renewal and credential-bound biometric grant
+- **Scope:** Portal3 issuance no longer activates a grant. API consumption locks token/device/station and atomically revokes the old credential and grant, inserts a new bcrypt credential and a grant bound to that exact credential, and consumes the token. The proposal adds a unique active grant per device. The response schema is unchanged.
+- **Authorization:** Portal3 checks distinct token and biometric permissions and offers separately authorized pending-token, biometric and complete unlink operations. Complete unlink revokes active device credentials; no reader queue or raw punch is changed.
+- **Rate limiting:** Feature-gated link requires an FPM-owned private flock-backed directory and limits 10 attempts per remote address per minute. Missing configuration fails closed; shared locking and proxy address configuration must be verified in runtime.
+- **Validation:** API local unit 16/16 (including concurrent rate limit), roster contract 24/24, SEC-L03 42/42 PASS; Portal3 isolated SQLite 12/12 PASS. MariaDB cross-project, Plesk/FPM and Windows verification remain pending; owner-reported earlier 11/11 predates this change. Schema proposal not applied; no preproduction writes or deployment.

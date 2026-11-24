@@ -1197,3 +1197,19 @@
 - **ACTIVITY_ID:** `CHECADOR_V2_BIOMETRIC_ROSTER_FINAL_VALIDATION`
 - **VALIDATION:** Owner reports Fedora API regression 210/210, biometric roster 17/17, provisioning 6/6, Temporary Access 65/65; total 298/298 PASS. Codex did not directly observe those runs.
 - **GOVERNANCE:** Architecture Freeze V1.0 and Temporary Access Contract V1.0 unchanged. Publication to work authorized by owner; preproduction provisioning apply remains disabled pending separate authorization and Windows UUID verification.
+
+### Entry 072
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_DEVICE_LINK_BIOMETRIC_GRANT_V1_2_DEVELOPMENT`
+- **STATUS:** `IMPLEMENTED_LOCALLY; FLAGS_DEFAULT_OFF; DDL_PROPOSED; MARIADB_AND_CLIENT_TESTS_PENDING`
+- **OWNER DECISION:** Portal3 issues one-use link token using shared DB without HTTP, Windows redeems via API; roster uses revocable device grant. M11 API-only boundary has a scoped exception documented in the V1.2 draft. Frozen Architecture Freeze unchanged.
+- **RECOVERY:** A new owner-issued token rotates the credential when response or Windows persistence is lost; consumed tokens cannot replay.
+- **VALIDATION:** Local synthetic checks executed; isolated DB integration and Windows E2E not executed. No preproduction DDL, data writes or deployment.
+
+### Entry 073
+- **DATE:** 2026-11-24
+- **ACTIVITY_ID:** `CHECADOR_V2_DEVICE_LINK_ATOMIC_RENEWAL`
+- **STATUS:** `IMPLEMENTED_LOCALLY; FLAGS_DEFAULT_OFF; MARIADB_PLESK_WINDOWS_VERIFICATION_PENDING`
+- **CHANGE:** Token issuance never creates a grant; API redemption rotates credential and binds the single active biometric grant to that credential atomically. Portal3 separates token, biometric and full-device revocation; full revocation disables active credentials.
+- **VALIDATION:** API synthetic rate-limit 16/16, roster contract 24/24, SEC-L03 42/42; Portal3 SQLite 12/12. MariaDB cross-project suite prepared but not executed. Existing V8M run 55/57, with two M04 failures on inputs identical to Portal3 origin/work.
+- **GATES:** Device link schema proposal unverified on effective preproduction; dedicated operator permissions, rate-limit storage/proxy configuration, Windows UUID/client compatibility and rollout require verification. No preproduction write, DDL or deployment performed.

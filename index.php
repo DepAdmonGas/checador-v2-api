@@ -500,7 +500,11 @@ if ($is_valid_route) {
         include_once "modelo/v2/Level2ServerController.php";
         $l2Ctrl = new Level2ServerController();
         $count = count($partes_ruta);
-        if ($count == 6 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'biometric-roster') {
+        if ($count == 5 && $partes_ruta[4] === 'link' && getenv('CHECADOR_DEVICE_LINK_ENABLED') === '1') {
+            include_once "modelo/v2/DeviceLinkV2Controller.php";
+            (new DeviceLinkV2Controller())->handle();
+            exit;
+        } else if ($count == 6 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'biometric-roster') {
             if ($server_method === 'GET') {
                 include_once "modelo/v2/BiometricRosterV2Controller.php";
                 $rosterCtrl = new BiometricRosterV2Controller();
