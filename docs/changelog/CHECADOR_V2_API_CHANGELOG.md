@@ -1046,3 +1046,7 @@
 ## 2026-11-25 — Administrative biometric contract proposal
 - **Scope:** Consolidated proposed station worker list, biometric status, enrollment and replacement interfaces and explicit unresolved format, authorization, persistence, concurrency and idempotency decisions. No biometric write route or frozen contract changed.
 - **Validation:** Existing roster contract tests 30/30 PASS; no MariaDB write or deployment. Administrative session and real biometric format require runtime verification.
+
+## 2026-11-25 — Identity synchronization and roster lifecycle checks
+- **Validation:** Non-destructive lifecycle behavior 7/7, identity sync policy 12/12 and roster contract 30/30 PASS. Tests cover identity classification and projection, not MariaDB transactions or a device's local cache.
+- **Pending:** Durable synchronization request table remains a proposal; transfer and historical identity reconciliation require an approved rule. Active physical station roster filtering does not prove denial of historical raw-punch resolution or deletion of cached device templates. No gate, schema or runtime changed.
