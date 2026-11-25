@@ -1060,3 +1060,7 @@
 ## 2026-11-25 — Biometric idempotent replay actor binding
 - **Correction:** Biometric operation fingerprints now include the authenticated administrative actor, and a replay requires the persisted `actor_user_id` to match. Reuse of the same device/request ID by another authorized actor returns `409 IDEMPOTENCY_CONFLICT`; no original operation response is disclosed to a different actor.
 - **Validation:** Biometric behavior/source suite 33/33 (including same-actor replay success and different-actor conflict), Admin PIN runtime contract 12/12, identity-sync policy 12/12, worker lifecycle 7/7, roster contract 30/30, and provisioning guard 20/20 PASS (114 total). PHP lint and diff checks PASS. No database, Portal3, Windows, Plesk, gate or deployment changes.
+
+## 2026-11-25 — Biometric SQL privilege minimization
+- **Correction:** Removed the unused `session_uuid` from the administrative-session lock query. The one-table DDL now lists only the device-operation ledger SELECT/INSERT, identity SELECT/INSERT, access-row SELECT plus `huella` UPDATE, and session-column SELECT plus activity-timestamp UPDATE requirements.
+- **Validation:** Focused biometric suite 33/33, PHP lint and diff checks PASS. Effective grants were not queried and no SQL was executed; apply only privileges missing after operator preflight.

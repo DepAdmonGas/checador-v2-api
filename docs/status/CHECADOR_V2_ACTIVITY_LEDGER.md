@@ -1251,3 +1251,10 @@
 - **STATUS:** `IMPLEMENTED; GATES_DEFAULT_OFF; MARIADB_RUNTIME_VALIDATION_PENDING`
 - **SCOPE:** The actor user ID is included in the biometric request HMAC fingerprint and checked against the persisted actor before a response is replayed. A different administrative actor cannot replay the original operation's response.
 - **VALIDATION:** Biometric suite 33/33 including same-actor replay success and different-actor conflict; focused regressions 81/81 PASS (114 total checks). No database writes, DDL, Portal3/Windows changes, Plesk modification or deployment.
+
+### Entry 078
+- **DATE:** 2026-11-25
+- **ACTIVITY_ID:** `CHECADOR_V2_BIOMETRIC_SQL_PRIVILEGE_MINIMIZATION`
+- **STATUS:** `IMPLEMENTED; OPERATOR_SCHEMA_AND_GRANT_PREFLIGHT_REQUIRED`
+- **SCOPE:** Removed unused `session_uuid` from the admin-session query and reduced the documented SQL delta to the shared ledger, identity insertion, access-template columns, and session idle timestamp.
+- **VALIDATION:** Biometric suite 33/33 and PHP lint PASS. No SQL query, grant, DDL, database write, Plesk change or deployment performed.

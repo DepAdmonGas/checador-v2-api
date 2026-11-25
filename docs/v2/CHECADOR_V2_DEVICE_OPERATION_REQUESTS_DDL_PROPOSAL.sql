@@ -52,7 +52,9 @@ CREATE TABLE op_rh_v2_device_operation_requests (
 -- GRANT SELECT (id, id_personal, huella), UPDATE (huella)
 --   ON <db>.op_rh_personal_acceso TO '<api_user>'@'<host>';
 -- GRANT SELECT, INSERT ON <db>.op_rh_v2_dispositivo_identidad_personal TO '<api_user>'@'<host>';
--- GRANT SELECT, UPDATE (last_activity_at_utc)
+-- GRANT SELECT (id, device_id, credential_id, station_id, locality_id, actor_user_id,
+--   session_hash, state, created_at_utc, expires_at_utc, last_activity_at_utc),
+--   UPDATE (last_activity_at_utc)
 --   ON <db>.op_rh_v2_admin_session TO '<api_user>'@'<host>';
 -- Existing read-only grants must cover device, credential, grant, station, locality, personnel,
 -- canonical membership, and the effective permission tables. Portal3 receives no grant here.

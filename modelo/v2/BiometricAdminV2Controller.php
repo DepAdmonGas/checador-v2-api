@@ -123,7 +123,7 @@ final class BiometricAdminV2Controller
         $locality=WorkplacePhysicalStationResolver::resolveCanonicalLocality($db,$stationId);
         if($locality===null) throw new BiometricAdminV2HttpException(403,'DEVICE_SCOPE_DENIED');
         $secretHash=hash('sha256',$sessionSecret);
-        $session=$this->one($db,"SELECT id,session_uuid,device_id,credential_id,station_id,locality_id,actor_user_id,session_hash,state,created_at_utc,expires_at_utc,last_activity_at_utc FROM op_rh_v2_admin_session WHERE session_hash=? AND device_id=? FOR UPDATE",'si',[$secretHash,$deviceId]);
+        $session=$this->one($db,"SELECT id,device_id,credential_id,station_id,locality_id,actor_user_id,session_hash,state,created_at_utc,expires_at_utc,last_activity_at_utc FROM op_rh_v2_admin_session WHERE session_hash=? AND device_id=? FOR UPDATE",'si',[$secretHash,$deviceId]);
         $now=$this->now($db);
         if(!$session||$session['state']!=='ACTIVE'||(int)$session['credential_id']!==$credentialId||(int)$session['station_id']!==$stationId
             ||(int)$session['locality_id']!==$locality||!hash_equals((string)$session['session_hash'],$secretHash)
