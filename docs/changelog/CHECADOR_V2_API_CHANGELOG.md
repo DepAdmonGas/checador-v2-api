@@ -1034,3 +1034,7 @@
 ## 2026-11-25 — Prepared inherited authorization proposal
 - **Scope:** Added a proposed ACL addendum and an unconnected resolver and policy. Existing Temporary Access routes retain the approved SEC-L03 authorization. Administrative DDL is historical; the owner reports the three tables already exist in Fedora and Plesk.
 - **Validation:** Prepared policy 13/13 and resolver 10/10 PASS; PHP lint and staged whitespace check PASS. No database changes, gate activation or deployment.
+
+## 2026-11-25 — Administrative session revocation on credential rotation
+- **Scope:** Credential rotation revokes outstanding administrative PINs and sessions in the existing rotation transaction, even while the administrative gate is off. A complete absent optional schema is tolerated only while the gate is off; partial schema and persistence failures fail closed.
+- **Validation:** Controlled rotation behavior 8/8 PASS, including both gate states, subsequent activation, missing or partial schema, and propagated persistence failure; PHP lint and staged diff check PASS. Real MariaDB transaction validation remains pending before activation.

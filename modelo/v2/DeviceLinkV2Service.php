@@ -42,6 +42,7 @@ final class DeviceLinkV2Service
             $actorId = (int)$row['emitido_por_usuario_id'];
             $stmt = $db->prepare('INSERT INTO op_rh_v2_device_biometric_grants (id_dispositivo,id_estacion,id_credencial,autorizado_por_usuario_id,valido_desde_utc,valido_hasta_utc,activo,revocado_at_utc) VALUES (?,?,?,?,UTC_TIMESTAMP(6),NULL,1,NULL)');
             $stmt->bind_param('iiii', $deviceId, $stationId, $credentialId, $actorId); $stmt->execute(); $stmt->close();
+            $this->invalidateAdministrativeSessionsForCredentialRotation($db, $deviceId, $stationId);
             $tokenId = (int)$row['id'];
             $stmt = $db->prepare('UPDATE op_rh_v2_device_link_tokens SET consumido_at_utc=UTC_TIMESTAMP(6) WHERE id=? AND consumido_at_utc IS NULL AND revocado_at_utc IS NULL');
             $stmt->bind_param('i', $tokenId); $stmt->execute();
@@ -50,5 +51,44 @@ final class DeviceLinkV2Service
             error_log(json_encode(['event'=>'CHECADOR_V2_DEVICE_LINK','device_id'=>$deviceId,'station_id'=>$stationId,'timestamp_utc'=>gmdate('c')]));
             return ['device_id'=>$deviceId, 'device_uuid'=>(string)$device['uuid_dispositivo'], 'credential_key'=>$key, 'device_secret'=>$secret, 'id_estacion'=>$stationId, 'station_name'=>(string)$station['nombre'], 'timezone'=>(string)$device['timezone']];
         } catch (Throwable $e) { $db->rollback(); throw $e; }
+    }
+
+    /** A credential/grant rotation invalidates every outstanding admin PIN and session atomically. */
+    private function invalidateAdministrativeSessionsForCredentialRotation(mysqli $db, int $deviceId, int $stationId): void
+    {
+        $present = [];
+        foreach (['op_rh_v2_admin_pin', 'op_rh_v2_admin_session'] as $table) {
+            $stmt = $db->prepare('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? LIMIT 1');
+            $stmt->bind_param('s', $table); $stmt->execute(); $exists = $stmt->get_result()->fetch_assoc() !== null; $stmt->close();
+            $present[] = $exists;
+        }
+        if (!$present[0] && !$present[1]) {
+            if (getenv('CHECADOR_ADMIN_PIN_ENABLED') === '1') throw new RuntimeException('ADMIN_PIN_SCHEMA_UNAVAILABLE');
+            return;
+        }
+        if (!$present[0] || !$present[1]) throw new RuntimeException('ADMIN_PIN_SCHEMA_UNAVAILABLE');
+        $stmt = $db->prepare("SELECT id,locality_id,actor_user_id FROM op_rh_v2_admin_pin WHERE device_id=? AND station_id=? AND state='PENDING' FOR UPDATE");
+        $stmt->bind_param('ii', $deviceId, $stationId); $stmt->execute(); $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); $stmt->close();
+        foreach ($rows as $row) {
+            $id=(int)$row['id']; $localityId=(int)$row['locality_id']; $actorId=(int)$row['actor_user_id'];
+            $stmt=$db->prepare("UPDATE op_rh_v2_admin_pin SET state='REVOKED',revoked_at_utc=UTC_TIMESTAMP(6) WHERE id=? AND state='PENDING'");
+            $stmt->bind_param('i',$id);$stmt->execute();$stmt->close();
+            $this->auditAdministrativeInvalidation($db,$actorId,$localityId,'ADMIN_PIN',$id);
+        }
+        $stmt = $db->prepare("SELECT id,locality_id,actor_user_id FROM op_rh_v2_admin_session WHERE device_id=? AND station_id=? AND state='ACTIVE' FOR UPDATE");
+        $stmt->bind_param('ii', $deviceId, $stationId); $stmt->execute(); $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); $stmt->close();
+        foreach ($rows as $row) {
+            $id=(int)$row['id']; $localityId=(int)$row['locality_id']; $actorId=(int)$row['actor_user_id'];
+            $stmt=$db->prepare("UPDATE op_rh_v2_admin_session SET state='REVOKED',ended_at_utc=UTC_TIMESTAMP(6) WHERE id=? AND state='ACTIVE'");
+            $stmt->bind_param('i',$id);$stmt->execute();$stmt->close();
+            $this->auditAdministrativeInvalidation($db,$actorId,$localityId,'ADMIN_SESSION',$id);
+        }
+    }
+
+    private function auditAdministrativeInvalidation(mysqli $db,int $actorId,int $localityId,string $entity,int $entityId):void
+    {
+        $stmt=$db->prepare('INSERT INTO op_rh_v2_m11_configuration_audit (actor_portal_user_id,permission_key,workplace_id,entity_type,entity_id,action,created_at_utc) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6))');
+        $permission='checador.admin_pin.revocar';$action='CREDENTIAL_ROTATE';
+        $stmt->bind_param('isisss',$actorId,$permission,$localityId,$entity,$entityId,$action);$stmt->execute();$stmt->close();
     }
 }
