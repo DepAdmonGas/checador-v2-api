@@ -1042,3 +1042,7 @@
 ## 2026-11-25 — Administrative PIN API lifecycle
 - **Scope:** Added default-off administrative session redemption, validation and idempotent close, requiring Device Auth, credential-bound biometric grant, current institutional authorization and specific PIN permission; IP and device limits remain independent.
 - **Tests:** Controlled controller lifecycle 10/10, rotation 8/8, IP limiter 10/10, controller boundary 5/5 and policy/runtime checks 24/24 PASS; PHP lint and diff check PASS. Test doubles do not establish MariaDB transaction behavior. Existing-schema MariaDB runner requires explicit disposable-write opt-in; it was not run. Runtime validation remains mandatory before activation.
+
+## 2026-11-25 — Administrative biometric contract proposal
+- **Scope:** Consolidated proposed station worker list, biometric status, enrollment and replacement interfaces and explicit unresolved format, authorization, persistence, concurrency and idempotency decisions. No biometric write route or frozen contract changed.
+- **Validation:** Existing roster contract tests 30/30 PASS; no MariaDB write or deployment. Administrative session and real biometric format require runtime verification.
