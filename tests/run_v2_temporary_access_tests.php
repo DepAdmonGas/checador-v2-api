@@ -66,10 +66,10 @@ class TemporaryAccessV2StrictTestSuite {
                       VALUES (1, '150', 20, '2026-01-01 00:00:00', NULL, 1)";
         mysqli_query($this->conexion, $sqlIdent1);
 
-        // Identidad Personal Ref 150 -> Personal ID 20 (Estacion 2)
+        // Identidad Personal Ref 150 -> Personal ID 40 (Estacion 2)
         $sqlIdent2 = "INSERT INTO op_rh_v2_dispositivo_identidad_personal
                       (id_dispositivo, referencia_externa_personal, id_personal, valido_desde, valido_hasta, es_activo)
-                      VALUES (2, '150', 20, '2026-01-01 00:00:00', NULL, 1)";
+                      VALUES (2, '150', 40, '2026-01-01 00:00:00', NULL, 1)";
         mysqli_query($this->conexion, $sqlIdent2);
 
         // Identidad Personal Ref 180 -> Personal ID 30 (Estacion 1)
@@ -81,6 +81,7 @@ class TemporaryAccessV2StrictTestSuite {
         // Personal legacy para join de nombres
         mysqli_query($this->conexion, "INSERT IGNORE INTO op_rh_personal (id, no_colaborador, nombre_completo, id_estacion) VALUES (20, 150, 'Juan Perez Test', 1)");
         mysqli_query($this->conexion, "INSERT IGNORE INTO op_rh_personal (id, no_colaborador, nombre_completo, id_estacion) VALUES (30, 180, 'Maria Lopez Test', 1)");
+        mysqli_query($this->conexion, "INSERT IGNORE INTO op_rh_personal (id, no_colaborador, nombre_completo, id_estacion) VALUES (40, 150, 'Juan Perez Estacion 2 Test', 2)");
 
         // Usuario Portal3 sintético ID 99 con estatus=0 (activo) para validación de tokens en tests
         mysqli_query($this->conexion, "INSERT IGNORE INTO tb_usuarios (id, nombre, usuario, estatus) VALUES (99, 'Supervisor Test 99', 'super99', 0)");
@@ -102,6 +103,8 @@ class TemporaryAccessV2StrictTestSuite {
             "INSERT INTO tb_modulos_config (id, modulo_key, activo, estaciones_soportadas, tipo_departamento) VALUES (990001, 'acceso-temporal', 1, '[990001]', 'localidades') ON DUPLICATE KEY UPDATE modulo_key=VALUES(modulo_key), activo=VALUES(activo), estaciones_soportadas=VALUES(estaciones_soportadas), tipo_departamento=VALUES(tipo_departamento)",
             'INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (990001, 990001, 0) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista), estatus=VALUES(estatus)',
             'INSERT INTO op_rh_localidades (id, numlista) VALUES (990001, 990001) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista)',
+            'INSERT INTO tb_estaciones (id, numlista, estatus) VALUES (1, 1, 0), (2, 2, 0) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista), estatus=VALUES(estatus)',
+            'INSERT INTO op_rh_localidades (id, numlista) VALUES (1, 1), (2, 2) ON DUPLICATE KEY UPDATE numlista=VALUES(numlista)',
             'INSERT INTO modulos_usuarios_do (id, id_modulo, id_usuario, leer) VALUES (990001, 990001, 990001, 0), (990002, 990001, 990002, 1), (990003, 990001, 990003, 1) ON DUPLICATE KEY UPDATE id_modulo=VALUES(id_modulo), id_usuario=VALUES(id_usuario), leer=VALUES(leer)',
         ];
         foreach ($aclFixtures as $sql) {
@@ -145,7 +148,7 @@ class TemporaryAccessV2StrictTestSuite {
 
         // 3. Worker wrong station (dispositivo 2 pertenece a estación 2, pero se manda estación 1) -> Identidad resuelve en disp 2
         $res3 = $service->createRequest($this->conexion, 2, 2, 'c71e8400-0003', '150');
-        $this->assert($res3['success'] === true && $res3['code'] === 201, "3. Dispositivo en estación 2 asigna id_estacion = 2 correctamente");
+        $this->assert($res3['success'] === true && $res3['code'] === 201, "3. Dispositivo en estación 2 accepts its active worker identity");
 
         // 4. request_uuid duplicate idempotency (Lost ACK en creación)
         $resDup = $service->createRequest($this->conexion, 1, 1, $req1Uuid, '150');
@@ -282,6 +285,24 @@ class TemporaryAccessV2StrictTestSuite {
         $valDiffUuid = $service->validatePin($this->conexion, 1, 1, '150', $valPinCode, 'val-uuid-different-002');
         $this->assert($valDiffUuid['success'] === false && $valDiffUuid['code'] === 409 && $valDiffUuid['status'] === 'ALREADY_USED', "28. Revalidación con diferente validation_uuid retorna 409 ALREADY_USED");
 
+        // 28a. The same validation UUID cannot acknowledge another worker or a changed PIN.
+        $valCrossWorkerAck = $service->validatePin($this->conexion, 1, 1, '180', $valPinCode, $valSuccUuid);
+        $valChangedPinAck = $service->validatePin($this->conexion, 1, 1, '150', '000000', $valSuccUuid);
+        $this->assert($valCrossWorkerAck['success'] === false && $valCrossWorkerAck['code'] === 409, '28a. Lost ACK UUID reused by another worker/context is rejected');
+        $this->assert($valChangedPinAck['success'] === false && $valChangedPinAck['code'] === 409, '28b. Lost ACK UUID with a different PIN is rejected');
+
+        // 28c. A later authorized PIN for the same worker is independent of prior USED history.
+        $reqNextPinUuid = 'c71e8400-e29b-41d4-a716-446655440056';
+        $service->createRequest($this->conexion, 1, 1, $reqNextPinUuid, '150');
+        $nextAuth = $service->authorizeRequest($this->conexion, array(1), $reqNextPinUuid, 99);
+        $nextPin = $nextAuth['data']['temporary_pin'];
+        $nextValidationUuid = 'val-uuid-next-001';
+        $nextPinResult = $service->validatePin($this->conexion, 1, 1, '150', $nextPin, $nextValidationUuid);
+        $oldHistory = mysqli_query($this->conexion, "SELECT status FROM op_rh_v2_solicitudes_acceso_temporal WHERE request_uuid = '$reqValUuid'");
+        $oldHistoryRow = mysqli_fetch_assoc($oldHistory);
+        $this->assert($nextPinResult['success'] === true && $nextPinResult['data']['request_uuid'] === $reqNextPinUuid, '28c. A new PIN is valid after an earlier PIN reached USED');
+        $this->assert(($oldHistoryRow['status'] ?? '') === 'USED', '28d. Successful historical USED record is preserved');
+
         // 29. Wrong device replay
         $valWrongDev = $service->validatePin($this->conexion, 2, 1, '150', $valPinCode, 'val-uuid-wrong-dev');
         $this->assert($valWrongDev['success'] === false, "29. Intento de validación con dispositivo cruzado falla");
@@ -293,6 +314,17 @@ class TemporaryAccessV2StrictTestSuite {
         // 31. Wrong worker replay
         $valWrongWk = $service->validatePin($this->conexion, 1, 1, '180', $valPinCode, 'val-uuid-wrong-wk');
         $this->assert($valWrongWk['success'] === false, "31. Intento de validación con trabajador cruzado falla");
+
+        // 31a-31b. Device state and active identity are revalidated.
+        mysqli_query($this->conexion, "UPDATE op_rh_v2_dispositivos SET estado = 0 WHERE id = 1");
+        $valRevokedDevice = $service->validatePin($this->conexion, 1, 1, '150', $nextPin, 'val-uuid-device-revoked');
+        mysqli_query($this->conexion, "UPDATE op_rh_v2_dispositivos SET estado = 1 WHERE id = 1");
+        $this->assert($valRevokedDevice['success'] === false && $valRevokedDevice['code'] === 401, '31b. Revoked device is rejected inside validation transaction');
+
+        mysqli_query($this->conexion, "UPDATE op_rh_v2_dispositivo_identidad_personal SET es_activo = 0 WHERE id_dispositivo = 1 AND referencia_externa_personal = '150'");
+        $valRevokedIdentity = $service->validatePin($this->conexion, 1, 1, '150', $nextPin, 'val-uuid-identity-revoked');
+        mysqli_query($this->conexion, "UPDATE op_rh_v2_dispositivo_identidad_personal SET es_activo = 1 WHERE id_dispositivo = 1 AND referencia_externa_personal = '150'");
+        $this->assert($valRevokedIdentity['success'] === false && $valRevokedIdentity['status'] === 'WORKER_NOT_FOUND', '31c. Revoked device-worker identity is rejected');
 
         // 32. Device Auth invalid
         $dispAuth = new DispositivoV2();

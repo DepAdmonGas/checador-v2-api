@@ -236,6 +236,7 @@ $queries = implode("\n", $connection->queries);
 $assert(strpos($queries, 'op_rh_personal') === false, 'JWT sub no se resuelve como op_rh_personal.id');
 $assert(strpos($queries, 'op_rh_localidades_perfil') === false, 'username legacy no se trata como identidad Portal3');
 $controller = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Controller.php');
+$assert(str_contains($controller, "'authorized_physical_station_ids' => \$authorization['authorized_physical_station_ids'] ?? []"), 'controller forwards authorized physical station IDs to request operations');
 $temporaryService = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Service.php');
 $assert(strpos($controller, "autenticarPortal3User('leer')") !== false, 'GET queue está conectado al permiso leer');
 $assert(strpos($controller, "autenticarPortal3User('crear')") !== false

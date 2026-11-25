@@ -28,6 +28,7 @@ class TemporaryAccessV2Controller {
         $conexion = $deviceAuth['conexion'];
         $idDispositivo = $deviceAuth['id_dispositivo'];
         $idEstacionResuelta = $deviceAuth['id_estacion'];
+        $idCredencial = $deviceAuth['id_credencial'];
 
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (stripos($contentType, 'application/json') === false) {
@@ -66,7 +67,7 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $result = $this->service->createRequest($conexion, $idDispositivo, $idEstacionResuelta, $requestUuid, $refExternaPersonal, $reason);
+        $result = $this->service->createRequest($conexion, $idDispositivo, $idEstacionResuelta, $requestUuid, $refExternaPersonal, $reason, $idCredencial);
 
         $this->closeConexion($conexion);
         if (!$result['success']) {
@@ -210,6 +211,7 @@ class TemporaryAccessV2Controller {
         $conexion = $deviceAuth['conexion'];
         $idDispositivo = $deviceAuth['id_dispositivo'];
         $idEstacionResuelta = $deviceAuth['id_estacion'];
+        $idCredencial = $deviceAuth['id_credencial'];
 
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (stripos($contentType, 'application/json') === false) {
@@ -242,7 +244,7 @@ class TemporaryAccessV2Controller {
             return;
         }
 
-        $result = $this->service->validatePin($conexion, $idDispositivo, $idEstacionResuelta, $refExternaPersonal, $temporaryPin, $validationUuid);
+        $result = $this->service->validatePin($conexion, $idDispositivo, $idEstacionResuelta, $refExternaPersonal, $temporaryPin, $validationUuid, $idCredencial);
         $this->closeConexion($conexion);
 
         if (!$result['success']) {
@@ -290,7 +292,8 @@ class TemporaryAccessV2Controller {
             'success' => true,
             'conexion' => $conexion,
             'id_dispositivo' => $authResult['id_dispositivo'],
-            'id_estacion' => $authResult['id_estacion']
+            'id_estacion' => $authResult['id_estacion'],
+            'id_credencial' => $authResult['credential_id']
         );
     }
 
@@ -323,7 +326,8 @@ class TemporaryAccessV2Controller {
             'conexion' => $conexion,
             'user_id' => $tokenVal['user_id'],
             'username' => $tokenVal['username'],
-            'authorized_stations' => $authorization['authorized_stations']
+            'authorized_stations' => $authorization['authorized_stations'],
+            'authorized_physical_station_ids' => $authorization['authorized_physical_station_ids'] ?? []
         );
     }
 
