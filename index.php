@@ -500,7 +500,11 @@ if ($is_valid_route) {
         include_once "modelo/v2/Level2ServerController.php";
         $l2Ctrl = new Level2ServerController();
         $count = count($partes_ruta);
-        if ($count == 5 && $partes_ruta[4] === 'link' && getenv('CHECADOR_DEVICE_LINK_ENABLED') === '1') {
+        if ($count == 7 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'identities' && $partes_ruta[6] === 'synchronize' && getenv('CHECADOR_IDENTITY_SYNC_ENABLED') === '1') {
+            include_once "modelo/v2/DeviceIdentitySyncV2Controller.php";
+            (new DeviceIdentitySyncV2Controller())->handle();
+            exit;
+        } else if ($count == 5 && $partes_ruta[4] === 'link' && getenv('CHECADOR_DEVICE_LINK_ENABLED') === '1') {
             include_once "modelo/v2/DeviceLinkV2Controller.php";
             (new DeviceLinkV2Controller())->handle();
             exit;

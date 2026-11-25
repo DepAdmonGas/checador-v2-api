@@ -12,12 +12,12 @@ $db = (new BD())->conectarBD();
 $identity = $db->query('SELECT DATABASE() AS db, CURRENT_USER() AS principal, @@hostname AS host, VERSION() AS version')->fetch_assoc();
 if ($identity['db'] !== IDENTITY_TEST_DB) { fwrite(STDERR, "Database identity mismatch.\n"); exit(2); }
 echo 'DATABASE_IDENTITY ' . json_encode($identity) . "\n";
-$occupied = $db->query('SELECT (SELECT COUNT(*) FROM op_rh_v2_dispositivos WHERE id=2) + (SELECT COUNT(*) FROM op_rh_personal WHERE id_estacion=1 OR id BETWEEN 990100 AND 990104) + (SELECT COUNT(*) FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=2 OR id_personal BETWEEN 990100 AND 990104) AS n')->fetch_assoc();
+$occupied = $db->query('SELECT (SELECT COUNT(*) FROM op_rh_v2_dispositivos WHERE id IN (2,3)) + (SELECT COUNT(*) FROM op_rh_personal WHERE id_estacion IN (1,22) OR id BETWEEN 990100 AND 990106) + (SELECT COUNT(*) FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo IN (2,3) OR id_personal BETWEEN 990100 AND 990106) AS n')->fetch_assoc();
 if ((int)$occupied['n'] !== 0) { fwrite(STDERR, "Refusing: disposable fixture scope is not empty.\n"); exit(2); }
 $cleanup = static function () use ($db): void {
-    $db->query('DELETE FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=2 AND id_personal BETWEEN 990100 AND 990104');
-    $db->query('DELETE FROM op_rh_personal WHERE id BETWEEN 990100 AND 990104');
-    $db->query('DELETE FROM op_rh_v2_dispositivos WHERE id=2 AND uuid_dispositivo=\'synthetic-identity-test\'');
+    $db->query('DELETE FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo IN (2,3) AND id_personal BETWEEN 990100 AND 990106');
+    $db->query('DELETE FROM op_rh_personal WHERE id BETWEEN 990100 AND 990106');
+    $db->query("DELETE FROM op_rh_v2_dispositivos WHERE id IN (2,3) AND uuid_dispositivo IN ('synthetic-identity-test','synthetic-identity-test-2')");
 };
 $pass = 0; $fail = 0;
 $check = static function(bool $ok, string $label) use (&$pass, &$fail): void { echo ($ok ? 'PASS ' : 'FAIL ') . $label . "\n"; if ($ok) $pass++; else $fail++; };
@@ -26,7 +26,7 @@ try {
     $db->query("INSERT INTO op_rh_personal (id,id_estacion,no_colaborador,nombre_completo,puesto,estado) VALUES (990100,1,990100,'Synthetic Existing',1,1),(990101,1,990101,'Synthetic One',1,1),(990102,1,990102,'Synthetic Two',1,1)");
     $db->query("INSERT INTO op_rh_v2_dispositivo_identidad_personal (id_dispositivo,referencia_externa_personal,id_personal,valido_desde,valido_hasta,es_activo) VALUES (2,'synthetic-existing-ref',990100,'2020-01-01 00:00:00',NULL,1)");
     $service = new InitialDeviceIdentityProvisioner($db);
-    $dry = $service->run(false);
+    $dry = $service->run(false, 2, 1);
     $check($dry['conservar'] === 1 && $dry['primera_identidad'] === 2 && $dry['insertadas'] === 0, 'dry run classifies and writes nothing');
     $command = [PHP_BINARY, __DIR__ . '/../scripts/provision_initial_device_identities.php', '--apply'];
     $start = static function() use ($command): array { $p = proc_open($command, [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']], $pipes); if (!is_resource($p)) throw new RuntimeException('CHILD_START'); fclose($pipes[0]); return [$p,$pipes]; };
@@ -35,7 +35,7 @@ try {
     $check($results[0][0] === 0 && $results[1][0] === 0 && (($results[0][1]['result']['insertadas'] ?? -1) + ($results[1][1]['result']['insertadas'] ?? -1)) === 2, 'concurrent commands serialize and insert each first identity once');
     $rows = $db->query('SELECT id_personal,referencia_externa_personal FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=2 ORDER BY id_personal')->fetch_all(MYSQLI_ASSOC);
     $check(count($rows) === 3 && $rows[0]['referencia_externa_personal'] === 'synthetic-existing-ref' && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $rows[1]['referencia_externa_personal']) === 1 && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $rows[2]['referencia_externa_personal']) === 1, 'existing reference preserved and UUID v4 persisted');
-    $again = $service->run(true);
+    $again = $service->run(true, 2, 1);
     $check($again['insertadas'] === 0 && $again['conservar'] === 3, 'second application is idempotent');
     $db->query("INSERT INTO op_rh_personal (id,id_estacion,no_colaborador,nombre_completo,puesto,estado) VALUES (990103,1,990103,'Synthetic Rollback',1,1),(990104,1,990104,'Synthetic Conflict',1,1)");
     $db->begin_transaction();
@@ -44,9 +44,17 @@ try {
     $outerCount = (int)$db->query('SELECT COUNT(*) AS n FROM op_rh_v2_dispositivo_identidad_personal WHERE id_personal=990103')->fetch_assoc()['n'];
     $check(!empty($registration['success']) && $outerCount === 0, 'canonical registration participates in caller transaction and rolls back');
     $db->query("INSERT INTO op_rh_v2_dispositivo_identidad_personal (id_dispositivo,referencia_externa_personal,id_personal,valido_desde,valido_hasta,es_activo) VALUES (2,'synthetic-conflict-a',990104,'2020-01-01 00:00:00',NULL,1),(2,'synthetic-conflict-b',990104,'2020-01-01 00:00:00',NULL,1)");
-    $threw = false; try { $service->run(true); } catch (Throwable) { $threw = true; }
+    $threw = false; try { $service->run(true, 2, 1); } catch (Throwable) { $threw = true; }
     $rollbackCount = (int)$db->query('SELECT COUNT(*) AS n FROM op_rh_v2_dispositivo_identidad_personal WHERE id_personal=990103')->fetch_assoc()['n'];
     $check($threw && $rollbackCount === 0, 'conflict rolls back earlier insert');
+    $partial = $service->run(true, 2, 1, true);
+    $partialCount = (int)$db->query('SELECT COUNT(*) AS n FROM op_rh_v2_dispositivo_identidad_personal WHERE id_personal=990103 AND id_dispositivo=2')->fetch_assoc()['n'];
+    $check($partial['rechazar'] === 1 && $partial['insertadas'] === 1 && $partialCount === 1, 'partial synchronization commits eligible workers and reports conflict');
+    $db->query("INSERT INTO op_rh_v2_dispositivos (id,uuid_dispositivo,id_estacion,nombre,timezone,estado) VALUES (3,'synthetic-identity-test-2',22,'Other Synthetic','UTC',1)");
+    $db->query("INSERT INTO op_rh_personal (id,id_estacion,no_colaborador,nombre_completo,puesto,estado) VALUES (990105,22,990105,'Synthetic Other Station',1,1),(990106,22,990106,'Synthetic Inactive',1,0)");
+    $second = $service->run(true, 3, 22, true);
+    $otherRows = $db->query('SELECT id_personal FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=3')->fetch_all(MYSQLI_ASSOC);
+    $check($second['insertadas'] === 1 && count($otherRows) === 1 && (int)$otherRows[0]['id_personal'] === 990105, 'second device processes only active workers of its own station');
     echo "RESULT: {$pass} PASS / {$fail} FAIL\n";
     $cleanup(); exit($fail === 0 ? 0 : 1);
 } catch (Throwable $e) {
