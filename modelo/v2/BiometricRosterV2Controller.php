@@ -8,11 +8,13 @@ require_once __DIR__ . '/Portal3JwtAuthHelper.php';
 require_once __DIR__ . '/WorkplacePhysicalStationResolver.php';
 require_once __DIR__ . '/BiometricRosterV2Projection.php';
 require_once __DIR__ . '/DeviceBiometricGrantV2.php';
+require_once __DIR__ . '/shift/WorkplaceTimezoneAuthorityService.php';
 
 /** Owner-approved preproduction read-only boundary; runtime deployment remains gated. */
 final class BiometricRosterV2Controller
 {
     private ?mysqli $db = null;
+    private string $stage = 'request';
 
     public function handle(): void
     {
@@ -33,20 +35,23 @@ final class BiometricRosterV2Controller
 
         $bd = new BD();
         try {
+            $this->stage = 'connection';
             $this->db = $bd->conectarBD();
-            if (!$this->db instanceof mysqli) $this->respondError(503, 'ROSTER_UNAVAILABLE');
+            if (!$this->db instanceof mysqli) throw new RuntimeException('ROSTER_CONNECTION_UNAVAILABLE');
 
-            if (!$this->db->begin_transaction(MYSQLI_TRANS_START_READ_ONLY | MYSQLI_TRANS_START_WITH_CONSISTENT_SNAPSHOT)) {
-                $this->respondError(503, 'ROSTER_UNAVAILABLE');
-            }
+            $this->stage = 'transaction';
+            if (!$this->db->begin_transaction(MYSQLI_TRANS_START_READ_ONLY | MYSQLI_TRANS_START_WITH_CONSISTENT_SNAPSHOT)) throw new RuntimeException('ROSTER_READ_TRANSACTION_UNAVAILABLE', $this->db->errno);
 
+            $this->stage = 'device_auth';
             $device = (new DispositivoV2())->autenticarCredencial($this->db, $deviceId, $credentialKey, $secret);
             if (empty($device['auth'])) $this->respondError(401, 'DEVICE_UNAUTHORIZED');
 
             $supervisorId = null;
             if (!$deviceGrantMode) {
+                $this->stage = 'supervisor_auth';
                 $human = Portal3JwtAuthHelper::validateToken($this->db, 'Bearer ' . $supervisorToken);
                 if (empty($human['valid'])) $this->respondError(401, 'SUPERVISOR_UNAUTHORIZED');
+                $this->stage = 'acl';
                 $acl = Portal3JwtAuthHelper::authorizeBiometricos($this->db, $human, 'leer');
                 if (empty($acl['success'])) {
                     $status = (int) ($acl['code'] ?? 403);
@@ -56,9 +61,11 @@ final class BiometricRosterV2Controller
                 $supervisorId = (int)$human['user_id'];
             }
             $physicalStationId = (int) ($device['id_estacion'] ?? 0);
+            $this->stage = 'station_mapping';
             $canonicalLocalityId = WorkplacePhysicalStationResolver::resolveCanonicalLocality($this->db, $physicalStationId);
             if ($canonicalLocalityId === null) $this->respondError(404, 'STATION_NOT_FOUND');
             if ($deviceGrantMode) {
+                $this->stage = 'device_biometric_grant';
                 if (!DeviceBiometricGrantV2::authorized($this->db, (int)$device['id_dispositivo'], $physicalStationId, (int)$device['credential_id'])) {
                     $this->respondError(403, 'DEVICE_BIOMETRIC_PERMISSION_DENIED');
                 }
@@ -67,13 +74,20 @@ final class BiometricRosterV2Controller
                 if (!in_array($canonicalLocalityId, $authorizedLocalities, true)) $this->respondError(403, 'STATION_JURISDICTION_MISMATCH');
             }
 
+            $this->stage = 'worker_catalog_read';
             [$stationName, $rows] = $this->readNativeWorkers($physicalStationId, (int) $device['id_dispositivo']);
-            $timestamp = $this->timestampForDevice((string) ($device['device_timezone'] ?? ''));
+            $this->stage = 'timezone_authority';
+            $timezone = (new WorkplaceTimezoneAuthorityService($this->db))->resolve($canonicalLocalityId, gmdate('Y-m-d'));
+            $timestamp = $this->timestampForTimezone($timezone);
+            $this->stage = 'response_projection';
             $response = BiometricRosterV2Projection::project($rows, $physicalStationId, $stationName, $timestamp);
+            $this->stage = 'commit';
             $this->db->commit();
+            $this->stage = 'audit';
             $this->auditSuccessfulRead((int) $device['id_dispositivo'], $physicalStationId, $supervisorId, $response);
             $this->respond(200, $response);
-        } catch (Throwable) {
+        } catch (Throwable $error) {
+            error_log((string) json_encode(self::safeFailureMetadata($this->stage, $error), JSON_UNESCAPED_SLASHES));
             if ($this->db instanceof mysqli) @$this->db->rollback();
             $this->respondError(503, 'ROSTER_UNAVAILABLE');
         } finally {
@@ -84,6 +98,7 @@ final class BiometricRosterV2Controller
     /** @return array{0:string,1:list<array<string,mixed>>} */
     private function readNativeWorkers(int $physicalStationId, int $deviceId): array
     {
+        $this->stage = 'station_name_query';
         $station = $this->db->prepare('SELECT nombre FROM tb_estaciones WHERE id = ? AND estatus = 0 LIMIT 2');
         if (!$station) throw new RuntimeException('STATION_READ_FAILED');
         $station->bind_param('i', $physicalStationId);
@@ -94,6 +109,7 @@ final class BiometricRosterV2Controller
             throw new RuntimeException('STATION_MAPPING_UNRESOLVED');
         }
 
+        $this->stage = 'database_clock';
         $now = $this->db->query('SELECT UTC_TIMESTAMP() AS now_utc');
         $nowRow = $now ? $now->fetch_assoc() : null;
         if ($now) $now->free();
@@ -115,6 +131,7 @@ final class BiometricRosterV2Controller
             . 'LEFT JOIN (SELECT id_personal, CASE WHEN COUNT(*) = 1 THEN MAX(huella) ELSE NULL END AS biometric_template '
             . 'FROM op_rh_personal_acceso GROUP BY id_personal) access_template ON access_template.id_personal = p.id '
             . 'WHERE p.estado = 1 AND p.id_estacion = ? ORDER BY p.nombre_completo, p.id';
+        $this->stage = 'worker_catalog_query';
         $stmt = $this->db->prepare($sql);
         if (!$stmt) throw new RuntimeException('ROSTER_QUERY_UNAVAILABLE');
         $stmt->bind_param('issi', $deviceId, $nowUtc, $nowUtc, $physicalStationId);
@@ -124,7 +141,7 @@ final class BiometricRosterV2Controller
         return [(string) $stationRows[0]['nombre'], $rows];
     }
 
-    private function timestampForDevice(string $timezone): string
+    private function timestampForTimezone(string $timezone): string
     {
         try {
             $zone = new DateTimeZone($timezone);
@@ -132,6 +149,23 @@ final class BiometricRosterV2Controller
         } catch (Throwable) {
             throw new RuntimeException('DEVICE_TIMEZONE_UNAVAILABLE');
         }
+    }
+
+    /** Logs only a bounded stage, exception type, and numeric driver code; never exception text or request data. */
+    private static function safeFailureMetadata(string $stage, Throwable $error): array
+    {
+        $allowedStages = [
+            'connection', 'transaction', 'device_auth', 'supervisor_auth', 'acl', 'station_mapping',
+            'device_biometric_grant', 'station_name_query', 'database_clock', 'worker_catalog_query',
+            'worker_catalog_read', 'timezone_authority', 'response_projection', 'commit', 'audit', 'request',
+        ];
+        $code = $error->getCode();
+        return [
+            'event' => 'CHECADOR_V2_BIOMETRIC_ROSTER_FAILURE',
+            'stage' => in_array($stage, $allowedStages, true) ? $stage : 'unknown',
+            'exception_type' => (new ReflectionClass($error))->getShortName(),
+            'driver_code' => is_int($code) || (is_string($code) && ctype_digit($code)) ? (int)$code : 0,
+        ];
     }
 
     /** Logs request metadata only; never log templates, identity references, JWTs, or device secrets. */

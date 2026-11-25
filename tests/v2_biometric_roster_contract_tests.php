@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../modelo/v2/BiometricRosterV2Projection.php';
+require_once __DIR__ . '/../modelo/v2/BiometricRosterV2Controller.php';
 
 $passed = 0;
 $failed = 0;
@@ -27,6 +28,10 @@ $payload = BiometricRosterV2Projection::project(
     'Synthetic Station',
     '2026-11-24T12:00:00-06:00'
 );
+$emptyPayload = BiometricRosterV2Projection::project([], 7, 'Synthetic Station', '2026-11-24T12:00:00-06:00');
+$assert($emptyPayload['code'] === 200 && $emptyPayload['status'] === 'OK'
+    && $emptyPayload['total_workers'] === 0 && $emptyPayload['workers_with_biometrics'] === 0
+    && $emptyPayload['workers'] === [], 'an empty valid station catalog remains HTTP 200 data');
 $assert($payload['code'] === 200 && $payload['status'] === 'OK', 'success envelope uses expected scalar types');
 $assert($payload['id_estacion'] === 7 && is_int($payload['id_estacion']), 'station id is physical tb_estaciones.id integer');
 $assert($payload['total_workers'] === 2 && $payload['workers_with_biometrics'] === 1, 'counts include workers with and without template');
@@ -47,10 +52,25 @@ $assert($throws(static fn() => BiometricRosterV2Projection::project([$worker('re
 $assert($throws(static fn() => BiometricRosterV2Projection::project([$worker('ref', 1, null)], 0, 'Station', 'timestamp')), 'invalid physical station is rejected');
 
 $controller = file_get_contents(__DIR__ . '/../modelo/v2/BiometricRosterV2Controller.php');
+$grantService = file_get_contents(__DIR__ . '/../modelo/v2/DeviceBiometricGrantV2.php');
 $temporaryAccess = file_get_contents(__DIR__ . '/../modelo/v2/TemporaryAccessV2Service.php');
 $punchEvents = file_get_contents(__DIR__ . '/../modelo/v2/PunchEventV2.php');
 $router = file_get_contents(__DIR__ . '/../index.php');
 $assert(is_string($controller) && str_contains($controller, 'autenticarCredencial') && str_contains($controller, 'validateToken') && str_contains($controller, "authorizeBiometricos(\$this->db, \$human, 'leer')"), 'controller composes Device Auth, JWT, and biometric ACL');
+$assert(is_string($controller) && str_contains($controller, 'WorkplaceTimezoneAuthorityService($this->db)') && !str_contains($controller, 'timestampForDevice'), 'roster timestamp uses canonical workplace timezone authority, not device metadata');
+$assert(is_string($controller) && str_contains($controller, 'safeFailureMetadata($this->stage, $error)')
+    && !str_contains($controller, '$error->getMessage()'), 'failure diagnostics exclude exception text and request data');
+$reflection = new ReflectionMethod(BiometricRosterV2Controller::class, 'safeFailureMetadata');
+$reflection->setAccessible(true);
+$sensitiveException = new RuntimeException('device bearer fingerprint template must never be logged');
+$diagnostic = $reflection->invoke(null, 'worker_catalog_query', $sensitiveException);
+$diagnosticJson = json_encode($diagnostic, JSON_THROW_ON_ERROR);
+$assert(($diagnostic['stage'] ?? null) === 'worker_catalog_query'
+    && ($diagnostic['exception_type'] ?? null) === 'RuntimeException'
+    && !str_contains($diagnosticJson, 'bearer') && !str_contains($diagnosticJson, 'fingerprint') && !str_contains($diagnosticJson, 'template'), 'failure diagnostic reports safe stage/type without exception message');
+$unknownDiagnostic = $reflection->invoke(null, 'sensitive-user-input', $sensitiveException);
+$assert(($unknownDiagnostic['stage'] ?? null) === 'unknown', 'diagnostic stage is bounded to the fixed allowlist');
+$assert(is_string($grantService) && str_contains($grantService, 'DEVICE_BIOMETRIC_GRANT_QUERY_UNAVAILABLE'), 'grant SQL dependency failures are distinguished internally from a missing grant');
 $assert(is_string($controller) && str_contains($controller, 'resolveCanonicalLocality') && str_contains($controller, 'STATION_JURISDICTION_MISMATCH'), 'controller maps physical device station to authorized canonical locality');
 $assert(is_string($controller) && str_contains($controller, 'MISSING_HEADERS') && str_contains($controller, "respondError(401, 'DEVICE_UNAUTHORIZED')") && str_contains($controller, "respondError(401, 'SUPERVISOR_UNAUTHORIZED')"), 'missing or invalid authentication fails closed');
 $assert(is_string($controller) && str_contains($controller, 'FUNCTION_PERMISSION_DENIED') && str_contains($controller, "respondError(403, 'STATION_JURISDICTION_MISMATCH')"), 'ACL denial and out-of-scope station fail closed');
