@@ -172,7 +172,7 @@ final class InitialDeviceIdentityProvisioner
             throw new RuntimeException('TRANSACTION_REQUIRED');
         }
         try {
-            foreach (['op_rh_v2_dispositivos', 'op_rh_personal', 'op_rh_v2_dispositivo_identidad_personal'] as $table) {
+            foreach (['op_rh_v2_dispositivos', 'op_rh_personal', 'op_rh_personal_localidad_version', 'op_rh_v2_dispositivo_identidad_personal'] as $table) {
                 $stmt = $db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
                 $stmt->bind_param('s', $table);
                 $stmt->execute();
@@ -183,14 +183,24 @@ final class InitialDeviceIdentityProvisioner
             $deviceStmt = $db->prepare('SELECT id, id_estacion, estado FROM op_rh_v2_dispositivos WHERE id = ? FOR UPDATE');
             $deviceStmt->bind_param('i', $deviceId); $deviceStmt->execute(); $device = $deviceStmt->get_result()->fetch_assoc(); $deviceStmt->close();
             if (!$device || (int)$device['id_estacion'] !== $stationId || (int)$device['estado'] !== 1) throw new RuntimeException('DEVICE_STATION_NOT_READY');
+            $canonicalLocalityId = WorkplacePhysicalStationResolver::resolveCanonicalLocality($db, $stationId);
+            if ($canonicalLocalityId === null) throw new RuntimeException('STATION_LOCALITY_MAPPING_AMBIGUOUS');
             $workerStmt = $db->prepare('SELECT id FROM op_rh_personal WHERE estado = 1 AND id_estacion = ? ORDER BY id FOR UPDATE');
             $workerStmt->bind_param('i', $stationId); $workerStmt->execute(); $workers = $workerStmt->get_result()->fetch_all(MYSQLI_ASSOC); $workerStmt->close();
             $counts = ['active_workers' => count($workers), 'conservar' => 0, 'primera_identidad' => 0, 'rechazar' => 0, 'insertadas' => 0];
             $history = $db->prepare('SELECT id, id_dispositivo, referencia_externa_personal, valido_desde, valido_hasta, es_activo, (valido_desde <= UTC_TIMESTAMP() AND (valido_hasta IS NULL OR valido_hasta > UTC_TIMESTAMP())) AS vigente FROM op_rh_v2_dispositivo_identidad_personal WHERE id_personal = ? ORDER BY id FOR UPDATE');
+            $membership = $db->prepare('SELECT id,worker_id,workplace_id,valid_from_utc,valid_to_utc,supersedes_id FROM op_rh_personal_localidad_version WHERE worker_id=? AND recorded_at_utc<=UTC_TIMESTAMP(6) ORDER BY id FOR UPDATE');
             $overlap = $db->prepare("SELECT COUNT(*) AS n FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo = ? AND referencia_externa_personal = ? AND id <> ? AND valido_desde < COALESCE(?, '9999-12-31 23:59:59') AND COALESCE(valido_hasta, '9999-12-31 23:59:59') > ?");
             $writer = new PunchEventV2();
             foreach ($workers as $worker) {
                 $workerId = (int)$worker['id'];
+                $membership->bind_param('i', $workerId); $membership->execute();
+                $membershipRows = $membership->get_result()->fetch_all(MYSQLI_ASSOC);
+                $membershipNow = (string)$db->query('SELECT UTC_TIMESTAMP(6) AS t')->fetch_assoc()['t'];
+                if (!self::hasCurrentCanonicalMembership($workerId, $canonicalLocalityId, $membershipNow, $membershipRows)) {
+                    $counts['rechazar']++;
+                    continue;
+                }
                 $history->bind_param('i', $workerId); $history->execute();
                 $rows = $history->get_result()->fetch_all(MYSQLI_ASSOC);
                 $current = array_values(array_filter($rows, static fn($r) => (int)$r['id_dispositivo'] === $deviceId && (int)$r['es_activo'] === 1 && (int)$r['vigente'] === 1));
@@ -218,6 +228,7 @@ final class InitialDeviceIdentityProvisioner
                     $counts['insertadas']++;
                 }
             }
+            $membership->close();
             if ($apply && !$allowPartial && $counts['rechazar'] !== 0) throw new RuntimeException('IDENTITY_CONFLICT');
             if (!$existingTransaction) { if ($apply) $db->commit(); else $db->rollback(); }
             return $counts;

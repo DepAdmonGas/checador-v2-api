@@ -1,0 +1,67 @@
+<?php
+
+declare(strict_types=1);
+require_once __DIR__.'/../modelo/v2/AdminPinV2Policy.php';
+require_once __DIR__.'/../modelo/v2/DeviceOperationRequestV2.php';
+require_once __DIR__.'/../modelo/v2/BiometricAdminV2Policy.php';
+require_once __DIR__.'/../modelo/v2/BiometricAdminV2Controller.php';
+$pass=0;$fail=0;
+$test=static function(bool $ok,string $name)use(&$pass,&$fail):void{echo($ok?'PASS ':'FAIL ').$name."\n";$ok?$pass++:$fail++;};
+$k1=random_bytes(32);$k2=random_bytes(32);
+putenv('CHECADOR_DEVICE_OPERATION_HMAC_KEY_RING='.json_encode(['k1'=>base64_encode($k1),'k2'=>base64_encode($k2)]));
+putenv('CHECADOR_DEVICE_OPERATION_ACTIVE_KEY_ID=k1');
+$bytes=random_bytes(951);$base64=base64_encode($bytes);$rid='123e4567-e89b-42d3-a456-426614174000';
+$rev0=DeviceOperationRequestV2::revision(2,558,0,'');
+$rev1=DeviceOperationRequestV2::revision(2,558,1,$bytes);
+$rev3=DeviceOperationRequestV2::revision(2,558,3,$bytes);
+$test(DeviceOperationRequestV2::revisionMatches($rev0,2,558,0,''),'initial empty access row has an opaque revision');
+$test(DeviceOperationRequestV2::revisionMatches($rev1,2,558,1,$bytes),'revision validates current template bytes and sequence');
+$test($rev1!==$rev3,'revision changes after intermediate writes even when a previous template is restored');
+$test(!DeviceOperationRequestV2::revisionMatches($rev1,2,558,3,$bytes),'stale revision is rejected after template restoration');
+$oldKeyFingerprint=DeviceOperationRequestV2::fingerprint(DeviceOperationRequestV2::key('k1'),['op'=>'CREATE','template'=>$base64]);
+putenv('CHECADOR_DEVICE_OPERATION_ACTIVE_KEY_ID=k2');
+$test(DeviceOperationRequestV2::fingerprint(DeviceOperationRequestV2::key('k1'),['op'=>'CREATE','template'=>$base64])===$oldKeyFingerprint,'retained key verifies durable retry after active-key rotation');
+$test(DeviceOperationRequestV2::fingerprint(DeviceOperationRequestV2::activeKey()['key'],['op'=>'CREATE','template'=>$base64])!==$oldKeyFingerprint,'new active key domain-separates future operation fingerprints');
+$payload=['request_id'=>$rid,'operation'=>'CREATE','expected_revision'=>$rev0,'template_format'=>'ZKTECO_10_BASE64','template_base64'=>$base64];
+$validated=BiometricAdminV2Policy::validatePayload($payload);
+$test($validated['template_bytes']===$bytes,'valid ZKTeco 10 Base64 payload decodes strictly');
+$payloadBad=$payload;$payloadBad['template_base64']='not-base64';
+try{BiometricAdminV2Policy::validatePayload($payloadBad);$badRejected=false;}catch(DomainException){$badRejected=true;}
+$test($badRejected,'malformed biometric payload is rejected');
+$payloadLarge=$payload;$payloadLarge['template_base64']=base64_encode(random_bytes(2049));
+try{BiometricAdminV2Policy::validatePayload($payloadLarge);$largeRejected=false;}catch(DomainException){$largeRejected=true;}
+$test($largeRejected,'decoded template over 2048 bytes is rejected');
+$upper=$payload;$upper['request_id']=strtoupper($rid);
+try{BiometricAdminV2Policy::validatePayload($upper);$upperRejected=false;}catch(InvalidArgumentException){$upperRejected=true;}
+$test($upperRejected,'idempotency UUID must use canonical lowercase UUIDv4');
+$stored=['operation_kind'=>'BIOMETRIC_CREATE','request_fingerprint'=>'abc'];
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','abc')==='REPLAY','identical operation and request fingerprint replay');
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_REPLACE','abc')==='CONFLICT','request id cannot be reused for another operation');
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','different')==='CONFLICT','request id with different payload conflicts');
+$test(BiometricAdminV2Policy::mutationAllowed('CREATE','', 'MATCH'),'initial enrollment requires empty template and current revision');
+$test(!BiometricAdminV2Policy::mutationAllowed('CREATE','previous','MATCH'),'initial enrollment cannot overwrite existing template');
+$test(BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','MATCH'),'replacement requires existing template and current revision');
+$test(!BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','STALE'),'replacement rejects stale revision');
+$controller=file_get_contents(__DIR__.'/../modelo/v2/BiometricAdminV2Controller.php');
+$router=file_get_contents(__DIR__.'/../index.php');
+$test(str_contains($controller,'UPDATE op_rh_personal_acceso SET huella=?')&&!preg_match('/UPDATE\s+op_rh_personal_acceso[^;]*\bpin\s*=/is',$controller),'biometric persistence updates huella only');
+$test(str_contains($controller,'COUNT')===false&&str_contains($controller,'count($accessRows)!==1'),'ambiguous or absent access rows are rejected');
+$test(str_contains($controller,'CHECADOR_BIOMETRIC_ADMIN_ENABLED')&&str_contains($router,'CHECADOR_BIOMETRIC_ADMIN_ENABLED'),'biometric routes remain behind a dedicated default-off gate');
+$test(str_contains($controller,'checador.dispositivos.biometria.administrar')&&str_contains($controller,'X_ADMINISTRATIVE_SESSION'),'existing effective permission and admin session are required');
+$test(str_contains($controller,'last_activity_at_utc=UTC_TIMESTAMP(6)'),'successful biometric mutation refreshes session activity');
+$test(str_contains($controller,'FOREIGN')===false&&str_contains($controller,'op_rh_v2_device_operation_requests'),'durable request and revision history use the shared operation table');
+$test(str_contains($router,'LEGACY_BIOMETRIC_WRITES_DISABLED'),'legacy fingerprint writer is blocked when V2 writer is enabled');
+$test(!str_contains($controller,'getMessage()')&&!str_contains($controller,'template_base64\' =>'),'errors and diagnostics do not expose template/request data');
+$readbackPos=strpos($controller,'BIOMETRIC_READBACK_FAILED');$mutateCallPos=strpos($controller,'$this->mutateBiometric(');$commitPos=$mutateCallPos===false?false:strpos($controller,'$db->commit()',$mutateCallPos);
+$test($readbackPos!==false&&$mutateCallPos!==false&&$commitPos!==false&&$mutateCallPos<$commitPos,'readback failure aborts mutation before its transaction commit');
+$authPos=strpos($controller,'authorizeDeviceAndAdmin($db)');$workerPos=strpos($controller,'resolveWorker($db, $auth, $reference, true)');$replayPos=strpos($controller,'WHERE id_dispositivo=? AND request_id=? FOR UPDATE');
+$test($authPos!==false&&$workerPos!==false&&$replayPos!==false&&$authPos<$workerPos&&$workerPos<$replayPos,'idempotent retries revalidate authorization and worker scope first');
+$ddl=file_get_contents(__DIR__.'/../docs/v2/CHECADOR_V2_DEVICE_OPERATION_REQUESTS_DDL_PROPOSAL.sql');
+$oldDdl=file_get_contents(__DIR__.'/../docs/v2/CHECADOR_V2_DEVICE_IDENTITY_SYNC_DDL_PROPOSAL.sql');
+$test(substr_count($ddl,'CREATE TABLE')===1&&!str_contains($oldDdl,'CREATE TABLE'),'only the single shared operation table is proposed');
+putenv('CHECADOR_ADMIN_PIN_ENABLED=0');putenv('CHECADOR_BIOMETRIC_ADMIN_ENABLED=0');
+$test(!BiometricAdminV2Controller::enabled(),'administrative biometrics is disabled by default');
+putenv('CHECADOR_ADMIN_PIN_ENABLED=1');putenv('CHECADOR_BIOMETRIC_ADMIN_ENABLED=0');
+$test(!BiometricAdminV2Controller::enabled(),'biometric gate alone cannot bypass the administrative session gate');
+$test(str_contains($router,"\$partes_ruta[5] === 'admin-workers'")&&str_contains($router,"\$partes_ruta[6] === 'synchronize'"),'worker and identity synchronization routes are registered');
+echo "RESULT: {$pass} PASS / {$fail} FAIL\n";exit($fail?1:0);

@@ -1,4 +1,6 @@
-# Checador V2 — administración biométrica V1.0
+# Checador V2 — administración biométrica V1.0 (supersedida)
+
+**Aviso:** esta propuesta quedó supersedida por el contrato coordinado V1.1 en `CHECADOR_V2_BIOMETRIC_ADMIN_CONTRACT_V1.1.md`. No aplicar sus rutas, permisos ni decisiones de persistencia de forma independiente.
 
 **Estado: propuesta coordinada; escrituras y rutas nuevas pendientes de aprobación.** Concilia el contrato administrativo aprobado, la propuesta de alta/PIN/biometría de Portal3 y el roster V1.2. No modifica Architecture Freeze ni habilita operaciones. El contrato administrativo aprobado no especifica inscripción, formato ni persistencia de huellas.
 

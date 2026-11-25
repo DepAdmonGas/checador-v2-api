@@ -174,6 +174,16 @@ if ($is_valid_route) {
             exit;
         }
 
+        // While V2 biometric writes are enabled, the legacy writer must not bypass
+        // V2 revision checks and the shared device-operation transaction.
+        if ($partes_ruta[1] === 'editar-huella' && getenv('CHECADOR_BIOMETRIC_ADMIN_ENABLED') === '1') {
+            http_response_code(503);
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store, no-cache, must-revalidate, private');
+            echo json_encode(['code'=>503,'status'=>'LEGACY_BIOMETRIC_WRITES_DISABLED'], JSON_UNESCAPED_SLASHES);
+            exit;
+        }
+
         if ($partes_ruta[1] == "acceso-empresa") {
             if ($server_method == 'POST') {
                 $rawBody = file_get_contents('php://input');
@@ -505,6 +515,15 @@ if ($is_valid_route) {
         }
         include_once "modelo/v2/AdminPinV2Controller.php";
         (new AdminPinV2Controller())->handle($adminPath, $server_method);
+        exit;
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] === 'devices'
+        && count($partes_ruta) >= 6 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'admin-workers') {
+        if (getenv('CHECADOR_ADMIN_PIN_ENABLED') !== '1' || getenv('CHECADOR_BIOMETRIC_ADMIN_ENABLED') !== '1') {
+            http_response_code(503); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store');
+            echo json_encode(['code'=>503,'status'=>'BIOMETRIC_ADMIN_UNAVAILABLE']); exit;
+        }
+        include_once 'modelo/v2/BiometricAdminV2Controller.php';
+        (new BiometricAdminV2Controller())->handle(array_slice($partes_ruta,6),$server_method);
         exit;
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'devices') {
         include_once "modelo/v2/Level2ServerController.php";
