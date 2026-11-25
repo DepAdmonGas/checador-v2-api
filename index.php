@@ -496,6 +496,16 @@ if ($is_valid_route) {
         } else {
             include_once $ruta_elegida;
         }
+    } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'devices'
+        && count($partes_ruta) >= 6 && $partes_ruta[4] === 'station' && $partes_ruta[5] === 'admin-sessions') {
+        $adminPath = array_slice($partes_ruta, 6);
+        if (getenv('CHECADOR_ADMIN_PIN_ENABLED') !== '1') {
+            http_response_code(503); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store');
+            echo json_encode(['code'=>503,'status'=>'ADMIN_UNAVAILABLE']); exit;
+        }
+        include_once "modelo/v2/AdminPinV2Controller.php";
+        (new AdminPinV2Controller())->handle($adminPath, $server_method);
+        exit;
     } else if ($partes_ruta[1] == 'api' && $partes_ruta[2] == 'v2' && $partes_ruta[3] == 'devices') {
         include_once "modelo/v2/Level2ServerController.php";
         $l2Ctrl = new Level2ServerController();

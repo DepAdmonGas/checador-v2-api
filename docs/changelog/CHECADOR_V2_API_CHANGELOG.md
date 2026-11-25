@@ -1038,3 +1038,7 @@
 ## 2026-11-25 — Administrative session revocation on credential rotation
 - **Scope:** Credential rotation revokes outstanding administrative PINs and sessions in the existing rotation transaction, even while the administrative gate is off. A complete absent optional schema is tolerated only while the gate is off; partial schema and persistence failures fail closed.
 - **Validation:** Controlled rotation behavior 8/8 PASS, including both gate states, subsequent activation, missing or partial schema, and propagated persistence failure; PHP lint and staged diff check PASS. Real MariaDB transaction validation remains pending before activation.
+
+## 2026-11-25 — Administrative PIN API lifecycle
+- **Scope:** Added default-off administrative session redemption, validation and idempotent close, requiring Device Auth, credential-bound biometric grant, current institutional authorization and specific PIN permission; IP and device limits remain independent.
+- **Tests:** Controlled controller lifecycle 10/10, rotation 8/8, IP limiter 10/10, controller boundary 5/5 and policy/runtime checks 24/24 PASS; PHP lint and diff check PASS. Test doubles do not establish MariaDB transaction behavior. Existing-schema MariaDB runner requires explicit disposable-write opt-in; it was not run. Runtime validation remains mandatory before activation.

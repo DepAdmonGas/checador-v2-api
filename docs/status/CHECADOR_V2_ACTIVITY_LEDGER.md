@@ -1213,3 +1213,7 @@
 - **CHANGE:** Token issuance never creates a grant; API redemption rotates credential and binds the single active biometric grant to that credential atomically. Portal3 separates token, biometric and full-device revocation; full revocation disables active credentials.
 - **VALIDATION:** API synthetic rate-limit 16/16, roster contract 24/24, SEC-L03 42/42; Portal3 SQLite 12/12. MariaDB cross-project suite prepared but not executed. Existing V8M run 55/57, with two M04 failures on inputs identical to Portal3 origin/work.
 - **GATES:** Device link schema proposal unverified on effective preproduction; dedicated operator permissions, rate-limit storage/proxy configuration, Windows UUID/client compatibility and rollout require verification. No preproduction write, DDL or deployment performed.
+
+### 2026-11-25 — Administrative PIN API lifecycle
+- **STATUS:** IMPLEMENTED; gate defaults off; real MariaDB and runtime validation pending before activation.
+- **VALIDATION:** Controlled controller lifecycle 10/10, rotation 8/8, IP limiter 10/10, boundary 5/5 and policy/runtime checks 24/24 PASS. No operational database writes or deployment.
