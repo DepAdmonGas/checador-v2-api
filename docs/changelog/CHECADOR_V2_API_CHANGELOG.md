@@ -1030,3 +1030,7 @@
 - **Scope:** Documented owner-approved administrative PIN rules and added a private, flock-serialized IP failure limiter with fail-closed storage. No route or gate activation.
 - **Files:** Administrative PIN contract, `AdminPinIpRateLimit.php`, behavioral test and read-only schema inventory. Existing local controller and ACL changes remain excluded.
 - **Validation:** IP limiter behavior 10/10 PASS including 70 concurrent processes, cross-process persistence, window expiration, corrupted storage and interruption; PHP lint and staged diff check PASS. No database connection, DDL or deployment.
+
+## 2026-11-25 — Prepared inherited authorization proposal
+- **Scope:** Added a proposed ACL addendum and an unconnected resolver and policy. Existing Temporary Access routes retain the approved SEC-L03 authorization. Administrative DDL is historical; the owner reports the three tables already exist in Fedora and Plesk.
+- **Validation:** Prepared policy 13/13 and resolver 10/10 PASS; PHP lint and staged whitespace check PASS. No database changes, gate activation or deployment.

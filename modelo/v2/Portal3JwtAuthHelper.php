@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/TemporaryAccessInheritedPolicy.php';
+
 class Portal3JwtDependencyException extends RuntimeException {}
 
 class Portal3JwtAuthHelper {
@@ -222,6 +224,48 @@ class Portal3JwtAuthHelper {
             return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'No fue posible resolver permisos o alcance de estación.');
         } catch (Throwable $exception) {
             return self::failure(500, 'INTERNAL_ERROR', 'Error interno al resolver autorización.');
+        }
+    }
+
+    /** Prepared inherited policy. Deliberately not connected to supervisor endpoints. */
+    public static function authorizeTemporaryAccessInheritedPrepared($conexion, array $user, string $requiredPermission): array {
+        try {
+            $userId = (int)($user['user_id'] ?? 0);
+            $users = self::selectRows($conexion, 'SELECT id, id_puesto, id_gas FROM tb_usuarios WHERE id=? AND estatus=0', 'i', [$userId]);
+            if (count($users) !== 1) return self::failure(401, 'UNAUTHORIZED', 'Usuario no disponible.');
+            $fresh = $users[0]; $position = (int)$fresh['id_puesto'];
+            $action = $requiredPermission === 'leer' ? 'leer' : (in_array($requiredPermission, ['crear','editar','eliminar'], true) ? 'editar' : 'invalid');
+            $parents = self::selectRows($conexion, 'SELECT id FROM modulos_dpto_operativo WHERE clave=? AND activo=1', 's', ['recursos-humanos']);
+            if (count($parents) !== 1) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso institucional no disponible.');
+            $parentId = (int)$parents[0]['id'];
+            $individual = self::selectRows($conexion, 'SELECT u.id FROM modulos_usuarios_do u INNER JOIN modulos_dpto_operativo m ON m.id=u.id_modulo WHERE u.id_usuario=? AND m.activo=1 LIMIT 1', 'i', [$userId]);
+            $parent = $individual
+                ? self::selectRows($conexion, 'SELECT leer, editar FROM modulos_usuarios_do WHERE id_modulo=? AND id_usuario=?', 'ii', [$parentId,$userId])
+                : self::selectRows($conexion, 'SELECT leer, editar FROM modulos_puestos_do WHERE id_modulo=? AND id_puesto=?', 'ii', [$parentId,$position]);
+            $subs = self::selectRows($conexion, 'SELECT id FROM modulos_sub_dpto_operativo WHERE id_modulo=? AND clave=? AND activo=1', 'is', [$parentId,'checador']);
+            if (count($parent) !== 1 || count($subs) !== 1) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso institucional no disponible.');
+            $subId=(int)$subs[0]['id'];
+            $subGrant = $individual
+                ? self::selectRows($conexion, 'SELECT id FROM modulos_sub_usuarios_do WHERE id_sub_modulo=? AND id_usuario=?', 'ii', [$subId,$userId])
+                : self::selectRows($conexion, 'SELECT id FROM modulos_sub_puestos_do WHERE id_sub_modulo=? AND id_puesto=?', 'ii', [$subId,$position]);
+            $modules = self::selectRows($conexion, 'SELECT id, activo FROM modulos_dpto_operativo WHERE clave=?', 's', ['acceso-temporal']);
+            if (count($modules)>1) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso no disponible.');
+            $specific = $modules ? self::selectRows($conexion, 'SELECT leer, editar FROM modulos_usuarios_do WHERE id_modulo=? AND id_usuario=?', 'ii', [(int)$modules[0]['id'],$userId]) : [];
+            if (!TemporaryAccessInheritedPolicy::allows($position,$action,true,true,count($subGrant)===1,$parent[0],$specific)) return self::failure(403, 'FUNCTION_PERMISSION_DENIED', 'Permiso no disponible.');
+            $configs = self::selectRows($conexion, 'SELECT tipo, tipo_departamento, allow_all, estaciones_soportadas FROM tb_modulos_config WHERE modulo_key=? AND activo=1', 's', ['checador']);
+            if (count($configs)!==1 || (int)$configs[0]['allow_all']!==0 || !in_array([$configs[0]['tipo'],$configs[0]['tipo_departamento']], [['stations_and_departments','localidades'],['stations_only','puestos']], true)) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance no disponible.');
+            $list = json_decode((string)$configs[0]['estaciones_soportadas'], true);
+            if (!is_array($list) || !$list) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance no disponible.');
+            foreach ($list as $value) if (!(is_int($value) || (is_string($value) && ctype_digit($value))) || (int)$value<1) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance no disponible.');
+            $physical=[]; $scopeUser=['user_id'=>$userId,'id_puesto'=>$position,'id_gas'=>(int)($fresh['id_gas'] ?? 0)];
+            $localities=self::resolveStationScope($conexion,$scopeUser,array_values(array_unique(array_map('intval',$list))),['tipo'=>'stations_only','tipo_departamento'=>'puestos'],$physical);
+            if (!$localities || !$physical) return self::failure(403, 'STATION_SCOPE_DENIED', 'Alcance no disponible.');
+            return ['success'=>true,'code'=>200,'status'=>'AUTHORIZED','authorized_stations'=>$localities,'authorized_physical_station_ids'=>$physical];
+        } catch (Portal3JwtDependencyException|mysqli_sql_exception $e) {
+            self::logAuthDependencyFailure('temporary_access.inherited_prepared', $e);
+            return self::failure(503, 'AUTH_DEPENDENCY_UNAVAILABLE', 'Autorización no disponible.');
+        } catch (Throwable $e) {
+            return self::failure(500, 'INTERNAL_ERROR', 'Autorización no disponible.');
         }
     }
 
