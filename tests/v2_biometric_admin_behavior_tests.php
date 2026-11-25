@@ -35,9 +35,11 @@ $upper=$payload;$upper['request_id']=strtoupper($rid);
 try{BiometricAdminV2Policy::validatePayload($upper);$upperRejected=false;}catch(InvalidArgumentException){$upperRejected=true;}
 $test($upperRejected,'idempotency UUID must use canonical lowercase UUIDv4');
 $stored=['operation_kind'=>'BIOMETRIC_CREATE','request_fingerprint'=>'abc'];
-$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','abc')==='REPLAY','identical operation and request fingerprint replay');
-$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_REPLACE','abc')==='CONFLICT','request id cannot be reused for another operation');
-$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','different')==='CONFLICT','request id with different payload conflicts');
+$stored['actor_user_id']=77;
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','abc',77)==='REPLAY','identical operation, fingerprint and original actor replay');
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','abc',78)==='CONFLICT','idempotent retry from another actor conflicts');
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_REPLACE','abc',77)==='CONFLICT','request id cannot be reused for another operation');
+$test(BiometricAdminV2Policy::replayDecision($stored,'BIOMETRIC_CREATE','different',77)==='CONFLICT','request id with different payload conflicts');
 $test(BiometricAdminV2Policy::mutationAllowed('CREATE','', 'MATCH'),'initial enrollment requires empty template and current revision');
 $test(!BiometricAdminV2Policy::mutationAllowed('CREATE','previous','MATCH'),'initial enrollment cannot overwrite existing template');
 $test(BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','MATCH'),'replacement requires existing template and current revision');
@@ -45,6 +47,7 @@ $test(!BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','STALE'),'re
 $controller=file_get_contents(__DIR__.'/../modelo/v2/BiometricAdminV2Controller.php');
 $router=file_get_contents(__DIR__.'/../index.php');
 $test(str_contains($controller,'UPDATE op_rh_personal_acceso SET huella=?')&&!preg_match('/UPDATE\s+op_rh_personal_acceso[^;]*\bpin\s*=/is',$controller),'biometric persistence updates huella only');
+$test(str_contains($controller,"'actor_user_id'=>\$auth")&&str_contains($controller,'actor_user_id,response_status,response_json'),'idempotent replay binds the original persisted actor');
 $test(str_contains($controller,'COUNT')===false&&str_contains($controller,'count($accessRows)!==1'),'ambiguous or absent access rows are rejected');
 $test(str_contains($controller,'CHECADOR_BIOMETRIC_ADMIN_ENABLED')&&str_contains($router,'CHECADOR_BIOMETRIC_ADMIN_ENABLED'),'biometric routes remain behind a dedicated default-off gate');
 $test(str_contains($controller,'checador.dispositivos.biometria.administrar')&&str_contains($controller,'X_ADMINISTRATIVE_SESSION'),'existing effective permission and admin session are required');

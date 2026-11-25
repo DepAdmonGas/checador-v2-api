@@ -240,12 +240,13 @@ final class BiometricAdminV2Controller
         $sequence=$this->latestBiometricSequence($db,(int)$worker['id']);
         $canonical=['operation_kind'=>'BIOMETRIC_'.$request['operation'],'device_id'=>$auth['device_id'],'station_id'=>$auth['station_id'],
             'credential_id'=>$auth['credential_id'],'worker_reference'=>$worker['reference'],'request_id'=>$request['request_id'],
+            'actor_user_id'=>$auth['actor_user_id'],
             'expected_revision'=>$request['expected_revision'],'template_format'=>BiometricAdminV2Policy::TEMPLATE_FORMAT,'template_bytes_base64'=>$request['template_base64']];
         $fingerprint=DeviceOperationRequestV2::fingerprint($activeKey['key'],$canonical);
-        $prior=$this->one($db,'SELECT operation_kind,fingerprint_key_id,request_fingerprint,response_status,response_json FROM op_rh_v2_device_operation_requests WHERE id_dispositivo=? AND request_id=? FOR UPDATE','is',[$auth['device_id'],$request['request_id']]);
+        $prior=$this->one($db,'SELECT operation_kind,fingerprint_key_id,request_fingerprint,actor_user_id,response_status,response_json FROM op_rh_v2_device_operation_requests WHERE id_dispositivo=? AND request_id=? FOR UPDATE','is',[$auth['device_id'],$request['request_id']]);
         if($prior) {
             $oldFingerprint=DeviceOperationRequestV2::fingerprint(DeviceOperationRequestV2::key((string)$prior['fingerprint_key_id']),$canonical);
-            $decision=BiometricAdminV2Policy::replayDecision($prior,(string)$canonical['operation_kind'],$oldFingerprint);
+            $decision=BiometricAdminV2Policy::replayDecision($prior,(string)$canonical['operation_kind'],$oldFingerprint,(int)$auth['actor_user_id']);
             if($decision!=='REPLAY') throw new BiometricAdminV2HttpException(409,'IDEMPOTENCY_CONFLICT');
             $response=json_decode((string)$prior['response_json'],true,512,JSON_THROW_ON_ERROR);
             if(!is_array($response)) throw new RuntimeException('INVALID_RECORDED_RESPONSE');

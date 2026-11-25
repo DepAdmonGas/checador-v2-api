@@ -1217,3 +1217,37 @@
 ### 2026-11-25 — Administrative PIN API lifecycle
 - **STATUS:** IMPLEMENTED; gate defaults off; real MariaDB and runtime validation pending before activation.
 - **VALIDATION:** Controlled controller lifecycle 10/10, rotation 8/8, IP limiter 10/10, boundary 5/5 and policy/runtime checks 24/24 PASS. No operational database writes or deployment.
+
+### Entry 074
+- **DATE:** 2026-11-25
+- **ACTIVITY_ID:** `CHECADOR_V2_DEVICE_IDENTITY_SYNCHRONIZATION_PHASE_1`
+- **STATUS:** `IMPLEMENTED_LOCALLY; ROUTE_DEFAULT_OFF; DDL_PROPOSED; MARIADB_TESTS_PENDING`
+- **SCOPE:** Device-authenticated synchronization of active native station workers including those without fingerprints, with credential-bound grant, preserved history, partial conflict counts, readback and durable device/request idempotency.
+- **VALIDATION:** Synthetic policy 12/12, existing roster contract 24/24, PHP lint and diff check PASS. Isolated MariaDB/HTTP/concurrency/roster integration prepared, not executed. No operational database writes or deployment.
+
+### Entry 075
+- **DATE:** 2026-11-25
+- **ACTIVITY_ID:** `CHECADOR_PIN_TEMPORAL_ACL_RECONCILIATION`
+- **STATUS:** `ADDENDUM_PENDING_APPROVAL; PREPARED_RESOLVERS_NOT_WIRED; LOCAL_POST_GATE_DEFAULT_OFF`
+- **SCOPE:** Proposed inherited institutional ACL for roles 6/13 and canonical Checador station scope; explicit individual deny preserved. SEC-L03 remains active until approved coordinated rollout. Existing API controller now forwards authorized physical station IDs.
+- **VALIDATION:** Synthetic policy 13/13, prepared API resolver 10/10, SEC-L03 43/43; Portal3 SQLite access 76/76, PIN adapter 13/13, independent POST gate 10/10. Cross-project MariaDB, transactional request-actor validation, full PIN runtime and URL E2E remain pending.
+- **PROTECTION:** No grants or station lists changed; no new table, preproduction write, deployment, Lector or frozen-contract modification.
+
+### 2026-11-25 — Admin PIN controlled verification
+- Prepared existing-schema MariaDB runner without DDL; disposable database identity and explicit write opt-in are mandatory. It does not run against operational databases and leaves its disposable fixtures for operator review.
+- Controller input behavior 5/5 and IP limiter 10/10 PASS; MariaDB transactions, full session lifecycle and credential rotation remain unverified. Administrative gate remains off.
+
+### Entry 076
+- **DATE:** 2026-11-25
+- **ACTIVITY_ID:** `CHECADOR_V2_BIOMETRIC_ADMINISTRATION_AND_IDENTITY_SYNC_V1_1`
+- **STATUS:** `IMPLEMENTED_LOCALLY; GATES_DEFAULT_OFF; DDL_PROPOSAL_ONLY; MARIADB_AND_SDK_VALIDATION_PENDING`
+- **SCOPE:** Admin-worker list/status and create/replace require Device Auth, current grant/credential, admin session, existing `checador.dispositivos.biometria.administrar` permission and current station scope. Persistence updates only the existing unique `op_rh_personal_acceso.huella`; sequence revision detects intervening mutations including restored templates. Synchronization shares durable operation table, includes canonical current membership, and does not require human session.
+- **DDL:** Single proposed `op_rh_v2_device_operation_requests`; supersedes the sync-only table proposal. No DDL run. API route gates remain default-off; legacy `editar-huella` is blocked only while the V2 write gate is on.
+- **VALIDATION:** Biometric behavior/source 33/33, sync policy 12/12, worker lifecycle 7/7, roster contract 30/30, Admin PIN runtime 12/12, provisioning guard 20/20 PASS. PHP lint and whitespace checks PASS. MariaDB transaction and physical SDK validation remain pending. No MariaDB write, Portal3/Windows edit, Plesk change or deployment.
+
+### Entry 077
+- **DATE:** 2026-11-25
+- **ACTIVITY_ID:** `CHECADOR_V2_BIOMETRIC_IDEMPOTENT_ACTOR_BINDING`
+- **STATUS:** `IMPLEMENTED; GATES_DEFAULT_OFF; MARIADB_RUNTIME_VALIDATION_PENDING`
+- **SCOPE:** The actor user ID is included in the biometric request HMAC fingerprint and checked against the persisted actor before a response is replayed. A different administrative actor cannot replay the original operation's response.
+- **VALIDATION:** Biometric suite 33/33 including same-actor replay success and different-actor conflict; focused regressions 81/81 PASS (114 total checks). No database writes, DDL, Portal3/Windows changes, Plesk modification or deployment.

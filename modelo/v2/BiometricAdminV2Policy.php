@@ -48,11 +48,13 @@ final class BiometricAdminV2Policy
         return $bytes;
     }
 
-    public static function replayDecision(array $stored, string $operation, string $fingerprint): string
+    public static function replayDecision(array $stored, string $operation, string $fingerprint, int $actorUserId): string
     {
         if (($stored['operation_kind'] ?? null) !== $operation
             || !is_string($stored['request_fingerprint'] ?? null)
-            || !hash_equals($stored['request_fingerprint'], $fingerprint)) return 'CONFLICT';
+            || !hash_equals($stored['request_fingerprint'], $fingerprint)
+            || !is_numeric($stored['actor_user_id'] ?? null)
+            || (int)$stored['actor_user_id'] !== $actorUserId) return 'CONFLICT';
         return 'REPLAY';
     }
 
