@@ -1025,3 +1025,8 @@
 - **Transactional checks:** Revalidate the active device credential, physical station and unique canonical locality mapping, active worker's current physical-station assignment, and exactly one active identity for that device/reference before create or validation. Use existing tables only; no Shift Scheduling membership table dependency.
 - **Coverage:** Added regression cases for cross-context lost ACK, changed PIN, later PIN after USED, retained history, revoked device/identity, and station/worker assignment scope. Preserve the existing SEC-L03 ACL and Device Auth boundaries.
 - **Validation:** Scope guard 15/15, SEC-L03 regression 43/43, Admin PIN non-destructive policy/runtime contract checks 24/24, PHP lint and `git diff --check` PASS. MariaDB runner was not executed because it drops/recreates fixtures; no database, DDL, Plesk, or runtime endpoint was accessed.
+
+## 2026-11-25 — Administrative PIN contract and IP limit
+- **Scope:** Documented owner-approved administrative PIN rules and added a private, flock-serialized IP failure limiter with fail-closed storage. No route or gate activation.
+- **Files:** Administrative PIN contract, `AdminPinIpRateLimit.php`, behavioral test and read-only schema inventory. Existing local controller and ACL changes remain excluded.
+- **Validation:** IP limiter behavior 10/10 PASS including 70 concurrent processes, cross-process persistence, window expiration, corrupted storage and interruption; PHP lint and staged diff check PASS. No database connection, DDL or deployment.
