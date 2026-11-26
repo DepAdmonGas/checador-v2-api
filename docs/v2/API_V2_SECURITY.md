@@ -46,10 +46,10 @@
 ### 3.2 SEC-L03 — Functional Supervisor Permission
 - **Estado:** `IMPLEMENTED_PENDING_REAUDIT` (G8-B0.3). No se declara cerrado hasta completar G8-B0.4.
 - **Identidad:** JWT `sub` se resuelve únicamente como `tb_usuarios.id`; issuer obligatorio `portal3_auth`; usuario activo `estatus = 0`.
-- **Permiso:** módulo activo `acceso-temporal`; GET exige `leer`; authorize/reject/cancel exigen `editar`. ACL fresca por petición y precedencia global usuario sobre puesto, sin merge.
-- **Estación:** alcance server-side desde el modelo oficial de usuario/multiestación; mapeo por `numlista` hacia `op_rh_localidades.id`; sin fallback de identidad numérica.
-- **Fail-closed:** permiso/scope ausente o inválido devuelve 403; errores de dependencia ACL/scope devuelven 503. Device Auth permanece independiente.
-- **Configuración:** este cambio no crea filas de módulo, configuración de estación ni grants reales.
+- **Permiso vigente:** addendum aprobado `CHECADOR_PIN_TEMPORAL_ACL_ADDENDUM_V1.1.md`, que sustituye únicamente §§3–4 de `TEMPORARY_ACCESS_SECURITY_ADDENDUM_V1.0`. Se exige permiso efectivo de Recursos Humanos y submódulo Checador; puesto 6 puede escribir con permiso efectivo de edición y puesto 13 sólo consulta. Una denegación individual explícita de `acceso-temporal` sigue prevaleciendo. No se requieren grants positivos ni configuración independiente de acceso-temporal.
+- **Estación:** alcance fresco desde el resolvedor institucional de Checador; mapeo unívoco por `numlista` hacia `op_rh_localidades.id`; sin fallback de identidad numérica ni `allow_all`.
+- **Fail-closed:** permiso/scope ausente, inválido o ambiguo devuelve 403; errores de dependencia ACL/scope devuelven 503. Device Auth permanece independiente.
+- **Configuración:** no se crean ni modifican filas de permiso, módulo o configuración de estación. La puerta de escritura de Portal3 permanece separada y no se activa con este cambio.
 
 ---
 

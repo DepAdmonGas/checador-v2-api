@@ -315,7 +315,7 @@ class TemporaryAccessV2Controller {
             return array('success' => false, 'code' => $tokenVal['code'] ?? 401, 'status' => $tokenVal['status'] ?? 'UNAUTHORIZED', 'message' => $tokenVal['message'] ?? $tokenVal['error'] ?? 'Autenticación inválida.');
         }
 
-        $authorization = Portal3JwtAuthHelper::authorizeTemporaryAccess($conexion, $tokenVal, $requiredPermission);
+        $authorization = Portal3JwtAuthHelper::authorizeTemporaryAccessInheritedPrepared($conexion, $tokenVal, $requiredPermission);
         if (empty($authorization['success'])) {
             $classBD->desconectarBD($conexion);
             return $authorization;

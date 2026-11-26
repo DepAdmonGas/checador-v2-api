@@ -227,7 +227,7 @@ class Portal3JwtAuthHelper {
         }
     }
 
-    /** Prepared inherited policy. Deliberately not connected to supervisor endpoints. */
+    /** Approved inherited Checador authorization used by Temporary Access supervisor endpoints. */
     public static function authorizeTemporaryAccessInheritedPrepared($conexion, array $user, string $requiredPermission): array {
         try {
             $userId = (int)($user['user_id'] ?? 0);

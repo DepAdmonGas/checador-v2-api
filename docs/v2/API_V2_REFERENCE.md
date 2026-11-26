@@ -22,8 +22,8 @@
 ### Autorización de operaciones de supervisor (SEC-L03 & V2.3)
 
 - `GET /api/v2/punch-events`: JWT Portal3 válido, usuario activo y grant fresco `biometricos.leer = 1`, además de alcance de estación server-side.
-- `GET /api/v2/temporary-access/requests`: JWT Portal3 válido, usuario activo y grant fresco `acceso-temporal.leer = 1`, además de alcance de estación server-side.
-- `POST .../{uuid}/authorize`, `POST .../{uuid}/reject` y `POST .../{uuid}/cancel`: JWT Portal3 válido, usuario activo y grant fresco `acceso-temporal.editar = 1`, además de alcance de estación server-side.
+- `GET /api/v2/temporary-access/requests`: JWT Portal3 válido, usuario activo, permiso efectivo de lectura del módulo Recursos Humanos y submódulo Checador, más alcance de estación Checador server-side. Una denegación individual explícita de `acceso-temporal` prevalece.
+- `POST .../{uuid}/authorize`, `POST .../{uuid}/reject` y `POST .../{uuid}/cancel`: JWT Portal3 válido, usuario activo y permiso efectivo de edición del Checador; sólo puesto 6 puede operar. Puesto 13 conserva lectura exclusiva. Se revalida alcance server-side y cualquier denegación individual explícita. Véase `CHECADOR_PIN_TEMPORAL_ACL_ADDENDUM_V1.1.md`.
 - Respuestas de autorización: `401` para JWT/usuario inválido, `403` para falta de permiso o alcance, `503` si una dependencia de identidad/ACL/estación no está disponible.
 - Los endpoints Lector `POST /requests` y `POST /validate` conservan Device Auth y no usan este ACL humano.
 - No cambian paths ni payloads del contrato base V1.0. SEC-L03 permanece `IMPLEMENTED_PENDING_REAUDIT`.
