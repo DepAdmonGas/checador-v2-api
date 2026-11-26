@@ -1069,3 +1069,7 @@
 - API administrative PIN and biometric session checks use current Checador institutional edit permission, active Encargado station scope, and explicit individual denials; positive dedicated grants are not required. Device authentication, biometric device grant and session checks remain required.
 - Portal3 commit dc1377e was compared using the actual authorization methods against the local database inside READ ONLY transactions: 37/37 matching decisions, including 32 authorized. Out-of-station and position-13 attempts were denied. No individual dedicated grant rows existed locally, so real denial-row behavior was not exercised.
 - Biometric tests 33/33, PIN lifecycle 10/10, PIN runtime 12/12 and IP limiter 10/10 PASS; PHP lint and diff checks PASS. No database writes or deployment.
+
+## 2026-11-25 — Administrative PIN fifteen-minute lifetime
+- PIN issuance is coordinated with Portal3 at 900 seconds; API continues accepting unexpired five-minute authorizations during transition. Single use and five-minute session lifetime remain unchanged.
+- Policy 13/13, controller lifecycle 10/10, IP limiter 10/10 and runtime checks 12/12 PASS; PHP lint and diff checks PASS. Actual rejecting runtime and PHP-FPM shared secret were not accessible; no operational database write or deployment.

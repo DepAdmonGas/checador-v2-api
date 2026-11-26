@@ -6,7 +6,7 @@
 
 Portal3 emite y revoca mediante SQL, con sesión institucional y CSRF. El emisor debe estar activo, ser Encargado (puesto 6), disponer de permisos institucionales efectivos y jurisdicción de estación, con permiso institucional de edición del Checador, sin exigir grants positivos adicionales para `checador.admin_pin.emitir` o `checador.admin_pin.revocar`. Las denegaciones individuales prevalecen. Dirección consulta sin emitir ni revocar. La API revalida independientemente usuario, permisos y jurisdicción; requiere dispositivo activo, credencial vigente y grant biométrico vigente durante el canje y toda la sesión. No se conceden permisos automáticamente.
 
-El PIN es aleatorio, de seis dígitos, válido cinco minutos UTC y de un solo uso. Se muestra una sola vez y solo se almacena un verificador resistente a fuerza bruta protegido por secreto compartido privado. No se almacenan ni registran PIN, credenciales o secretos en claro. La reemisión no reinicia límites. Existe como máximo un PIN pendiente por dispositivo.
+El PIN es aleatorio, de seis dígitos, válido quince minutos UTC y de un solo uso. Durante la transición se acepta hasta su vencimiento original un PIN emitido con vigencia de cinco minutos. Se muestra una sola vez y solo se almacena un verificador resistente a fuerza bruta protegido por secreto compartido privado. No se almacenan ni registran PIN, credenciales o secretos en claro. La reemisión no reinicia límites. Existe como máximo un PIN pendiente por dispositivo.
 
 ## Límites y sesión
 

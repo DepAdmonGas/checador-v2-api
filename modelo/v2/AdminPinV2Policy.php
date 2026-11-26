@@ -5,7 +5,7 @@ declare(strict_types=1);
 /** Pure rules for the administrative configuration PIN; not connected to attendance PINs. */
 final class AdminPinV2Policy
 {
-    public const PIN_TTL_SECONDS = 300;
+    public const PIN_TTL_SECONDS = 900;
     public const SESSION_TTL_SECONDS = 300;
     public const SESSION_IDLE_SECONDS = 120;
     public const LIMIT_WINDOW_SECONDS = 900;
@@ -55,7 +55,7 @@ final class AdminPinV2Policy
 
     public static function pinValidAt(int $issued, int $expires, int $now): bool
     {
-        return $expires === $issued + self::PIN_TTL_SECONDS && $now >= $issued && $now < $expires;
+        return in_array($expires - $issued, [300, self::PIN_TTL_SECONDS], true) && $now >= $issued && $now < $expires;
     }
 
     public static function sessionValidAt(int $created, int $lastActivity, int $expires, int $now): bool
