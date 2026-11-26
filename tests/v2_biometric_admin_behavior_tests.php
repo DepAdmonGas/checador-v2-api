@@ -46,6 +46,7 @@ $test(BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','MATCH'),'rep
 $test(!BiometricAdminV2Policy::mutationAllowed('REPLACE','previous','STALE'),'replacement rejects stale revision');
 $controller=file_get_contents(__DIR__.'/../modelo/v2/BiometricAdminV2Controller.php');
 $router=file_get_contents(__DIR__.'/../index.php');
+$test(str_contains($controller,'p.nombre_completo AS nombre')&&str_contains($controller,'id,nombre_completo AS nombre,estado'),'administrative worker queries use canonical name column');
 $test(str_contains($controller,'UPDATE op_rh_personal_acceso SET huella=?')&&!preg_match('/UPDATE\s+op_rh_personal_acceso[^;]*\bpin\s*=/is',$controller),'biometric persistence updates huella only');
 $test(str_contains($controller,"'actor_user_id'=>\$auth")&&str_contains($controller,'actor_user_id,response_status,response_json'),'idempotent replay binds the original persisted actor');
 $test(str_contains($controller,'COUNT')===false&&str_contains($controller,'count($accessRows)!==1'),'ambiguous or absent access rows are rejected');

@@ -174,7 +174,7 @@ final class BiometricAdminV2Controller
 
     private function listWorkers(mysqli $db,array $auth,int $limit,int $offset): array
     {
-        $rows=$this->rows($db,"SELECT p.id,p.nombre,i.referencia_externa_personal FROM op_rh_personal p JOIN op_rh_v2_dispositivo_identidad_personal i ON i.id_personal=p.id WHERE p.estado=1 AND p.id_estacion=? AND i.id_dispositivo=? AND i.es_activo=1 AND i.valido_desde<=UTC_TIMESTAMP(6) AND (i.valido_hasta IS NULL OR UTC_TIMESTAMP(6)<i.valido_hasta) ORDER BY p.id,i.id",'ii',[$auth['station_id'],$auth['device_id']]);
+        $rows=$this->rows($db,"SELECT p.id,p.nombre_completo AS nombre,i.referencia_externa_personal FROM op_rh_personal p JOIN op_rh_v2_dispositivo_identidad_personal i ON i.id_personal=p.id WHERE p.estado=1 AND p.id_estacion=? AND i.id_dispositivo=? AND i.es_activo=1 AND i.valido_desde<=UTC_TIMESTAMP(6) AND (i.valido_hasta IS NULL OR UTC_TIMESTAMP(6)<i.valido_hasta) ORDER BY p.id,i.id",'ii',[$auth['station_id'],$auth['device_id']]);
         $group=[]; foreach($rows as $row) $group[(int)$row['id']][]=$row;
         $output=[]; $seenRefs=[];
         foreach($group as $workerRows) {
@@ -195,7 +195,7 @@ final class BiometricAdminV2Controller
         $identities=$this->rows($db,'SELECT id,id_personal,referencia_externa_personal FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=? AND referencia_externa_personal=? AND es_activo=1 AND valido_desde<=UTC_TIMESTAMP(6) AND (valido_hasta IS NULL OR UTC_TIMESTAMP(6)<valido_hasta) ORDER BY id','is',[$auth['device_id'],$reference]);
         if(count($identities)!==1) throw new BiometricAdminV2HttpException(404,'WORKER_NOT_FOUND');
         $workerId=(int)$identities[0]['id_personal'];
-        $worker=$this->one($db,'SELECT id,nombre,estado,id_estacion FROM op_rh_personal WHERE id=?'.$lock,'i',[$workerId]);
+        $worker=$this->one($db,'SELECT id,nombre_completo AS nombre,estado,id_estacion FROM op_rh_personal WHERE id=?'.$lock,'i',[$workerId]);
         if(!$worker||(int)$worker['estado']!==1||(int)$worker['id_estacion']!==$auth['station_id']) throw new BiometricAdminV2HttpException(404,'WORKER_NOT_FOUND');
         if($forUpdate) {
             $lockedIdentity=$this->rows($db,'SELECT id,id_personal FROM op_rh_v2_dispositivo_identidad_personal WHERE id_dispositivo=? AND referencia_externa_personal=? AND es_activo=1 AND valido_desde<=UTC_TIMESTAMP(6) AND (valido_hasta IS NULL OR UTC_TIMESTAMP(6)<valido_hasta) ORDER BY id FOR UPDATE','is',[$auth['device_id'],$reference]);
