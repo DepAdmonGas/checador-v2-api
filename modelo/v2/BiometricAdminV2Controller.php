@@ -132,8 +132,7 @@ final class BiometricAdminV2Controller
         }
         $this->lockCanonicalStationMapping($db,$stationId,$locality);
         $actor=$this->one($db,'SELECT id,id_puesto,id_gas FROM tb_usuarios WHERE id=? AND estatus=0 FOR UPDATE','i',[(int)$session['actor_user_id']]);
-        if(!$actor||(int)$actor['id_puesto']!==6||!$this->permissionGranted($db,(int)$actor['id'])) throw new BiometricAdminV2HttpException(403,'ADMIN_PERMISSION_DENIED');
-        $this->assertActorStationScope($db,$actor,$stationId,$locality);
+        if(!$actor||!Portal3JwtAuthHelper::authorizeAdminChecador($db,['user_id'=>(int)$actor['id'],'id_puesto'=>(int)$actor['id_puesto'],'id_gas'=>(int)$actor['id_gas']],$locality,$stationId,true)) throw new BiometricAdminV2HttpException(403,'ADMIN_PERMISSION_DENIED');
         return ['device_id'=>$deviceId,'station_id'=>$stationId,'credential_id'=>$credentialId,'locality_id'=>$locality,
             'session_id'=>(int)$session['id'],'actor_user_id'=>(int)$actor['id'],'session_secret_hash'=>$secretHash];
     }

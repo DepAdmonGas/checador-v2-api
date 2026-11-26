@@ -209,12 +209,7 @@ class AdminPinV2Controller
     {
         $actor=$this->one($db,'SELECT id,id_puesto,id_gas FROM tb_usuarios WHERE id=? AND estatus=0 LIMIT 1','i',[$actorId]);
         if (!$actor || (int)$actor['id_puesto']!==6) return false;
-        if (!$this->permissionGranted($db,'checador.admin_pin.emitir',$actorId,6)) return false;
-        $scope=Portal3JwtAuthHelper::authorizeTemporaryAccess($db,['user_id'=>$actorId,'id_puesto'=>(int)$actor['id_puesto'],'id_gas'=>(int)$actor['id_gas']],'editar');
-        if (empty($scope['success'])) return false;
-        $localityIds=array_map('intval',$scope['authorized_stations']??[]);
-        $physicalIds=array_map('intval',$scope['authorized_physical_station_ids']??[]);
-        return in_array($localityId,$localityIds,true) && in_array($stationId,$physicalIds,true);
+        return Portal3JwtAuthHelper::authorizeAdminChecador($db,['user_id'=>$actorId,'id_puesto'=>(int)$actor['id_puesto'],'id_gas'=>(int)$actor['id_gas']],$localityId,$stationId);
     }
 
     protected function insertId(mysqli $db): int { return (int)$db->insert_id; }

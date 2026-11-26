@@ -1064,3 +1064,8 @@
 ## 2026-11-25 — Biometric SQL privilege minimization
 - **Correction:** Removed the unused `session_uuid` from the administrative-session lock query. The one-table DDL now lists only the device-operation ledger SELECT/INSERT, identity SELECT/INSERT, access-row SELECT plus `huella` UPDATE, and session-column SELECT plus activity-timestamp UPDATE requirements.
 - **Validation:** Focused biometric suite 33/33, PHP lint and diff checks PASS. Effective grants were not queried and no SQL was executed; apply only privileges missing after operator preflight.
+
+## 2026-11-25 — Institutional Checador authorization for administrative PIN
+- API administrative PIN and biometric session checks use current Checador institutional edit permission, active Encargado station scope, and explicit individual denials; positive dedicated grants are not required. Device authentication, biometric device grant and session checks remain required.
+- Portal3 commit dc1377e was compared using the actual authorization methods against the local database inside READ ONLY transactions: 37/37 matching decisions, including 32 authorized. Out-of-station and position-13 attempts were denied. No individual dedicated grant rows existed locally, so real denial-row behavior was not exercised.
+- Biometric tests 33/33, PIN lifecycle 10/10, PIN runtime 12/12 and IP limiter 10/10 PASS; PHP lint and diff checks PASS. No database writes or deployment.

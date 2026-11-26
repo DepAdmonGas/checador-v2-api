@@ -50,7 +50,7 @@ $test(str_contains($controller,'UPDATE op_rh_personal_acceso SET huella=?')&&!pr
 $test(str_contains($controller,"'actor_user_id'=>\$auth")&&str_contains($controller,'actor_user_id,response_status,response_json'),'idempotent replay binds the original persisted actor');
 $test(str_contains($controller,'COUNT')===false&&str_contains($controller,'count($accessRows)!==1'),'ambiguous or absent access rows are rejected');
 $test(str_contains($controller,'CHECADOR_BIOMETRIC_ADMIN_ENABLED')&&str_contains($router,'CHECADOR_BIOMETRIC_ADMIN_ENABLED'),'biometric routes remain behind a dedicated default-off gate');
-$test(str_contains($controller,'checador.dispositivos.biometria.administrar')&&str_contains($controller,'X_ADMINISTRATIVE_SESSION'),'existing effective permission and admin session are required');
+$test(str_contains($controller,'authorizeAdminChecador')&&str_contains($controller,'X_ADMINISTRATIVE_SESSION'),'existing effective permission and admin session are required');
 $test(str_contains($controller,'last_activity_at_utc=UTC_TIMESTAMP(6)'),'successful biometric mutation refreshes session activity');
 $test(str_contains($controller,'FOREIGN')===false&&str_contains($controller,'op_rh_v2_device_operation_requests'),'durable request and revision history use the shared operation table');
 $test(str_contains($router,'LEGACY_BIOMETRIC_WRITES_DISABLED'),'legacy fingerprint writer is blocked when V2 writer is enabled');

@@ -42,6 +42,43 @@ class Portal3JwtAuthHelper {
 
     private static array $columnCache = [];
 
+    /** Current institutional Checador edit authorization with explicit individual vetoes. */
+    public static function authorizeAdminChecador($db, array $user, int $localityId, int $stationId, bool $biometric = false): bool {
+        try {
+            $id=(int)($user['user_id']??0); $position=(int)($user['id_puesto']??0);
+            if ($id<1 || $position!==6) return false;
+            $parents=self::selectRows($db,'SELECT id FROM modulos_dpto_operativo WHERE clave=? AND activo=1','s',['recursos-humanos']);
+            if(count($parents)!==1) return false;
+            $parent=(int)$parents[0]['id'];
+            $direct=self::selectRows($db,'SELECT u.id FROM modulos_usuarios_do u INNER JOIN modulos_dpto_operativo m ON m.id=u.id_modulo WHERE u.id_usuario=? AND m.activo=1 LIMIT 1','i',[$id]);
+            $permissions=$direct ? self::selectRows($db,'SELECT leer,editar FROM modulos_usuarios_do WHERE id_modulo=? AND id_usuario=?','ii',[$parent,$id]) : self::selectRows($db,'SELECT leer,editar FROM modulos_puestos_do WHERE id_modulo=? AND id_puesto=?','ii',[$parent,$position]);
+            if(count($permissions)!==1 || (int)$permissions[0]['leer']!==1 || (int)$permissions[0]['editar']!==1) return false;
+            $sub=self::selectRows($db,'SELECT id FROM modulos_sub_dpto_operativo WHERE id_modulo=? AND clave=? AND activo=1','is',[$parent,'checador']);
+            if(count($sub)!==1) return false;
+            $subId=(int)$sub[0]['id'];
+            $subGrant=$direct ? self::selectRows($db,'SELECT id FROM modulos_sub_usuarios_do WHERE id_sub_modulo=? AND id_usuario=?','ii',[$subId,$id]) : self::selectRows($db,'SELECT id FROM modulos_sub_puestos_do WHERE id_sub_modulo=? AND id_puesto=?','ii',[$subId,$position]);
+            if(count($subGrant)!==1) return false;
+            $temporary=self::selectRows($db,'SELECT id FROM modulos_dpto_operativo WHERE clave=?','s',['acceso-temporal']);
+            if(count($temporary)>1) return false;
+            if($temporary) {
+                $specific=self::selectRows($db,'SELECT leer,editar FROM modulos_usuarios_do WHERE id_modulo=? AND id_usuario=?','ii',[(int)$temporary[0]['id'],$id]);
+                if(count($specific)>1 || (count($specific)===1 && ((int)$specific[0]['leer']!==1 || (int)$specific[0]['editar']!==1))) return false;
+            }
+            $keys=['checador.admin_pin.emitir'];
+            if($biometric) $keys[]='checador.dispositivos.biometria.administrar';
+            foreach($keys as $key) {
+                $rows=self::selectRows($db,"SELECT active,granted FROM op_rh_v2_permission_grants WHERE principal_type='USER' AND principal_id=? AND permission_key=?",'is',[$id,$key]);
+                if(count($rows)>1 || (count($rows)===1 && ((int)$rows[0]['active']!==1 || (int)$rows[0]['granted']!==1))) return false;
+            }
+            $configs=self::selectRows($db,'SELECT tipo,tipo_departamento,allow_all,estaciones_soportadas FROM tb_modulos_config WHERE modulo_key=? AND activo=1','s',['checador']);
+            if(count($configs)!==1 || (int)$configs[0]['allow_all']!==0 || !in_array([$configs[0]['tipo'],$configs[0]['tipo_departamento']],[['stations_and_departments','localidades'],['stations_only','puestos']],true)) return false;
+            $supported=self::decodeIdList($configs[0]['estaciones_soportadas']);
+            if(!$supported) return false;
+            $physical=[]; $localities=self::resolveStationScope($db,$user,$supported,$configs[0],$physical);
+            return in_array($localityId,$localities,true) && in_array($stationId,$physical,true);
+        } catch (Throwable $e) { self::logAuthDependencyFailure('admin_checador.authorization',$e); return false; }
+    }
+
     public static function clearCache(): void {
         self::$columnCache = [];
     }

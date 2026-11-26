@@ -13,7 +13,7 @@
 
 Las rutas de este contrato requieren HTTPS y Device Auth (`X-Device-Id`, `X-Credential-Key`, `Authorization: Bearer <device_secret>`). El servidor valida dispositivo activo, credencial actual vigente, estación física activa y exactamente un grant biométrico vigente asociado a ese dispositivo, estación y credencial.
 
-Las rutas de listado, estado y escritura requieren además `X-Administrative-Session` con una sesión administrativa activa, no expirada y dentro del límite de inactividad. Se revalidan dentro de la transacción el usuario activo, puesto Encargado (6), el permiso **existente** `checador.dispositivos.biometria.administrar`, y la jurisdicción vigente de la estación. No se crean permisos nuevos. La sesión PIN por sí sola no concede autorización biométrica; el permiso y el grant continúan siendo obligatorios.
+Las rutas de listado, estado y escritura requieren además `X-Administrative-Session` con una sesión administrativa activa, no expirada y dentro del límite de inactividad. Se revalidan dentro de la transacción el usuario activo, puesto Encargado (6), el permiso institucional efectivo de edición del Checador y la jurisdicción vigente de la estación; las denegaciones individuales explícitas de los permisos específicos prevalecen. No se crean permisos nuevos. La sesión PIN por sí sola no concede autorización biométrica; el permiso y el grant continúan siendo obligatorios.
 
 La sincronización de identidades usa solo Device Auth y grant biométrico vigente. No requiere PIN ni sesión administrativa.
 
