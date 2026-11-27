@@ -287,8 +287,8 @@ class JourneyCalculationService {
             $workDate  = $p1Header['fecha_jornada_local'];
 
             $stmtInsHeader = $this->db->prepare("INSERT INTO op_rh_v2_calculos_jornada 
-                (id_jornada_programada, id_pareo_jornada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo_calculo, estado_calculo, segundos_programados_totales, segundos_trabajados_totales, segundos_candidatos_fuera_horario, fingerprint_ejecucion)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                (id_jornada_programada, id_pareo_jornada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo_calculo, estado_calculo, segundos_programados_totales, segundos_trabajados_totales, segundos_candidatos_fuera_horario, fingerprint_ejecucion, creado_at_utc)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())");
 
             $stmtInsHeader->bind_param(
                 "iiiisisssiis",
@@ -312,8 +312,8 @@ class JourneyCalculationService {
             // Insert Child Segments
             if (!empty($segmentResults)) {
                 $stmtInsSeg = $this->db->prepare("INSERT INTO op_rh_v2_calculos_segmentos
-                    (id_calculo_jornada, id_pareo_segmento, ordinal_segmento, tipo_segmento, estado_segmento, segundos_programados, segundos_trabajados, delta_llegada_segundos, delta_salida_segundos, segundos_candidatos_fuera_horario)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    (id_calculo_jornada, id_pareo_segmento, ordinal_segmento, tipo_segmento, estado_segmento, segundos_programados, segundos_trabajados, delta_llegada_segundos, delta_salida_segundos, segundos_candidatos_fuera_horario, creado_at_utc)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())");
 
                 foreach ($segmentResults as $segRes) {
                     $idP2Seg = $segRes['id_pareo_segmento'];

@@ -4,6 +4,19 @@ declare(strict_types=1);
 /** Shared authorized CLI identity check. PREPROD is not contractually enabled. */
 final class JourneyEnvironmentProfile
 {
+    /** Fail closed unless this connection's effective session timezone is UTC. */
+    public static function requireUtcSession(object $db): void
+    {
+        try {
+            if (!$db->query("SET SESSION time_zone = '+00:00'")) throw new RuntimeException('UTC_SESSION_UNAVAILABLE');
+            $result = $db->query('SELECT @@session.time_zone AS session_timezone');
+            $row = $result ? $result->fetch_assoc() : null;
+            if (!is_array($row) || ($row['session_timezone'] ?? null) !== '+00:00') throw new RuntimeException('UTC_SESSION_UNAVAILABLE');
+        } catch (Throwable $e) {
+            try { $db->close(); } catch (Throwable $ignored) {}
+            throw new RuntimeException('UTC_SESSION_UNAVAILABLE', 0, $e);
+        }
+    }
     /** Recognizes the proposed profile only; it must never authorize a connection. */
     public static function isPreparedPreprod(array $config, int $uid): bool
     {

@@ -367,8 +367,8 @@ class JourneyPairingService
         // Insert Header
         $hStmt = $this->db->prepare(
             "INSERT INTO op_rh_v2_pareos_jornada
-                (id_jornada_programada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo, estado_completitud_l2, estado_pareo, fingerprint_ejecucion)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                (id_jornada_programada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo, estado_completitud_l2, estado_pareo, fingerprint_ejecucion, creado_at_utc)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())"
         );
         $hStmt->bind_param(
             'iiisissss',
@@ -394,8 +394,8 @@ class JourneyPairingService
 
             $sStmt = $this->db->prepare(
                 "INSERT INTO op_rh_v2_pareos_segmentos
-                    (id_pareo_jornada, ordinal_segmento, id_marcacion_entrada, id_marcacion_salida, estado_segmento)
-                 VALUES (?, ?, ?, ?, ?)"
+                    (id_pareo_jornada, ordinal_segmento, id_marcacion_entrada, id_marcacion_salida, estado_segmento, creado_at_utc)
+                 VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())"
             );
             $sStmt->bind_param('iiiis', $headerId, $ordinal, $entryPunchId, $exitPunchId, $segStatus);
             if (!$sStmt->execute()) throw new RuntimeException("J1_PERSISTENCE_FAILED");
@@ -408,8 +408,8 @@ class JourneyPairingService
 
                 $aStmt = $this->db->prepare(
                     "INSERT INTO op_rh_v2_pareos_marcaciones_asociadas
-                        (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion)
-                     VALUES (?, ?, ?, ?)"
+                        (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion, creado_at_utc)
+                     VALUES (?, ?, ?, ?, UTC_TIMESTAMP())"
                 );
                 $aStmt->bind_param('iiis', $headerId, $segmentId, $punchId, $role);
                 if (!$aStmt->execute()) throw new RuntimeException("J1_PERSISTENCE_FAILED");
@@ -423,8 +423,8 @@ class JourneyPairingService
 
             $aStmt = $this->db->prepare(
                 "INSERT INTO op_rh_v2_pareos_marcaciones_asociadas
-                    (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion)
-                 VALUES (?, NULL, ?, ?)"
+                    (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion, creado_at_utc)
+                 VALUES (?, NULL, ?, ?, UTC_TIMESTAMP())"
             );
             $aStmt->bind_param('iis', $headerId, $punchId, $role);
             if (!$aStmt->execute()) throw new RuntimeException("J1_PERSISTENCE_FAILED");
@@ -875,8 +875,8 @@ class JourneyPairingService
 
             $hStmt = $this->db->prepare(
                 "INSERT INTO op_rh_v2_pareos_jornada
-                    (id_jornada_programada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo, estado_completitud_l2, estado_pareo, fingerprint_ejecucion)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    (id_jornada_programada, id_personal, id_estacion, fecha_jornada_local, revision_numero, version_algoritmo, estado_completitud_l2, estado_pareo, fingerprint_ejecucion, creado_at_utc)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())"
             );
             $hStmt->bind_param(
                 'iiisissss',
@@ -897,10 +897,10 @@ class JourneyPairingService
                 $punchId = (int)$p['id'];
                 $aStmt = $this->db->prepare(
                     "INSERT INTO op_rh_v2_pareos_marcaciones_asociadas
-                        (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion)
-                     VALUES (?, NULL, ?, 'UNMATCHED')"
+                        (id_pareo_jornada, id_pareo_segmento, id_marcacion_cruda, rol_marcacion, creado_at_utc)
+                     VALUES (?, NULL, ?, 'UNMATCHED', UTC_TIMESTAMP())"
                 );
-                $aStmt->bind_param('iis', $headerId, $punchId);
+                $aStmt->bind_param('ii', $headerId, $punchId);
                 $aStmt->execute();
             }
 

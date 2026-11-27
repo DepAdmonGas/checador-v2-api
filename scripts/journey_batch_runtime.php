@@ -192,6 +192,7 @@ function journeyBatchMain(array $opts,int $argc): int {
         if (($identity['db']??null)!=='bd_admongas') throw new RuntimeException('DATABASE_SCOPE_DENIED');
         $key=hash('sha256',json_encode(['version'=>1,'config'=>$real,'service'=>$config['service_id'],'stations'=>$stations,'from'=>$from,'database'=>$identity['db'],'mode'=>$execute?'execute':'dry-run'],JSON_THROW_ON_ERROR));
     }
+    JourneyEnvironmentProfile::requireUtcSession($db);
     // Dry-run must not create or update local checkpoint/lock files. It is a
     // read-only snapshot and returns its next cursor for explicit inspection.
     $checkpoint=$execute?new JourneyBatchCheckpoint(dirname($real),$key):null;

@@ -46,6 +46,7 @@ try {
         $databaseIdentity=$db->query('SELECT DATABASE() AS database_name')->fetch_assoc();
         if (($databaseIdentity['database_name']??null)!=='bd_admongas') throw new RuntimeException('DATABASE_SCOPE_DENIED');
     }
+    JourneyEnvironmentProfile::requireUtcSession($db);
     if (isset($opts['execute'])) {
         $schedule = (new ScheduleResolutionService($db))->resolveSchedule($worker, $station, $date);
         if (!in_array($schedule['estado_jornada'] ?? '', ['SCHEDULED', 'DAY_OFF'], true)) throw new RuntimeException('SCHEDULE_NOT_EVALUABLE');
