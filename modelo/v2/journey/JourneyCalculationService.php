@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace modelo\v2\journey;
 
+require_once __DIR__ . '/JourneyMariaDbLock.php';
+
 use mysqli;
 use RuntimeException;
 use InvalidArgumentException;
@@ -72,6 +74,10 @@ class JourneyCalculationService {
         if (!$shiftData) {
             throw new RuntimeException("ScheduledShift ID $jornadaId not found.");
         }
+
+        (new \JourneyMariaDbLock($this->db))->assertOwned(
+            (int)$shiftData['id_personal'], (int)$shiftData['id_estacion'], (string)$shiftData['fecha_jornada_local']
+        );
 
         // 3. Fetch P1 pairing segments
         $stmtP1Segs = $this->db->prepare("SELECT 

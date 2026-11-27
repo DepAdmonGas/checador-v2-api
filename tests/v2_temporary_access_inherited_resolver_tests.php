@@ -51,6 +51,6 @@ $controllerSource=file_get_contents(__DIR__.'/../modelo/v2/TemporaryAccessV2Cont
 $test(str_contains($controllerSource, 'authorizeTemporaryAccessInheritedPrepared($conexion, $tokenVal, $requiredPermission)')
     && !str_contains($controllerSource, 'authorizeTemporaryAccess($conexion, $tokenVal, $requiredPermission)'), 'temporary access supervisor routes use the approved inherited resolver');
 $adminPinSource=file_get_contents(__DIR__.'/../modelo/v2/AdminPinV2Controller.php') ?: '';
-$test(str_contains($adminPinSource, 'authorizeTemporaryAccess(')
+$test(str_contains($adminPinSource, 'authorizeAdminChecador(')
     && !str_contains($adminPinSource, 'authorizeTemporaryAccessInheritedPrepared('), 'administrative configuration PIN keeps its independent authorization path');
 echo "RESULT: {$pass} PASS / {$fail} FAIL\n";exit($fail?1:0);

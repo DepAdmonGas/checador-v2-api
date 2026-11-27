@@ -19,6 +19,7 @@ require_once __DIR__ . '/../shift/ScheduledShiftMaterializationService.php';
 require_once __DIR__ . '/../shift/WorkplaceTimezoneAuthorityService.php';
 require_once __DIR__ . '/JourneyPairingService.php';
 require_once __DIR__ . '/JourneyCalculationService.php';
+require_once __DIR__ . '/JourneySharedExecutionService.php';
 
 use modelo\v2\journey\JourneyCalculationService;
 
@@ -281,35 +282,24 @@ class JourneyEvaluationV2Controller
         }
 
         // 10. Materialize ScheduledShift for SCHEDULED or DAY_OFF
-        $matService = new ScheduledShiftMaterializationService($conexion);
         try {
-            $matResult = $matService->materializeSingleDay($idPersonal, $idEstacion, $fechaLocal);
+            // The same active institutional actor is revalidated inside the
+            // shared worker lock when coverage resolution is enabled.
+            $execution = (new JourneySharedExecutionService($conexion))->evaluate($idPersonal, $idEstacion, $fechaLocal, false, null, $auth);
+            $matResult = $execution['shift'];
             $shiftId = (int)$matResult['id'];
+            $pairingResult = $execution['pairing'];
+            $pairingId = (int)$pairingResult['pairing_id'];
+            $calcResult = $execution['calculation'];
         } catch (Throwable $e) {
             $classBD->desconectarBD($conexion);
-            $this->sendJsonError('SERVER_ERROR', 'Error interno al materializar jornada programada.', 500);
-            return;
-        }
-
-        // 11. Execute P1 Pairing
-        $pairingService = new JourneyPairingService($conexion);
-        try {
-            $pairingResult = $pairingService->pairScheduledShift($shiftId);
-        } catch (Throwable $e) {
-            $classBD->desconectarBD($conexion);
-            $this->sendJsonError('SERVER_ERROR', 'Error interno al ejecutar pareo de jornada (P1).', 500);
-            return;
-        }
-
-        $pairingId = (int)$pairingResult['pairing_id'];
-
-        // 12. Execute P2 Calculation
-        $calcService = new JourneyCalculationService($conexion);
-        try {
-            $calcResult = $calcService->calculatePairingRevision($pairingId);
-        } catch (Throwable $e) {
-            $classBD->desconectarBD($conexion);
-            $this->sendJsonError('SERVER_ERROR', 'Error interno al calcular jornada (P2).', 500);
+            $message = match ($e->getMessage()) {
+                'JOURNEY_EXECUTION_MATERIALIZE' => 'Error interno al materializar jornada programada.',
+                'JOURNEY_EXECUTION_PAIR' => 'Error interno al ejecutar pareo de jornada (P1).',
+                'JOURNEY_EXECUTION_CALCULATE' => 'Error interno al calcular jornada (P2).',
+                default => 'Error interno al evaluar jornada.'
+            };
+            $this->sendJsonError('SERVER_ERROR', $message, 500);
             return;
         }
 
@@ -334,7 +324,7 @@ class JourneyEvaluationV2Controller
         }
 
         // Fetch evaluated candidates if not already present in pairingResult
-        $evaluatedCandidates = $pairingResult['evaluated_candidates'] ?? $pairingService->getEvaluatedCandidatesForPairing($pairingId);
+        $evaluatedCandidates = $pairingResult['evaluated_candidates'] ?? (new JourneyPairingService($conexion))->getEvaluatedCandidatesForPairing($pairingId);
 
         $classBD->desconectarBD($conexion);
 

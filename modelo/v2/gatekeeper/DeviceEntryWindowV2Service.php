@@ -5,7 +5,7 @@
  * Implements pure read-only evaluation for:
  * GET /api/v2/device/workers/{external_worker_reference}/entry-window
  *
- * Specification: docs/v2/CHECADOR_V2_DEVICE_ENTRY_WINDOW_API_CONTRACT_V1.0.md (APPROVED_FROZEN_V1.4)
+ * Specification: docs/v2/CHECADOR_V2_DEVICE_ENTRY_WINDOW_API_CONTRACT_V1.0.md and V1.1 (M11)
  * Architecture Addendum: docs/architecture/CHECADOR_V2_EARLY_ENTRY_GATEKEEPER_ADDENDUM_V1.0.md (APPROVED_FROZEN_V1.4)
  */
 
@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../BD.php';
 require_once __DIR__ . '/../PunchEventV2.php';
 require_once __DIR__ . '/../shift/ScheduleResolutionService.php';
 require_once __DIR__ . '/../shift/WorkplaceTimezoneAuthorityService.php';
+require_once __DIR__ . '/../WorkplacePhysicalStationResolver.php';
+require_once __DIR__ . '/DeviceEntryPolicyV2.php';
 
 class DeviceEntryWindowV2Service
 {
@@ -66,7 +68,7 @@ class DeviceEntryWindowV2Service
             ];
         }
 
-        $serverNowUtc = $mockServerNow ?? new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $serverNowUtc = ($mockServerNow ?? new DateTimeImmutable('now'))->setTimezone(new DateTimeZone('UTC'));
         $nowUtcStr = $serverNowUtc->format('Y-m-d H:i:s');
 
         // 1. Resolver identidad laboral para este dispositivo específico (Aislamiento de estación)
@@ -101,7 +103,13 @@ class DeviceEntryWindowV2Service
         $canonicalTimezone = null;
 
         try {
-            $canonicalTimezone = $this->timezoneAuthorityService->resolve($idEstacion, $targetDateUtc);
+            $workplaceId = $this->resolveCanonicalWorkplace($idEstacion);
+            $canonicalTimezone = $this->timezoneAuthorityService->resolve($workplaceId, $targetDateUtc);
+            $localDate = $serverNowUtc->setTimezone(new DateTimeZone($canonicalTimezone))->format('Y-m-d');
+            $canonicalTimezone = $this->timezoneAuthorityService->resolve($workplaceId, $localDate);
+            if ($serverNowUtc->setTimezone(new DateTimeZone($canonicalTimezone))->format('Y-m-d') !== $localDate) {
+                throw new RuntimeException('ENTRY_TIMEZONE_UNRESOLVED');
+            }
         } catch (Throwable $e) {
             // Fail-closed si la zona horaria no puede resolverse
             return [
@@ -113,7 +121,7 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => false,
                     'inferred_direction' => 'UNKNOWN',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $targetDateUtc,
                     'timezone' => null,
                     'estado_jornada' => 'SCHEDULE_UNKNOWN',
@@ -145,7 +153,11 @@ class DeviceEntryWindowV2Service
                 ];
             }
 
-            $clientTs = strtotime($clientTimeTrimmed);
+            $clientTime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $clientTimeTrimmed, $tz);
+            if (!$clientTime || $clientTime->format('Y-m-d H:i:s') !== $clientTimeTrimmed) {
+                return ['success' => false, 'code' => 400, 'status' => 'INVALID_PARAMETER', 'message' => 'current_timestamp_local inválido.'];
+            }
+            $clientTs = $clientTime->getTimestamp();
             $serverTs = $nowLocal->getTimestamp();
             $driftSeconds = abs($serverTs - $clientTs);
 
@@ -159,7 +171,7 @@ class DeviceEntryWindowV2Service
                         'should_record_punch' => false,
                         'inferred_direction' => 'UNKNOWN',
                         'external_worker_reference' => $workerRefTrimmed,
-                        'workplace_id' => $idEstacion,
+                        'workplace_id' => $workplaceId ?? null,
                         'fecha_local' => $fechaLocal,
                         'timezone' => $canonicalTimezone,
                         'estado_jornada' => 'SCHEDULE_UNKNOWN',
@@ -177,7 +189,7 @@ class DeviceEntryWindowV2Service
         // 4. Consultar horario efectivo del trabajador
         $schedule = null;
         try {
-            $schedule = $this->scheduleResolutionService->resolveSchedule($idPersonal, $idEstacion, $fechaLocal);
+            $schedule = $this->scheduleResolutionService->resolveSchedule($idPersonal, $workplaceId, $fechaLocal);
         } catch (Throwable $ex) {
             return [
                 'success' => true,
@@ -188,7 +200,7 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => false,
                     'inferred_direction' => 'UNKNOWN',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $fechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'SCHEDULE_UNKNOWN',
@@ -204,6 +216,17 @@ class DeviceEntryWindowV2Service
 
         $estadoJornada = $schedule['estado_jornada'] ?? 'UNKNOWN';
 
+        // Resolve an individual work segment and an earlier still-open exit before
+        // applying the early-entry restriction or returning a neutral no-schedule decision.
+        try {
+            $selection = $this->selectEntrySegment($idPersonal, $workplaceId, $idEstacion, $fechaLocal, $nowLocal, $schedule);
+        } catch (Throwable $e) {
+            return $this->unknownWindow($workerRefTrimmed, $workplaceId, $fechaLocal, $canonicalTimezone);
+        }
+        if ($selection !== null) {
+            $estadoJornada = 'SCHEDULED';
+        }
+
         // 5. Caso UNSCHEDULED (Decisión C)
         if ($estadoJornada === 'UNSCHEDULED') {
             return [
@@ -215,7 +238,7 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => true,
                     'inferred_direction' => 'ENTRY',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $fechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'UNSCHEDULED',
@@ -247,7 +270,7 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => true,
                     'inferred_direction' => 'ENTRY',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $fechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'DAY_OFF',
@@ -279,7 +302,7 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => false,
                     'inferred_direction' => 'UNKNOWN',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $fechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'SCHEDULE_UNKNOWN',
@@ -293,118 +316,17 @@ class DeviceEntryWindowV2Service
             ];
         }
 
-        // 8. Caso SCHEDULED: Análisis de Turno y Ventana de 10 minutos
-        $segmentos = $schedule['horario_local']['segmentos'] ?? [];
-        if (empty($segmentos)) {
-            return [
-                'success' => true,
-                'code' => 200,
-                'data' => [
-                    'gatekeeper_action' => 'SCHEDULE_UNKNOWN',
-                    'is_entry_allowed' => false,
-                    'should_record_punch' => false,
-                    'inferred_direction' => 'UNKNOWN',
-                    'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
-                    'fecha_local' => $fechaLocal,
-                    'timezone' => $canonicalTimezone,
-                    'estado_jornada' => 'SCHEDULE_UNKNOWN',
-                    'desktop_ui_message' => [
-                        'header' => 'REGISTRO PROVISIONAL',
-                        'detail' => 'HORARIO NO VERIFICABLE. SEGMENTOS NO ENCONTRADOS.',
-                        'card_color' => 'AMBER',
-                        'sound_alert' => 'ALERT_ERROR'
-                    ]
-                ]
-            ];
+        // 8. Use the selected segment and its effective local-date policy.
+        if ($selection === null) {
+            return $this->unknownWindow($workerRefTrimmed, $workplaceId, $fechaLocal, $canonicalTimezone);
         }
-
-        $targetFechaLocal = $fechaLocal;
-        $segStartLocal = $segmentos[0]['hora_inicio_local'];
-        $segEndLocal = $segmentos[count($segmentos) - 1]['hora_fin_local'];
-        $offStart = (int)($segmentos[0]['dia_offset_inicio'] ?? 0);
-        $offEnd = (int)($segmentos[count($segmentos) - 1]['dia_offset_fin'] ?? 0);
-
-        // Comprobación de turno nocturno contiguo hacia el día siguiente (TC-13)
-        // Si la hora actual es >= 23:00 y mañana hay un turno a las 00:00
-        if ($nowLocal->format('H:i:s') >= '23:00:00') {
-            $fechaManana = date('Y-m-d', strtotime("{$fechaLocal} +1 day"));
-            try {
-                $schedManana = $this->scheduleResolutionService->resolveSchedule($idPersonal, $idEstacion, $fechaManana);
-                if (($schedManana['estado_jornada'] ?? '') === 'SCHEDULED' && !empty($schedManana['horario_local']['segmentos'])) {
-                    $mSeg = $schedManana['horario_local']['segmentos'];
-                    $mStart = $mSeg[0]['hora_inicio_local'];
-                    if ($mStart <= '01:00:00') {
-                        $targetFechaLocal = $fechaManana;
-                        $segStartLocal = $mStart;
-                        $segEndLocal = $mSeg[count($mSeg) - 1]['hora_fin_local'];
-                        $offStart = (int)($mSeg[0]['dia_offset_inicio'] ?? 0);
-                        $offEnd = (int)($mSeg[count($mSeg) - 1]['dia_offset_fin'] ?? 0);
-                    }
-                }
-            } catch (Throwable $t) {
-                // Mantener evaluación de hoy
-            }
-        }
-
-        // Comprobación de salida de turno nocturno iniciado ayer (TC-08)
-        if ($nowLocal->format('H:i:s') <= '08:00:00') {
-            $fechaAyer = date('Y-m-d', strtotime("{$fechaLocal} -1 day"));
-            try {
-                $schedAyer = $this->scheduleResolutionService->resolveSchedule($idPersonal, $idEstacion, $fechaAyer);
-                if (($schedAyer['estado_jornada'] ?? '') === 'SCHEDULED' && !empty($schedAyer['horario_local']['segmentos'])) {
-                    $ySeg = $schedAyer['horario_local']['segmentos'];
-                    $yEnd = $ySeg[count($ySeg) - 1]['hora_fin_local'];
-                    $yOffEnd = (int)($ySeg[count($ySeg) - 1]['dia_offset_fin'] ?? 0);
-                    // Si el turno de ayer termina hoy
-                    if ($yOffEnd >= 1 || $yEnd <= '08:00:00') {
-                        // Verificar si existe una entrada abierta de ayer
-                        $hasYesterdayOpenEntry = $this->checkOpenEntryForShift(
-                            $idPersonal,
-                            $idEstacion,
-                            $fechaAyer,
-                            $ySeg[0]['hora_inicio_local'],
-                            $yEnd,
-                            (int)($ySeg[0]['dia_offset_inicio'] ?? 0),
-                            $yOffEnd,
-                            $tz
-                        );
-                        if ($hasYesterdayOpenEntry) {
-                            $targetFechaLocal = $fechaAyer;
-                            $segStartLocal = $ySeg[0]['hora_inicio_local'];
-                            $segEndLocal = $yEnd;
-                            $offStart = (int)($ySeg[0]['dia_offset_inicio'] ?? 0);
-                            $offEnd = $yOffEnd;
-                        }
-                    }
-                }
-            } catch (Throwable $t) {
-                // Mantener evaluación de hoy
-            }
-        }
-
-        $dtStart = new DateTimeImmutable("{$targetFechaLocal} {$segStartLocal}", $tz);
-        if ($offStart !== 0) {
-            $dtStart = $dtStart->modify("{$offStart} days");
-        }
-
-        $dtEnd = new DateTimeImmutable("{$targetFechaLocal} {$segEndLocal}", $tz);
-        if ($offEnd !== 0) {
-            $dtEnd = $dtEnd->modify("{$offEnd} days");
-        }
-
-        $dtEarliest = $dtStart->modify('-10 minutes');
-
-        // 9. Consultar contexto de marcaciones previas (Servidor + Cola Local Pendiente)
-        $wStartUtc = $dtEarliest->modify('-4 hours')->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-        $wEndUtc = $dtEnd->modify('+4 hours')->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-
-        $punchContext = $this->fetchCandidatePunchesForWindow(
-            $idPersonal,
-            $idEstacion,
-            $wStartUtc,
-            $wEndUtc
-        );
+        $targetFechaLocal = $selection['date'];
+        $dtStart = $selection['start'];
+        $dtEnd = $selection['end'];
+        $dtEarliest = $selection['earliest'];
+        $policy = $selection['policy'];
+        $canonicalTimezone = $dtStart->getTimezone()->getName();
+        $punchContext = $selection['punch_context'];
 
         if ($punchContext['has_workplace_mismatch'] || $punchContext['has_ambiguity']) {
             return [
@@ -426,13 +348,24 @@ class DeviceEntryWindowV2Service
             ];
         }
 
+        // An invalid temporal context must not turn into an authorized entry or exit.
+        // Raw evidence before the allowed window is retained; the gatekeeper does not erase it.
+        $utc = new DateTimeZone('UTC');
+        foreach ($punchContext['punches'] as $event) {
+            $eventTime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', (string)($event['ocurrido_at_utc'] ?? ''), $utc);
+            if (!$eventTime || $eventTime->format('Y-m-d H:i:s') !== ($event['ocurrido_at_utc'] ?? '') || $eventTime > $serverNowUtc || $eventTime < $dtEarliest) {
+                return $this->ambiguousWindow($workerRefTrimmed);
+            }
+        }
         $serverPunchesCount = count($punchContext['punches']);
         $clientPendingCount = max(0, $pendingLocalPunchesCount);
 
         // Validación de coherencia de pendientes locales
+        if ($clientPendingCount > 0 && empty($lastLocalPendingTimestamp)) return $this->ambiguousWindow($workerRefTrimmed);
         if ($clientPendingCount > 0 && !empty($lastLocalPendingTimestamp)) {
-            $lastLocalTs = strtotime($lastLocalPendingTimestamp);
-            if ($lastLocalTs !== false && $lastLocalTs > ($nowLocal->getTimestamp() + 300)) {
+            $pendingTime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $lastLocalPendingTimestamp, $tz);
+            $lastLocalTs = $pendingTime && $pendingTime->format('Y-m-d H:i:s') === $lastLocalPendingTimestamp ? $pendingTime->getTimestamp() : false;
+            if ($lastLocalTs === false || $lastLocalTs > ($nowLocal->getTimestamp() + 300) || $lastLocalTs < $dtEarliest->getTimestamp() || $lastLocalTs > $dtEnd->modify('+4 hours')->getTimestamp()) {
                 // Marca pendiente local futura incoherente -> Dirección ambigua
                 return [
                     'success' => true,
@@ -455,6 +388,29 @@ class DeviceEntryWindowV2Service
         }
 
         $totalEffectivePunches = $serverPunchesCount + $clientPendingCount;
+
+        // V1.1 preserves another physical capture without inferring its role.
+        // Ambiguous station, invalid events and invalid pending evidence have
+        // already failed closed above; historical policies retain V1.0.
+        $lastKnownTimestamp = null;
+        foreach ($punchContext['punches'] as $event) {
+            $timestamp = (new DateTimeImmutable($event['ocurrido_at_utc'], new DateTimeZone('UTC')))->getTimestamp();
+            $lastKnownTimestamp = max($lastKnownTimestamp ?? $timestamp, $timestamp);
+        }
+        if ($clientPendingCount > 0 && isset($lastLocalTs) && $lastLocalTs !== false) $lastKnownTimestamp = max($lastKnownTimestamp ?? $lastLocalTs, $lastLocalTs);
+        $repeatWindow = $policy['duplicate_punch_window_minutes'] ?? null;
+        $repeat = $repeatWindow !== null && $lastKnownTimestamp !== null && $serverNowUtc->getTimestamp() >= $lastKnownTimestamp && $serverNowUtc->getTimestamp() - $lastKnownTimestamp <= $repeatWindow * 60;
+        if ($repeatWindow !== null && $targetFechaLocal === $fechaLocal && ($totalEffectivePunches >= 2 || $repeat) && $nowLocal >= $dtEarliest) {
+            return ['success'=>true, 'code'=>200, 'data'=>[
+                'gatekeeper_action'=>'ALLOW_PENDING_CLASSIFICATION', 'is_entry_allowed'=>null,
+                'should_record_punch'=>true, 'inferred_direction'=>null,
+                'external_worker_reference'=>$workerRefTrimmed,
+                'workplace_id'=>$workplaceId, 'fecha_local'=>$targetFechaLocal,
+                'timezone'=>$canonicalTimezone, 'policy_version'=>$policy['policy_version'],
+                'desktop_ui_message'=>['header'=>'MARCACIÓN REGISTRADA',
+                    'detail'=>'Marcación pendiente de clasificación.', 'card_color'=>'GREEN', 'sound_alert'=>'CONFIRMATION_SUCCESS']
+            ]];
+        }
 
         // 10. Si ya existen 2 o más marcaciones en este segmento de turno -> Ambigüedad
         if ($totalEffectivePunches >= 2) {
@@ -488,10 +444,12 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => true,
                     'inferred_direction' => 'EXIT',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $targetFechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'SCHEDULED',
+                    'policy_version' => $policy['policy_version'],
+                    'early_entry_allowed_minutes' => $policy['early_entry_allowed_minutes'],
                     'scheduled_start_local' => $dtStart->format('H:i:s'),
                     'scheduled_end_local' => $dtEnd->format('H:i:s'),
                     'earliest_allowed_entry_local' => null,
@@ -507,7 +465,7 @@ class DeviceEntryWindowV2Service
         }
 
         // 12. No existen marcaciones previas ($totalEffectivePunches === 0) -> Corresponde a ENTRADA
-        // Aplicar la regla perimetral de los 10 minutos
+        // Aplicar la regla perimetral M11 efectiva del segmento seleccionado
         if ($nowLocal < $dtEarliest) {
             // Fuera de ventana -> REJECT_EARLY_ENTRY (TC-01, TC-09, TC-13)
             $secondsUntilAllowed = $dtEarliest->getTimestamp() - $nowLocal->getTimestamp();
@@ -525,10 +483,12 @@ class DeviceEntryWindowV2Service
                     'should_record_punch' => false,
                     'inferred_direction' => 'ENTRY',
                     'external_worker_reference' => $workerRefTrimmed,
-                    'workplace_id' => $idEstacion,
+                    'workplace_id' => $workplaceId ?? null,
                     'fecha_local' => $targetFechaLocal,
                     'timezone' => $canonicalTimezone,
                     'estado_jornada' => 'SCHEDULED',
+                    'policy_version' => $policy['policy_version'],
+                    'early_entry_allowed_minutes' => $policy['early_entry_allowed_minutes'],
                     'scheduled_start_local' => $dtStart->format('H:i:s'),
                     'scheduled_end_local' => $dtEnd->format('H:i:s'),
                     'earliest_allowed_entry_local' => $dtEarliest->format('H:i:s'),
@@ -555,10 +515,12 @@ class DeviceEntryWindowV2Service
                 'should_record_punch' => true,
                 'inferred_direction' => 'ENTRY',
                 'external_worker_reference' => $workerRefTrimmed,
-                'workplace_id' => $idEstacion,
+                'workplace_id' => $workplaceId ?? null,
                 'fecha_local' => $targetFechaLocal,
                 'timezone' => $canonicalTimezone,
                 'estado_jornada' => 'SCHEDULED',
+                'policy_version' => $policy['policy_version'],
+                'early_entry_allowed_minutes' => $policy['early_entry_allowed_minutes'],
                 'scheduled_start_local' => $dtStart->format('H:i:s'),
                 'scheduled_end_local' => $dtEnd->format('H:i:s'),
                 'earliest_allowed_entry_local' => $dtEarliest->format('H:i:s'),
@@ -593,34 +555,33 @@ class DeviceEntryWindowV2Service
         );
 
         if (!$stmt) {
-            return [
-                'punches' => [],
-                'has_workplace_mismatch' => false,
-                'has_ambiguity' => false
-            ];
+            throw new RuntimeException('ENTRY_PUNCH_READ_FAILED');
         }
 
-        $stmt->bind_param('iss', $idPersonal, $windowStartUtc, $windowEndUtc);
-        $stmt->execute();
-        $res = $stmt->get_result();
-
-        $punches = [];
-        $hasWorkplaceMismatch = false;
-        $hasAmbiguity = false;
-
-        while ($row = $res->fetch_assoc()) {
-            $punches[] = $row;
-            if ($row['id_estacion_resuelta'] !== null && (int)$row['id_estacion_resuelta'] !== $idEstacion) {
-                $hasWorkplaceMismatch = true;
+        try {
+            if (!$stmt->bind_param('iss', $idPersonal, $windowStartUtc, $windowEndUtc) || !$stmt->execute() || !($res = $stmt->get_result())) {
+                throw new RuntimeException('ENTRY_PUNCH_READ_FAILED');
             }
-            if (!empty($row['validation_flags'])) {
-                $flags = (string)$row['validation_flags'];
-                if (strpos($flags, 'INVALID') !== false || strpos($flags, 'UNVERIFIABLE') !== false) {
-                    $hasAmbiguity = true;
+
+            $punches = [];
+            $hasWorkplaceMismatch = false;
+            $hasAmbiguity = false;
+
+            while ($row = $res->fetch_assoc()) {
+                $punches[] = $row;
+                if ((int)($row['id_estacion_resuelta'] ?? 0) !== $idEstacion) {
+                    $hasWorkplaceMismatch = true;
+                }
+                if (!empty($row['validation_flags'])) {
+                    $flags = (string)$row['validation_flags'];
+                    if (strpos($flags, 'INVALID') !== false || strpos($flags, 'UNVERIFIABLE') !== false) {
+                        $hasAmbiguity = true;
+                    }
                 }
             }
+        } finally {
+            $stmt->close();
         }
-        $stmt->close();
 
         return [
             'punches' => $punches,
@@ -629,34 +590,176 @@ class DeviceEntryWindowV2Service
         ];
     }
 
+    protected function resolveCanonicalWorkplace(int $physicalStation): int
+    {
+        $workplace = WorkplacePhysicalStationResolver::resolveCanonicalLocality($this->db, $physicalStation);
+        if ($workplace === null) throw new RuntimeException('ENTRY_WORKPLACE_UNRESOLVED');
+        return $workplace;
+    }
+
+    protected function resolveEntryPolicy(int $workplace, string $date): array
+    {
+        return (new DeviceEntryPolicyV2($this->db))->resolve($workplace, $date);
+    }
+
+    private function ambiguousWindow(string $reference): array
+    {
+        return ['success'=>true, 'code'=>200, 'data'=>[
+            'gatekeeper_action'=>'AMBIGUOUS_DIRECTION', 'is_entry_allowed'=>false,
+            'should_record_punch'=>false, 'inferred_direction'=>'AMBIGUOUS',
+            'external_worker_reference'=>$reference,
+            'desktop_ui_message'=>['header'=>'VERIFICACIÓN REQUERIDA',
+                'detail'=>'No se pudo determinar si es Entrada o Salida. Consulte al supervisor.',
+                'card_color'=>'AMBER', 'sound_alert'=>'ALERT_ERROR']
+        ]];
+    }
+
+    private function unknownWindow(string $reference, int $workplace, string $date, string $timezone): array
+    {
+        return ['success'=>true, 'code'=>200, 'data'=>[
+            'gatekeeper_action'=>'SCHEDULE_UNKNOWN', 'is_entry_allowed'=>false,
+            'should_record_punch'=>false, 'inferred_direction'=>'UNKNOWN',
+            'external_worker_reference'=>$reference, 'workplace_id'=>$workplace,
+            'fecha_local'=>$date, 'timezone'=>$timezone, 'estado_jornada'=>'SCHEDULE_UNKNOWN',
+            'desktop_ui_message'=>['header'=>'REGISTRO PROVISIONAL',
+                'detail'=>'HORARIO O POLÍTICA NO VERIFICABLE. CONSULTE AL SUPERVISOR.',
+                'card_color'=>'AMBER', 'sound_alert'=>'ALERT_ERROR']
+        ]];
+    }
+
+    /** Convert only WORK segments, preserving the logical date and effective timezone. */
+    private function workSegments(array $schedule, string $date): array
+    {
+        $status = $schedule['estado_jornada'] ?? 'UNKNOWN';
+        if (in_array($status, ['DAY_OFF', 'UNSCHEDULED'], true)) return [];
+        if ($status !== 'SCHEDULED') throw new RuntimeException('ENTRY_SCHEDULE_UNRESOLVED');
+        if (!isset($schedule['horario_local']['timezone'])) throw new RuntimeException('ENTRY_TIMEZONE_UNRESOLVED');
+        $tz = new DateTimeZone($schedule['horario_local']['timezone']);
+        $segments = [];
+        foreach ($schedule['horario_local']['segmentos'] ?? [] as $segment) {
+            $type = $segment['tipo_segmento'] ?? $segment['tipo'] ?? null;
+            if ($type === 'BREAK') continue;
+            if ($type !== 'WORK') throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+            $times = [];
+            foreach (['inicio', 'fin'] as $edge) {
+                $offset = filter_var($segment['dia_offset_' . $edge] ?? null, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE);
+                $time = $segment['hora_' . $edge . '_local'] ?? '';
+                if (!in_array($offset, [0,1], true) || !preg_match('/\A(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d\z/', $time)) throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+                $day = (new DateTimeImmutable($date, $tz))->modify("+$offset days")->format('Y-m-d');
+                $dt = new DateTimeImmutable("$day $time", $tz);
+                if ($dt->format('Y-m-d H:i:s') !== "$day $time") throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+                $utcKey = $edge === 'inicio' ? 'scheduled_start_utc' : 'scheduled_end_utc';
+                if (isset($segment[$utcKey]) && $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s') !== $segment[$utcKey]) throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+                $times[] = $dt;
+            }
+            if ($times[1] <= $times[0]) throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+            $segments[] = ['date'=>$date, 'start'=>$times[0], 'end'=>$times[1]];
+        }
+        if (!$segments) throw new RuntimeException('ENTRY_SEGMENT_UNRESOLVED');
+        usort($segments, static fn($a,$b) => $a['start'] <=> $b['start']);
+        for ($i=1; $i<count($segments); $i++) if ($segments[$i]['start'] < $segments[$i-1]['end']) throw new RuntimeException('ENTRY_SEGMENT_OVERLAP');
+        return $segments;
+    }
+
     /**
-     * Verifica si existe una entrada abierta previa para un turno determinado.
+     * Perimeter decision, not an authoritative pairing. A prior possible exit
+     * must be considered before rejecting entry. Ambiguous evidence never means
+     * an empty set of punches. No materialization or engine execution here.
      */
-    private function checkOpenEntryForShift(
-        int $idPersonal,
-        int $idEstacion,
-        string $shiftDateLocal,
-        string $startLocal,
-        string $endLocal,
-        int $offStart,
-        int $offEnd,
-        DateTimeZone $tz
-    ): bool {
-        $dtStart = new DateTimeImmutable("{$shiftDateLocal} {$startLocal}", $tz);
-        if ($offStart !== 0) {
-            $dtStart = $dtStart->modify("{$offStart} days");
+    private function selectEntrySegment(int $worker, int $workplace, int $physical, string $date, DateTimeImmutable $now, array $today): ?array
+    {
+        $utc = new DateTimeZone('UTC');
+        $fmt = static fn(DateTimeImmutable $d) => $d->setTimezone($utc)->format('Y-m-d H:i:s');
+        $segments = $this->workSegments($today, $date);
+        $target = null;
+        foreach ($segments as $segment) {
+            $target = $segment;
+            if ($now <= $segment['end']) break;
         }
-        $dtEnd = new DateTimeImmutable("{$shiftDateLocal} {$endLocal}", $tz);
-        if ($offEnd !== 0) {
-            $dtEnd = $dtEnd->modify("{$offEnd} days");
+        // Previous logical dates: offsets of one day plus a 4-hour tail can
+        // cross a second midnight. Do not swallow resolution errors.
+        $prior = [];
+        for ($days=2; $days>=1; $days--) {
+            $day = $now->modify("-$days days")->format('Y-m-d');
+            $schedule = $this->scheduleResolutionService->resolveSchedule($worker, $workplace, $day);
+            foreach ($this->workSegments($schedule, $day) as $seg) {
+                if ($seg['start'] <= $now && $seg['end']->modify('+4 hours') >= $now) $prior[] = $seg;
+            }
         }
-
-        $wStartUtc = $dtStart->modify('-10 minutes')->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-        $wEndUtc = $dtEnd->modify('+4 hours')->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-
-        $candidateInfo = $this->fetchCandidatePunchesForWindow($idPersonal, $idEstacion, $wStartUtc, $wEndUtc);
-        // Si hay exactamente 1 marcación en la ventana, es una entrada abierta
-        return count($candidateInfo['punches']) === 1 && !$candidateInfo['has_workplace_mismatch'];
+        // Consider the next logical date before midnight, including DAY_OFF today.
+        if ($now->format('H:i:s') >= '23:00:00' && ($target === null || $now > $target['end'])) {
+            $day = $now->modify('+1 day')->format('Y-m-d');
+            $schedule = $this->scheduleResolutionService->resolveSchedule($worker, $workplace, $day);
+            $next = $this->workSegments($schedule, $day);
+            if ($next && $next[0]['start'] <= $now->modify('+2 hours')) {
+                $target = $next[0];
+            }
+        }
+        foreach ($segments as $seg) {
+            if ($target !== null && $seg['start'] < $target['start']) $prior[] = $seg;
+        }
+        $cache = [];
+        $withPolicy = function(array $seg) use ($workplace, &$cache): array {
+            $seg['policy'] = $cache[$seg['date']] ??= $this->resolveEntryPolicy($workplace, $seg['date']);
+            $seg['earliest'] = $seg['start']->modify('-' . $seg['policy']['early_entry_allowed_minutes'] . ' minutes');
+            // A possible exit is not proof of an entry. Historical policies
+            // retain the legacy midpoint; V1.1 uses its own exit priority.
+            $priority = $seg['policy']['exit_priority_minutes'];
+            $threshold = $priority === null
+                ? $seg['start']->modify('+' . intdiv($seg['end']->getTimestamp() - $seg['start']->getTimestamp(), 2) . ' seconds')
+                : $seg['end']->modify('-' . $priority . ' minutes');
+            $seg['exit_threshold'] = $threshold > $seg['start'] ? $threshold : $seg['start'];
+            return $seg;
+        };
+        if ($target !== null) $target = $withPolicy($target);
+        $prior = array_map($withPolicy, $prior);
+        usort($prior, static fn($a,$b) => $a['start'] <=> $b['start']);
+        $open = [];
+        $previousEnd = null;
+        $ambiguous = false;
+        foreach ($prior as $i => $seg) {
+            $next = $prior[$i+1] ?? $target;
+            // Never assign an event to two independent segment counts.
+            // Events at/after the next authorized start remain in its context;
+            // an open prior segment plus those events is ambiguous.
+            $from = $seg['start']->modify('-4 hours');
+            if ($previousEnd !== null && $previousEnd >= $from) $from = $previousEnd->modify('+1 second');
+            $to = $seg['end']->modify('+4 hours');
+            if ($next !== null && $next['earliest'] <= $to) $to = $next['earliest']->modify('-1 second');
+            if ($to < $from) throw new RuntimeException('ENTRY_SEGMENT_OVERLAP');
+            if ($seg['end']->modify('+4 hours') < $now && ($target === null || $to < $target['start']->modify('-4 hours'))) continue;
+            $ctx = $this->fetchCandidatePunchesForWindow($worker, $physical, $fmt($from), $fmt($to));
+            if ($ctx['has_workplace_mismatch'] || $ctx['has_ambiguity']) $ambiguous = true;
+            $count = count($ctx['punches']);
+            if ($count === 1 && $seg['end']->modify('+4 hours') >= $now) {
+                $event = $ctx['punches'][0]['ocurrido_at_utc'] ?? '';
+                // A lone near-end event is not reliable proof of an entry.
+                if ($event >= $fmt($seg['earliest']) && $event <= $fmt($now) && $event < $fmt($seg['exit_threshold'])) {
+                    $seg['punch_context'] = $ctx;
+                    $open[] = $seg;
+                } else $ambiguous = true;
+            } elseif ($count > 0) {
+                // Only a clear pair in distinct portions of the segment can
+                // be excluded from the next segment's count. Other sequences
+                // remain ambiguous (including repeated entry captures).
+                $times = array_column($ctx['punches'], 'ocurrido_at_utc'); sort($times, SORT_STRING);
+                if ($count !== 2 || count($times) !== 2 || $times[0] < $fmt($seg['earliest']) || $times[0] >= $fmt($seg['exit_threshold']) || $times[1] < $fmt($seg['exit_threshold']) || $times[1] > $fmt($now)) $ambiguous = true;
+            }
+            if ($previousEnd === null || $to > $previousEnd) $previousEnd = $to;
+        }
+        if ($target === null) {
+            if ($ambiguous || count($open) > 1) throw new RuntimeException('ENTRY_PREVIOUS_DIRECTION_UNRESOLVED');
+            return $open[0] ?? null;
+        }
+        $from = $target['start']->modify('-4 hours');
+        if ($previousEnd !== null && $previousEnd >= $from) $from = $previousEnd->modify('+1 second');
+        $to = $target['end']->modify('+4 hours');
+        if ($from > $to) throw new RuntimeException('ENTRY_SEGMENT_OVERLAP');
+        $ctx = $this->fetchCandidatePunchesForWindow($worker, $physical, $fmt($from), $fmt($to));
+        if (count($open) === 1 && !$ambiguous && !$ctx['has_workplace_mismatch'] && !$ctx['has_ambiguity'] && count($ctx['punches']) === 0) return $open[0];
+        if ($ambiguous || count($open) > 0) $ctx['has_ambiguity'] = true;
+        $target['punch_context'] = $ctx;
+        return $target;
     }
 
     /**

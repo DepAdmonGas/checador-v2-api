@@ -1,0 +1,13 @@
+{
+  "environment": "preprod",
+  "service_id": "journey-preprod",
+  "principal_type": "SERVICE",
+  "principal_id": 1,
+  "system_uid": 10000,
+  "stations": [1, 2, 3, 4, 5, 6, 7, 8, 14],
+  "database": "bd_admongas_v2_preprod",
+  "sql_account": "checador_motor_preprod@localhost",
+  "socket": "/run/mysqld/mysqld.sock",
+  "execution_enabled": false,
+  "batch_execution_enabled": false
+}

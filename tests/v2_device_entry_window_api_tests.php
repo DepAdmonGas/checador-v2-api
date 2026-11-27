@@ -206,6 +206,18 @@ class TestableDeviceEntryWindowV2Service extends DeviceEntryWindowV2Service
         parent::__construct($dummyDb, $scheduleService, $tzService, $punchService);
     }
 
+    protected function resolveCanonicalWorkplace(int $physicalStation): int
+    {
+        return $physicalStation;
+    }
+
+    protected function resolveEntryPolicy(int $workplace, string $date): array
+    {
+        return DeviceEntryPolicyV2::normalize(['id'=>1, 'policy_version'=>1,
+            'early_entry_allowed_minutes'=>null, 'duplicate_punch_window_minutes'=>null,
+            'exit_priority_window_minutes'=>null]);
+    }
+
     // Override candidate punch queries to return in-memory fixtures
     protected function fetchCandidatePunchesForWindow(
         int $idPersonal,
@@ -214,7 +226,7 @@ class TestableDeviceEntryWindowV2Service extends DeviceEntryWindowV2Service
         string $windowEndUtc
     ): array {
         return [
-            'punches' => $this->mockPunches,
+            'punches' => array_values(array_filter($this->mockPunches, static fn($p) => $p['ocurrido_at_utc'] >= $windowStartUtc && $p['ocurrido_at_utc'] <= $windowEndUtc)),
             'has_workplace_mismatch' => $this->hasWorkplaceMismatch,
             'has_ambiguity' => $this->hasAmbiguity
         ];

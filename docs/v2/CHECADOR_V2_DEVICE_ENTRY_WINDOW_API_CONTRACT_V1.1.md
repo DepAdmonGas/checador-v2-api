@@ -1,0 +1,11 @@
+# Ventana de entrada del dispositivo — revisión V1.1
+
+Estado: decisiones funcionales aprobadas; implementación y validación pendientes. Complementa el contrato V1.0, que permanece intacto. No modifica Architecture Freeze.
+
+Se conserva `GET /api/v2/device/workers/{external_worker_reference}/entry-window`, Device Auth y los campos y acciones existentes. Para el segmento y fecha lógica aplicables, el inicio de entrada ordinaria es el inicio local menos `early_entry_allowed_minutes` de la versión M11 vigente. El parámetro debe ser un entero de 0 a 10 inclusive; cero significa el inicio exacto. Para una política histórica válida sin el nuevo parámetro se conservan diez minutos. Una política inválida, una consulta fallida o una resolución desconocida no autorizan el uso de un valor por defecto.
+
+La respuesta de una jornada programada incorpora `policy_version` (entero o null para referencia histórica sin versión) y `early_entry_allowed_minutes` (entero), conservando `scheduled_start_local`, `scheduled_end_local`, `earliest_allowed_entry_local`, `fecha_local`, `timezone` y las acciones existentes. Estos campos no constituyen una autorización general de asistencia. Debe protegerse una salida legítima anterior, incluyendo jornadas nocturnas, y tratar segmentos divididos y cobertura autorizada sin inventar adscripciones.
+
+Ante una captura offline, el Lector conserva el hecho original en la cola existente, no inventa horarios o políticas, ni presenta una entrada como autorizada cuando no puede verificarla. No descarta eventos capturados offline por entrada anticipada. API evalúa posteriormente conforme a la política de la fecha lógica del evento, no la fecha de sincronización. Los intentos rechazados en línea utilizan el mecanismo autorizado `access-audits` sin exponer biometría ni credenciales.
+
+Ejemplo ilustrativo de `data` para jornada programada: `{"gatekeeper_action":"ALLOW_ENTRY","is_entry_allowed":true,"should_record_punch":true,"inferred_direction":"ENTRY","workplace_id":1,"fecha_local":"2026-11-27","timezone":"America/Mexico_City","estado_jornada":"SCHEDULED","scheduled_start_local":"07:00:00","scheduled_end_local":"15:00:00","earliest_allowed_entry_local":"06:55:00","policy_version":6,"early_entry_allowed_minutes":5}`. La envoltura y demás campos existentes continúan aplicando. La respuesta es ilustrativa, no evidencia de runtime.

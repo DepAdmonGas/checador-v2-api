@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../BD.php';
 require_once __DIR__ . '/ScheduleResolutionService.php';
+require_once __DIR__ . '/../journey/JourneyExecutionCoordinator.php';
+require_once __DIR__ . '/../journey/JourneyMariaDbLock.php';
 
 class ScheduledShiftMaterializationService
 {
@@ -73,6 +75,19 @@ class ScheduledShiftMaterializationService
      */
     public function materializeSingleDay(int $idPersonal, int $idEstacion, string $fechaLocal): array
     {
+        $lock = new JourneyMariaDbLock($this->db);
+        $coordinator = new JourneyExecutionCoordinator([$lock, 'acquire'], [$lock, 'release']);
+        $result = $coordinator->execute($idPersonal, $idEstacion, $fechaLocal,
+            fn() => $this->materializeSingleDayWithinLock($idPersonal, $idEstacion, $fechaLocal),
+            static fn($shift) => $shift,
+            static fn($shift) => $shift);
+        return $result['shift'];
+    }
+
+    /** Only call while holding the coordinator lock on this connection. */
+    public function materializeSingleDayWithinLock(int $idPersonal, int $idEstacion, string $fechaLocal): array
+    {
+        (new JourneyMariaDbLock($this->db))->assertOwned($idPersonal, $idEstacion, $fechaLocal);
         $this->db->begin_transaction();
         try {
             // Check if already materialized

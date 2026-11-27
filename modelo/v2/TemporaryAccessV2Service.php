@@ -9,6 +9,17 @@ class TemporaryAccessV2Service {
     const PIN_LENGTH = 6;
     const PIN_MAX_ATTEMPTS = 3;
 
+    /** API is the historical default; any unrecognized configuration fails closed. */
+    private function humanWriterDenial() {
+        $owner = getenv('CHECADOR_M08_HUMAN_WRITER');
+        if ($owner === false || $owner === 'API') {
+            return null;
+        }
+        return array('success' => false, 'code' => 503,
+            'status' => 'ADMINISTRATIVE_WRITER_UNAVAILABLE',
+            'message' => 'Escritura administrativa no disponible.');
+    }
+
     /**
      * POST /api/v2/temporary-access/requests (Lector Device Auth)
      */
@@ -210,6 +221,7 @@ class TemporaryAccessV2Service {
      * POST /api/v2/temporary-access/requests/{request_uuid}/authorize (Portal3 Supervisor Auth)
      */
     public function authorizeRequest($conexion, array $authorizedStationIds, $requestUuid, $userId) {
+        if (($denial = $this->humanWriterDenial()) !== null) return $denial;
         mysqli_begin_transaction($conexion);
 
         try {
@@ -283,6 +295,7 @@ class TemporaryAccessV2Service {
      * POST /api/v2/temporary-access/requests/{request_uuid}/reject (Portal3 Supervisor Auth)
      */
     public function rejectRequest($conexion, array $authorizedStationIds, $requestUuid, $userId) {
+        if (($denial = $this->humanWriterDenial()) !== null) return $denial;
         mysqli_begin_transaction($conexion);
 
         try {
@@ -349,6 +362,7 @@ class TemporaryAccessV2Service {
      * POST /api/v2/temporary-access/requests/{request_uuid}/cancel (Portal3 Supervisor Auth)
      */
     public function cancelRequest($conexion, array $authorizedStationIds, $requestUuid, $userId) {
+        if (($denial = $this->humanWriterDenial()) !== null) return $denial;
         mysqli_begin_transaction($conexion);
 
         try {

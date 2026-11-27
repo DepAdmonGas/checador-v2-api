@@ -475,14 +475,34 @@ final class WorkplaceCoverageService
         if ((int)$coverage['id_home_workplace'] !== $homeId || (int)$coverage['id_home_membership_version'] !== $membershipId) {
             return ['id_personal' => $workerId, 'fecha_local' => $localDate, 'estado_jornada' => 'UNKNOWN', 'reason' => 'COVERAGE_HOME_MEMBERSHIP_MISMATCH'];
         }
-        $authz = WorkplaceCoverageAuthorizationService::authorize(
-            $this->db,
-            $authenticatedUser,
-            WorkplaceCoveragePolicy::READ,
-            $homeId,
-            (int)$coverage['id_coverage_workplace']
-        );
+        if (($authenticatedUser['principal_type'] ?? null) === 'SERVICE') {
+            $authz = WorkplaceCoverageAuthorizationService::authorizeService(
+                $this->db,
+                $authenticatedUser,
+                WorkplaceCoveragePolicy::READ,
+                $homeId,
+                (int)$coverage['id_coverage_workplace']
+            );
+        } else {
+            // Existing human USER/POSITION authorization is unchanged.
+            $authz = WorkplaceCoverageAuthorizationService::authorize(
+                $this->db,
+                $authenticatedUser,
+                WorkplaceCoveragePolicy::READ,
+                $homeId,
+                (int)$coverage['id_coverage_workplace']
+            );
+        }
         if (empty($authz['success'])) throw new RuntimeException((string)$authz['status']);
+        if ($this->hasCompetingMaterializedWorkplace($workerId, $localDate, (int)$coverage['id_coverage_workplace'])) {
+            return [
+                'id_personal' => $workerId,
+                'id_estacion' => (int)$coverage['id_coverage_workplace'],
+                'fecha_local' => $localDate,
+                'estado_jornada' => 'UNKNOWN',
+                'reason' => 'COVERAGE_COMPETING_MATERIALIZED_JOURNEY',
+            ];
+        }
         $dateTimezone = $this->timezones->resolve((int)$coverage['id_coverage_workplace'], $localDate);
         if ($dateTimezone !== (string)$coverage['timezone_iana']) return [
             'id_personal' => $workerId,
@@ -537,6 +557,25 @@ final class WorkplaceCoverageService
         $resolved['home_membership_version_id'] = $membershipId;
         $resolved['coverage'] = $provenance;
         return $resolved;
+    }
+
+    /** A coverage may not create a second materialized journey on the same local date. */
+    private function hasCompetingMaterializedWorkplace(int $workerId, string $localDate, int $effectiveWorkplaceId): bool
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id FROM op_rh_v2_jornadas_programadas
+             WHERE id_personal = ? AND fecha_jornada_local = ? AND id_estacion <> ?
+               AND tipo_jornada = 'SCHEDULED' LIMIT 2"
+        );
+        if (!$stmt) throw new RuntimeException('COVERAGE_JOURNEY_CONFLICT_READ_FAILED');
+        $stmt->bind_param('isi', $workerId, $localDate, $effectiveWorkplaceId);
+        if (!$stmt->execute() || !($result = $stmt->get_result())) {
+            $stmt->close();
+            throw new RuntimeException('COVERAGE_JOURNEY_CONFLICT_READ_FAILED');
+        }
+        $conflict = $result->num_rows > 0;
+        $stmt->close();
+        return $conflict;
     }
 
     private function createLinkedAssignments(int $coverageRevisionId, array $coverage, int $actorId): void
