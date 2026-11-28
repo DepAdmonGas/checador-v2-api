@@ -10,11 +10,13 @@ require_once __DIR__ . '/../modelo/BD.php';
 require_once __DIR__ . '/../modelo/v2/Level2ServerService.php';
 require_once __DIR__ . '/../modelo/v2/journey/JourneyPairingService.php';
 require_once __DIR__ . '/../modelo/v2/journey/JourneyCalculationService.php';
+require_once __DIR__ . '/journey_runtime_lock_helper.php';
 
 use modelo\v2\journey\JourneyCalculationService;
 
 $bdObj = new BD();
 $conexion = $bdObj->conectarBD();
+if (getenv('JOURNEY_TEST_NONUTC_SESSION') === '1') $conexion->query("SET SESSION time_zone = '-06:00'");
 
 function test_log(string $msg): void {
     echo $msg . "\n";
@@ -244,8 +246,8 @@ $shift1 = create_shift($conexion, $workerId, $stationId, '2026-10-07', 'SCHEDULE
 create_punch($conexion, $workerId, $stationId, '2026-10-07 08:00:00');
 create_punch($conexion, $workerId, $stationId, '2026-10-07 16:00:00');
 
-$p1Rev1 = $pairingService->pairScheduledShift($shift1);
-$c01Res = $calcService->calculatePairingRevision((int)$p1Rev1['pairing_id']);
+$p1Rev1 = journeyTestPair($conexion, $pairingService, $shift1);
+$c01Res = journeyTestCalculate($conexion, $calcService, (int)$p1Rev1['pairing_id']);
 
 $assert_test(
     $c01Res['estado_calculo'] === 'CALCULATED' &&
@@ -262,8 +264,8 @@ $shift2 = create_shift($conexion, $workerId, $stationId, '2026-10-08', 'SCHEDULE
 create_punch($conexion, $workerId, $stationId, '2026-10-08 07:55:00'); // 5m early entry (-300s)
 create_punch($conexion, $workerId, $stationId, '2026-10-08 16:10:00'); // 10m late exit (+600s)
 
-$p1Rev2 = $pairingService->pairScheduledShift($shift2);
-$c02Res = $calcService->calculatePairingRevision((int)$p1Rev2['pairing_id']);
+$p1Rev2 = journeyTestPair($conexion, $pairingService, $shift2);
+$c02Res = journeyTestCalculate($conexion, $calcService, (int)$p1Rev2['pairing_id']);
 
 $assert_test(
     (int)$c02Res['segmentos'][0]['delta_llegada_segundos'] === -300 &&
@@ -285,8 +287,8 @@ create_punch($conexion, $workerId, $stationId, '2026-10-09 12:00:00'); // seg 1 
 create_punch($conexion, $workerId, $stationId, '2026-10-09 14:00:00'); // seg 2 IN
 create_punch($conexion, $workerId, $stationId, '2026-10-09 18:00:00'); // seg 2 OUT
 
-$p1Rev3 = $pairingService->pairScheduledShift($shift3);
-$c03Res = $calcService->calculatePairingRevision((int)$p1Rev3['pairing_id']);
+$p1Rev3 = journeyTestPair($conexion, $pairingService, $shift3);
+$c03Res = journeyTestCalculate($conexion, $calcService, (int)$p1Rev3['pairing_id']);
 
 $assert_test(
     count($c03Res['segmentos']) === 2 &&
@@ -303,8 +305,8 @@ $shiftNight = create_shift($conexion, $workerId, $stationId, '2026-10-10', 'SCHE
 create_punch($conexion, $workerId, $stationId, '2026-10-10 22:00:00');
 create_punch($conexion, $workerId, $stationId, '2026-10-11 06:00:00');
 
-$p1RevNight = $pairingService->pairScheduledShift($shiftNight);
-$cNightRes  = $calcService->calculatePairingRevision((int)$p1RevNight['pairing_id']);
+$p1RevNight = journeyTestPair($conexion, $pairingService, $shiftNight);
+$cNightRes  = journeyTestCalculate($conexion, $calcService, (int)$p1RevNight['pairing_id']);
 
 $assert_test(
     $cNightRes['estado_calculo'] === 'CALCULATED' &&
@@ -317,8 +319,8 @@ $assert_test(
 $shiftPartial = create_shift($conexion, $workerId, $stationId, '2026-10-15', 'SCHEDULED', '2026-10-15 08:00:00', '2026-10-15 16:00:00');
 create_punch($conexion, $workerId, $stationId, '2026-10-15 08:00:00'); // IN only
 
-$p1RevPart = $pairingService->pairScheduledShift($shiftPartial);
-$cPartRes  = $calcService->calculatePairingRevision((int)$p1RevPart['pairing_id']);
+$p1RevPart = journeyTestPair($conexion, $pairingService, $shiftPartial);
+$cPartRes  = journeyTestCalculate($conexion, $calcService, (int)$p1RevPart['pairing_id']);
 
 $assert_test(
     $cPartRes['estado_calculo'] === 'PARTIAL_DATA' &&
@@ -329,8 +331,8 @@ $assert_test(
 
 // C16: Zero punches with verified source produces UNMATCHED_NO_PUNCHES (No FALTA)
 $shiftZero = create_shift($conexion, $workerId, $stationId, '2026-10-12', 'SCHEDULED', '2026-10-12 08:00:00', '2026-10-12 16:00:00');
-$p1RevZero = $pairingService->pairScheduledShift($shiftZero);
-$cZeroRes  = $calcService->calculatePairingRevision((int)$p1RevZero['pairing_id']);
+$p1RevZero = journeyTestPair($conexion, $pairingService, $shiftZero);
+$cZeroRes  = journeyTestCalculate($conexion, $calcService, (int)$p1RevZero['pairing_id']);
 
 $assert_test(
     $cZeroRes['estado_calculo'] === 'UNMATCHED_NO_PUNCHES' &&
@@ -341,8 +343,8 @@ $assert_test(
 
 // C20 & C21: DAY_OFF without punches produces DAY_OFF_RECORDED with 0 scheduled seconds and No FALTA
 $shiftDayOff = create_shift($conexion, $workerId, $stationId, '2026-10-13', 'DAY_OFF');
-$p1RevDayOff = $pairingService->pairScheduledShift($shiftDayOff);
-$cDayOffRes  = $calcService->calculatePairingRevision((int)$p1RevDayOff['pairing_id']);
+$p1RevDayOff = journeyTestPair($conexion, $pairingService, $shiftDayOff);
+$cDayOffRes  = journeyTestCalculate($conexion, $calcService, (int)$p1RevDayOff['pairing_id']);
 
 $assert_test(
     $cDayOffRes['estado_calculo'] === 'DAY_OFF_RECORDED' &&
@@ -354,8 +356,8 @@ $assert_test(
 
 // C22: UNSCHEDULED with no punches produces UNSCHEDULED_RECORDED with NULL scheduled seconds
 $shiftUnsch = create_shift($conexion, $workerId, $stationId, '2026-10-14', 'UNSCHEDULED');
-$p1RevUnsch = $pairingService->pairScheduledShift($shiftUnsch);
-$cUnschRes  = $calcService->calculatePairingRevision((int)$p1RevUnsch['pairing_id']);
+$p1RevUnsch = journeyTestPair($conexion, $pairingService, $shiftUnsch);
+$cUnschRes  = journeyTestCalculate($conexion, $calcService, (int)$p1RevUnsch['pairing_id']);
 
 $assert_test(
     $cUnschRes['estado_calculo'] === 'UNSCHEDULED_RECORDED' &&
@@ -374,7 +376,7 @@ $assert_test(
 );
 
 // C31: Identical rerun is idempotent and reuses existing calculation header without duplicate insertion
-$c01Rerun = $calcService->calculatePairingRevision((int)$p1Rev1['pairing_id']);
+$c01Rerun = journeyTestCalculate($conexion, $calcService, (int)$p1Rev1['pairing_id']);
 $assert_test(
     (int)$c01Rerun['id'] === (int)$c01Res['id'] &&
     (int)$c01Rerun['revision_numero'] === (int)$c01Res['revision_numero'],
@@ -384,8 +386,8 @@ $assert_test(
 
 // C32 & C33: Late punch arrival creates new P1 revision 2, which triggers append-only P2 revision 2
 create_punch($conexion, $workerId, $stationId, '2026-10-15 16:00:00'); // OUT punch for partial shift15
-$p1RevPart2 = $pairingService->pairScheduledShift($shiftPartial); // P1 rev 2
-$cPartRes2  = $calcService->calculatePairingRevision((int)$p1RevPart2['pairing_id']); // P2 rev 2
+$p1RevPart2 = journeyTestPair($conexion, $pairingService, $shiftPartial); // P1 rev 2
+$cPartRes2  = journeyTestCalculate($conexion, $calcService, (int)$p1RevPart2['pairing_id']); // P2 rev 2
 
 $assert_test(
     (int)$p1RevPart2['revision_numero'] === 2 &&
@@ -450,6 +452,15 @@ $assert_test(
     'Zero administrative FALTA, RETARDO, incidence, or payable overtime columns exist in output'
 );
 
+if (getenv('JOURNEY_TEST_NONUTC_SESSION') === '1') {
+    foreach (['op_rh_v2_pareos_jornada','op_rh_v2_pareos_segmentos','op_rh_v2_pareos_marcaciones_asociadas','op_rh_v2_calculos_jornada','op_rh_v2_calculos_segmentos'] as $table) {
+        // The C35/C36 fixture deliberately inserts an invalid orphan manually;
+        // restrict the writer check to child rows with a real calculation header.
+        $from=$table==='op_rh_v2_calculos_segmentos' ? '`op_rh_v2_calculos_segmentos` t JOIN `op_rh_v2_calculos_jornada` h ON h.id=t.id_calculo_jornada' : "`$table` t";
+        $utc=$conexion->query("SELECT COUNT(*) AS n, MAX(ABS(TIMESTAMPDIFF(SECOND,t.creado_at_utc,UTC_TIMESTAMP()))) AS max_delta FROM $from")->fetch_assoc();
+        $assert_test((int)$utc['n']>0 && (int)$utc['max_delta']<120, 'UTC-'.$table, 'Real writer persisted UTC in non-UTC session; rows='.(int)$utc['n'].' max_delta_seconds='.(int)$utc['max_delta']);
+    }
+}
 test_log("\n=== Test Results Summary ===");
 test_log("PASS: $passedCount / " . ($passedCount + $failedCount));
 test_log("FAIL: $failedCount / " . ($passedCount + $failedCount));

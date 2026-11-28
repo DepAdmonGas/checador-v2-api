@@ -14,7 +14,7 @@ final class JourneySharedExecutionService
 {
     public function __construct(private mysqli $db) {}
 
-    public function evaluate(int $worker, int $station, string $date, bool $requireV11 = false, ?callable $beforeEvaluation = null, ?array $coverageAuthorizationContext = null): array
+    public function evaluate(int $worker, int $station, string $date, bool $requireV11 = false, ?callable $beforeEvaluation = null, ?array $coverageAuthorizationContext = null, ?callable $beforeWrites = null): array
     {
         $lock = new JourneyMariaDbLock($this->db);
         $coordinator = new JourneyExecutionCoordinator([$lock, 'acquire'], [$lock, 'release']);
@@ -24,7 +24,7 @@ final class JourneySharedExecutionService
         $stage = 'lock';
         try {
             return $coordinator->execute($worker, $station, $date,
-                function () use (&$stage, $materializer, $worker, $station, $date, $requireV11, $beforeEvaluation, $coverageAuthorizationContext) {
+                function () use (&$stage, $materializer, $worker, $station, $date, $requireV11, $beforeEvaluation, $coverageAuthorizationContext, $beforeWrites) {
                     if (WorkplaceCoverageFeatureGate::isEnabled()) {
                         $stage = 'coverage_authorization';
                         if ($coverageAuthorizationContext === null) throw new RuntimeException('COVERAGE_AUTH_CONTEXT_REQUIRED');
@@ -33,6 +33,10 @@ final class JourneySharedExecutionService
                         if (($effective['estado_jornada'] ?? 'UNKNOWN') === 'UNKNOWN' || $effectiveWorkplace !== $station) {
                             throw new RuntimeException('EFFECTIVE_WORKPLACE_MISMATCH');
                         }
+                    }
+                    if ($beforeWrites !== null) {
+                        $stage = 'batch_preflight';
+                        $beforeWrites($worker, $station, $date);
                     }
                     if ($beforeEvaluation !== null) {
                         $stage = 'level2';

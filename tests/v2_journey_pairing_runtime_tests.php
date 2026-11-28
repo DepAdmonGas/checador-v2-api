@@ -8,6 +8,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/test_bootstrap_guard.php';
 require_once __DIR__ . '/../modelo/BD.php';
 require_once __DIR__ . '/../modelo/v2/journey/JourneyPairingService.php';
+require_once __DIR__ . '/journey_runtime_lock_helper.php';
 
 $bdObj = new BD();
 $conexion = $bdObj->conectarBD();
@@ -101,13 +102,7 @@ function seed_workplace_identity(mysqli $db): array {
     }
 
     $numlista = random_int(900000, 1900000000);
-    $db->query("INSERT INTO tb_estaciones
-        (numlista,nombre,es,permisocre,razonsocial,rfc,direccioncompleta,di_estado,di_municipio,
-         apoderado_legal,firma,politica,mision,vision,franquicia,producto_uno,producto_dos,
-         producto_tres,sasisopa,fecha_autorizacion,organigrama,volumetrico,noregistro_generador,
-         categoria,latitud,longitud,distmax,ubicacion,estatus)
-        VALUES ({$numlista},'Synthetic P1 station','','','','','','','',
-         '','','','','','','','','','','2000-01-01','','','','',0,0,0,0,0)");
+    $db->query("INSERT INTO tb_estaciones (numlista,nombre,estatus) VALUES ({$numlista},'Synthetic P1 station',0)");
     $physicalStationId = (int) $db->insert_id;
     $locality = $db->prepare('INSERT INTO op_rh_localidades (numlista, localidad, recuperacion_vapores) VALUES (?, ?, ?)');
     $label = 'Synthetic P1 locality';
@@ -183,82 +178,82 @@ function seed_shift_with_punches(mysqli $db, string $tipoJornada = 'SCHEDULED', 
 
 // P01: Normal single-segment exact pair
 $s1 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 32400]]); // IN at 08:00, OUT at 17:00
-$res1 = $service->pairScheduledShift($s1['shiftId']);
+$res1 = journeyTestPair($conexion, $service, $s1['shiftId']);
 assert_test($s1['stationId'] !== $s1['physicalStationId'] && $res1['pairing_status'] === 'EXACT_PAIR' && $res1['completeness_l2'] === 'VERIFIED' && count($res1['segments']) === 1, "P01: Explicit verified Level 2 evaluation permits EXACT_PAIR at a canonical locality");
 
 // P01-A: Missing authoritative Level 2 evaluation is not proof of completeness.
 $s1a = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 32400]], false, false, false);
-$res1a = $service->pairScheduledShift($s1a['shiftId']);
+$res1a = journeyTestPair($conexion, $service, $s1a['shiftId']);
 assert_test($res1a['completeness_l2'] === 'PENDING_SYNC_COMPLETION' && $res1a['pairing_status'] === 'PENDING_SYNC_COMPLETION' && count($res1a['segments'][0]['associated_punches']) === 2, "P01-A: Missing Level 2 evaluation preserves pair observations but remains non-final");
 
 // P02: Missing entry (PARTIAL_MISSING_IN)
 $s2 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 32400]]); // Only OUT punch
-$res2 = $service->pairScheduledShift($s2['shiftId']);
+$res2 = journeyTestPair($conexion, $service, $s2['shiftId']);
 assert_test($res2['pairing_status'] === 'PARTIAL_MISSING_IN', "P02: Missing entry punch produces PARTIAL_MISSING_IN");
 
 // P03: Missing exit (PARTIAL_MISSING_OUT)
 $s3 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0]]); // Only IN punch
-$res3 = $service->pairScheduledShift($s3['shiftId']);
+$res3 = journeyTestPair($conexion, $service, $s3['shiftId']);
 assert_test($res3['pairing_status'] === 'PARTIAL_MISSING_OUT', "P03: Missing exit punch produces PARTIAL_MISSING_OUT");
 
 // P04: No punches + complete source (UNMATCHED_NO_PUNCHES)
 $s4 = seed_shift_with_punches($conexion, 'SCHEDULED', []); // No punches
-$res4 = $service->pairScheduledShift($s4['shiftId']);
+$res4 = journeyTestPair($conexion, $service, $s4['shiftId']);
 assert_test($res4['pairing_status'] === 'UNMATCHED_NO_PUNCHES', "P04: No candidate punches with verified source produces UNMATCHED_NO_PUNCHES");
 
 // P05: No punches + Level2 incomplete (PENDING_SYNC_COMPLETION)
 $s5 = seed_shift_with_punches($conexion, 'SCHEDULED', []);
 $evalRef5 = 'EVAL_TEST_' . uniqid();
 $conexion->query("INSERT INTO op_rh_v2_level2_window_evaluations (evaluation_ref, id_estacion, window_from_utc, window_to_utc, coverage_policy_ref, relevant_device_generations_json, delivery_completeness, operational_coverage, time_window_attribution, window_level2_status, evaluated_at_utc, manifest_digest, canonical_evidence_json) VALUES ('$evalRef5', {$s5['physicalStationId']}, '{$s5['workDate']} 00:00:00', '{$s5['workDate']} 23:59:59', 'POLICY_V1.0_DEFAULT', '[]', 'INCOMPLETE', 'INCOMPLETE', 'DEGRADED', 'INCOMPLETE', NOW(), 'DIGEST_1', '{}')");
-$res5 = $service->pairScheduledShift($s5['shiftId']);
+$res5 = journeyTestPair($conexion, $service, $s5['shiftId']);
 assert_test($res5['pairing_status'] === 'PENDING_SYNC_COMPLETION', "P05: Un-synced Level 2 station window produces PENDING_SYNC_COMPLETION");
 
 // P06: UNKNOWN aggregate Level 2 evidence is non-final under the frozen API contract.
 $s6 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 32400]]);
 $evalRef6 = 'EVAL_TEST_UNKNOWN_' . uniqid();
 $conexion->query("INSERT INTO op_rh_v2_level2_window_evaluations (evaluation_ref, id_estacion, window_from_utc, window_to_utc, coverage_policy_ref, relevant_device_generations_json, delivery_completeness, operational_coverage, time_window_attribution, window_level2_status, evaluated_at_utc, manifest_digest, canonical_evidence_json) VALUES ('$evalRef6', {$s6['physicalStationId']}, '{$s6['workDate']} 00:00:00', '{$s6['workDate']} 23:59:59', 'POLICY_V1.0_DEFAULT', '[]', 'VERIFIED', 'UNKNOWN', 'VERIFIED', 'UNKNOWN', NOW(), 'DIGEST_UNKNOWN', '{}')");
-$res6 = $service->pairScheduledShift($s6['shiftId']);
+$res6 = journeyTestPair($conexion, $service, $s6['shiftId']);
 assert_test($res6['completeness_l2'] === 'PENDING_SYNC_COMPLETION' && $res6['pairing_status'] === 'PENDING_SYNC_COMPLETION', "P06: Aggregate UNKNOWN remains non-final even when another Level 2 dimension is VERIFIED");
 
 // P07: 3 punches -> surplus preserved
 $s7 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 14400], ['offset' => 32400]]); // 08:00, 12:00, 17:00
-$res7 = $service->pairScheduledShift($s7['shiftId']);
+$res7 = journeyTestPair($conexion, $service, $s7['shiftId']);
 assert_test($res7['pairing_status'] === 'EXACT_PAIR' && count($res7['segments'][0]['associated_punches']) === 3, "P07: Intermediate 3rd punch preserved cleanly as SURPLUS");
 
 // P08: 5+ punches preserved without arbitrary slot cap
 $s8 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 3600], ['offset' => 7200], ['offset' => 10800], ['offset' => 32400]]);
-$res8 = $service->pairScheduledShift($s8['shiftId']);
+$res8 = journeyTestPair($conexion, $service, $s8['shiftId']);
 assert_test(count($res8['segments'][0]['associated_punches']) === 5, "P08: 5+ candidate punches preserved without 4-slot cap");
 
 // P09: Multi-segment normal pairing
 $s9 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 14400], ['offset' => 18000], ['offset' => 32400]], false, true);
-$res9 = $service->pairScheduledShift($s9['shiftId']);
+$res9 = journeyTestPair($conexion, $service, $s9['shiftId']);
 assert_test(count($res9['segments']) === 2 && $res9['pairing_status'] === 'EXACT_PAIR', "P09: Multi-segment shift paired cleanly into 2 exact segment pairs");
 
 // P12: Night shift across midnight boundary
 $s12 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0], ['offset' => 28800]], true); // 22:00 and 06:00 next day
-$res12 = $service->pairScheduledShift($s12['shiftId']);
+$res12 = journeyTestPair($conexion, $service, $s12['shiftId']);
 assert_test($res12['pairing_status'] === 'EXACT_PAIR' && $res12['work_date'] === '2026-10-07', "P12: Night shift post-midnight exit punch matched to start work_date");
 
 // P15 & P28: Identical re-run returns existing execution (Idempotent reuse)
-$res28a = $service->pairScheduledShift($s1['shiftId']);
-$res28b = $service->pairScheduledShift($s1['shiftId']);
+$res28a = journeyTestPair($conexion, $service, $s1['shiftId']);
+$res28b = journeyTestPair($conexion, $service, $s1['shiftId']);
 assert_test($res28a['pairing_id'] === $res28b['pairing_id'] && ($res28b['is_idempotent_reuse'] ?? false) === true, "P15 & P28: Identical re-run is idempotent and reuses existing execution record without duplicate revision");
 
 // P23: Workplace mismatch fail-closed
 $s23 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0, 'station_id' => 99999], ['offset' => 32400]]);
-$res23 = $service->pairScheduledShift($s23['shiftId']);
+$res23 = journeyTestPair($conexion, $service, $s23['shiftId']);
 assert_test($res23['pairing_status'] === 'WORKPLACE_MISMATCH', "P23: Punch event at unauthorized station produces WORKPLACE_MISMATCH");
 
 // P24: INVALID validation flag fail-closed
 $s24 = seed_shift_with_punches($conexion, 'SCHEDULED', [['offset' => 0, 'flags' => 'INVALID_HMAC'], ['offset' => 32400]]);
-$res24 = $service->pairScheduledShift($s24['shiftId']);
+$res24 = journeyTestPair($conexion, $service, $s24['shiftId']);
 assert_test($res24['pairing_status'] === 'AMBIGUOUS_PAIRING', "P24: Punch event with INVALID validation flag produces fail-closed AMBIGUOUS_PAIRING");
 
 // P29: Late event delivery creates append-only revision N+1
 $latePunchUuid = 'LATE_' . uniqid();
 $conexion->query("INSERT INTO op_rh_v2_marcaciones_crudas (event_uuid, id_dispositivo, id_estacion_resuelta, id_personal_resuelto, referencia_externa_personal, source_timestamp_raw, ocurrido_at_utc, recibido_at_utc) VALUES ('$latePunchUuid', 1, {$s3['physicalStationId']}, {$s3['workerId']}, 'EXT_{$s3['workerId']}', '2026-10-07 17:02:00', '2026-10-07 17:02:00', NOW())");
-$res29 = $service->pairScheduledShift($s3['shiftId']);
+$res29 = journeyTestPair($conexion, $service, $s3['shiftId']);
 assert_test($res29['revision_numero'] === 2 && $res29['pairing_status'] === 'EXACT_PAIR', "P29: Late punch arrival creates new append-only revision 2 transitioning status to EXACT_PAIR");
 
 // P31: Old revision remains queryable and unchanged

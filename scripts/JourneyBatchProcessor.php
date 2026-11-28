@@ -82,6 +82,16 @@ final class JourneyBatchProcessor
         return ['status'=>'READY','reason'=>$p['reason'],'fingerprint'=>$p['fingerprint']];
     }
 
+    /** Called while the shared worker lock is held, before any Level 2 or J1 write. */
+    public static function requireExecutablePreview(array $preview): array
+    {
+        $decision = self::decision($preview);
+        if (!in_array($decision['status'], ['READY', 'UP_TO_DATE'], true)) {
+            throw new RuntimeException('BATCH_PREFLIGHT_BLOCKED');
+        }
+        return $decision;
+    }
+
     /** Return the complete scheduled journey window in strict UTC. Split and
      * overnight segments use their persisted/resolved UTC boundaries. */
     public static function level2Window(array $segments): array

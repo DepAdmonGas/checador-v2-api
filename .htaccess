@@ -2,6 +2,10 @@ RewriteEngine On
 
 SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
+# Test runners, fixtures, and coordination helpers are never HTTP resources.
+# Keep this before the existing-file and front-controller conditions.
+RewriteRule ^tests(?:/|$) - [F,L,NC]
+
 RewriteCond %{SCRIPT_FILENAME} !-d
 RewriteCond %{SCRIPT_FILENAME} !-f
 

@@ -1,3 +1,26 @@
+## 2026-11-28 — R3-B destructive test isolation guards
+- **Activity:** `CHECADOR_V2_R3B_DESTRUCTIVE_TEST_ISOLATION`.
+- **Changes:** Added `tests/test_mariadb_isolation_guard.php`; batch MariaDB runners now require `CHECADOR_DESTRUCTIVE_TESTS=1` and verify the exact private fixture socket, schema, Unix transport, datadir, MariaDB PID file/process arguments, `--skip-networking`, and `@@port=0`. The legacy `test_bootstrap_guard.php` now pins `BD.php` to localhost, the configured socket and the synthetic legacy schema before connecting, then verifies the same instance. T11/T12 derive the connection ID from the verified target connection before `KILL CONNECTION`; T17 checks child PID, runner path, cwd and inherited fixture identity before SIGKILL.
+- **Tests/docs:** Added guard negative tests (4/4 PASS) and the reproducible DDL/setup/run/cleanup guide at `docs/testing/CHECADOR_V2_R3B_ISOLATED_MARIADB_TEST_PROCEDURE.md`. PHP syntax for affected runners and shell syntax pass. A real isolated T17 attempt connected to the verified instance and stopped before writes because the existing approved DDL does not define `op_rh_personal_localidad_version`; the synthetic instance was shut down and removed. Positive J1/J2/T11/T17 remain unverified.
+- **Boundaries:** No application connector, J1/J2, Level 2, contracts, Architecture Freeze, Portal3, Lector, real DB, deployment artifact contents, gate, cron, stage, commit, or push changed. The release allowlist continues to exclude `tests/`.
+
+## 2026-11-28 — R3-B schema dependency and validation closure
+- **Activity:** `CHECADOR_V2_R3B_SCHEMA_DEPENDENCY_AND_VALIDATION_CLOSURE`.
+- **Canonical schema source:** Added `tests/fixtures/op_rh_personal_localidad_version.sql`, a test-only reproduction of `WorkerWorkplaceAssignmentVersionsMigration::up()` from the read-only Portal3 source `scripts/migrate_worker_workplace_assignment_versions.php` at `DepAdmonGas/Portal3@d72aaa88f737f2ddd7cea8906b3d54c5ed652c7a`. No Portal3 file or product migration was changed. New schema assertions verify InnoDB/utf8mb4 collation, all column types/nullability/DATETIME(6), named indexes and order/uniqueness, worker/workplace/supersedes FKs and lineage, signed parent INT keys, and an initially empty fixture (20/20 PASS).
+- **Missing dependency and setup:** T11/T17 additionally require M03/M04 assignment `tipo_asignacion` and template provenance columns. The reproducible procedure now includes the existing M03/M04 migration only for the two new synthetic schemas, and the M11 V1.1 SQL reference only after checking the three columns are absent. A new MariaDB 11.8.8 instance was initialized under a fresh private `/tmp/checador-batch-validation-*` root with Unix socket, `--skip-networking`, port 0, and a fixture-local `TMPDIR`. Both synthetic schemas were built from the documented DDL order. Parent keys and the membership schema were verified before populating fixtures.
+- **Positive regressions:** J1 runtime 18/18 PASS. J2 runtime printed 14/14 grouped cases PASS (the groups cover its named C-series conditions; the runner reports 14 groups rather than 19 independent rows). T11 recovery PASS: the Level 2 row was visible after the verified connection cut, with zero shift/J1/J2 rows at failure; the next cycle reused Level 2 and produced one linked SCHEDULED/J1/J2 record at revision 1, and an additional cycle added no duplicate. T17 PASS on a clean fixture with 102 candidates: first page processed 100 and saved a cursor, the owned PHP process was SIGKILLed after validation, restart processed the remaining 2, and reconciliation preserved 102 shifts/J1/J2 rows without duplicates; SQL readback found 102 linked calculations, revision 1 across all rows, one Level 2 evaluation, no duplicate worker/locality/date shifts, all 102 worker locks free, and a completed checkpoint (`cursor=null`, cycle 2).
+- **Negative regressions:** Existing 4/4 guard negatives remain PASS. Added six required rejection cases: incompatible datadir, invalid server identity, unapproved schema, nonzero TCP port, a connection from the other synthetic schema rejected before KILL and still alive, and a separately spawned harmless PHP PID rejected before signaling and still alive. The new runner reports 8/8 assertions including the two “decoy remained alive” checks; total rejected negative conditions are 10/10.
+- **Harness hardening:** `assertConnection()` now delegates to the same identity validator `assertServerIdentity()` exercised by synthetic bad snapshots; no kill/signal action is part of that validator. The T17 runner now fails closed if its checkpoint directory already exists, preventing silent reuse after an interrupted run. T17 was invoked with an absolute runner path so its existing child identity check could verify `/proc` against the canonical script path. An earlier relative-path attempt failed closed before SIGKILL; its synthetic schema/checkpoint were reconstructed before the clean PASS.
+- **Artifact and static checks:** Explicit-allowlist artifact generated locally under the temporary fixture: 95 entries, SHA-256 `f957c4bfecd2b02128a63f3ada5d75a2be495cffd5bb6bfd80d13e03643df712`; archive scan found no test runners, fixtures, SQL review files, sockets, logs, checkpoints, or Git metadata. PHP lint for affected/new files, shell syntax, tracked `git diff --check`, and explicit untracked-file whitespace checks pass. `Architecture Freeze` hash remains `87bf3e714f7358cbdace5c4f099573d77d9ecb9033328c706df5c5295304fd85`; no test guard dependency is referenced from `index.php`, `modelo/`, or production CLI runtime.
+- **Boundaries:** All DDL/DML and test writes were confined to the two synthetic schemas in the disposable offline MariaDB instance. No Fedora development, PREPROD, production, Portal3, Lector, Plesk, cron, deployment, staging, commit, or push action occurred. The synthetic instance and test artifacts are removed after final readback.
+
+## 2026-11-28 — R3-A test web protection and release artifact preparation
+- **Activity:** `CHECADOR_V2_R3A_TEST_WEB_PROTECTION`.
+- **Changes:** Root `.htaccess` now denies requests under `/tests` before existing-file and front-controller rules; `tests/.htaccess` adds Apache 2.4 `Require all denied`. Added an explicit-allowlist artifact builder for the API runtime and the supported journey CLI files, plus a focused local HTTP test harness and Plesk verification checklist.
+- **Artifact boundary:** Builder includes `index.php`, `.htaccess`, `modelo/`, and the four required production journey CLI/runtime files. It excludes test runners/fixtures, Git metadata, local credentials, unrelated scripts, migrations, drafts, docs, logs, sockets, and checkpoints. Artifact is created under `/tmp` by default, with a final archive listing and SHA256 manifest. No deployment occurred.
+- **Validation:** Isolated loopback Apache test passed: `/tests`, `/tests/`, PHP/static files, nested paths, and mixed-case path all returned 403 without marker content; a local alias also exercised `tests/.htaccess` directly and returned 403. Canonical `/api/v2/punch-events` retained its HTTP 405 method-guard JSON. The working-tree artifact contains 95 entries, all 86 PHP files lint, the SHA256 manifest verifies, archive exclusions pass, and packaged CLI `--help` works. Rebuilding from the same source produced the same SHA-256. Tracked `git diff --check` and explicit untracked-file whitespace checks pass. These checks do not certify Plesk configuration.
+- **Invariants:** No J1/J2, Level 2, database, contract, Architecture Freeze, Portal3, Lector, gate, cron, staging, commit, or push changes.
+
 ## 2026-11-23 — M06 API incidence writer cutover prepared on origin/work
 - **Activity:** `CHECADOR_V2_M06_API_INCIDENCE_WRITER_CUTOVER`.
 - **Authorization:** The owner approved the M06 full-lifecycle Portal3 SQL addendum. This source change prepares the API side only; it does not authorize Plesk deployment or claim that a live API runtime has been cut over.
@@ -1139,3 +1162,107 @@
 - The pre-existing non-scheduled `UNMATCHED` association bind listed three parameter types for two SQL placeholders and two values. Corrected the type string to `ii`; no classification rule changed.
 - Historical rows, original punches, schedules and calculated data were not altered. Original classification, fingerprints and idempotency logic are unchanged. The owner-reported affected rows remain immutable; any historical interpretation or correction requires a separately authorized process.
 - Validation: UTC-focused source/controlled-connection tests 12/12; J1 V1.1 plan 21/21, batch 23/23, Level 2 batch 31/31, coordinator 8/8 and PREPROD identity guards 17/17; PHP lint and diff check passed. No MariaDB execution, real persistence, Plesk change, commit or push. Session independence and insert persistence remain pending real MariaDB validation.
+# 2026-11-27 — Batch preflight safety parity
+
+- Batch execution now re-runs the existing read-only preview under the shared worker lock before Level 2, materialization or J1/J2 writes. BLOCKED previews fail closed; batch requires V1.1 and does not invoke the historical writer automatically. UP_TO_DATE still reaches the Level 2 refresh path so new evidence can be observed; J1/J2 reuse remains governed by existing fingerprints.
+- Controlled parity tests 10/10, Level 2 batch 31/31, batch processor 23/23 and UTC guards 12/12 passed. MariaDB persistence, runtime parity and concurrent external input changes were not tested. In particular, Level 2 may persist after a READY/UP_TO_DATE preview and before subsequent J1 preflight; later rejection is not atomic with that write. PREPROD batch activation remains blocked pending authorized integration validation and resolution of that gap.
+# 2026-11-27 — Batch safety isolated validation attempt
+
+- Started a separate MariaDB 11.8.8 instance under `/tmp/checador-j1-validation-EMpPeF/data2`, `--skip-networking`, port 0; verified datadir/socket and created only a synthetic schema. Two real connections passed 4/4 advisory lock/exclusion/release checks. A temporary synthetic table confirmed `UTC_TIMESTAMP()` with session UTC−06 (0 seconds difference); this did not validate J1/J2 persistence.
+- Existing isolated J1 runner stopped on synthetic baseline missing `tb_estaciones.es`; J2 runner stopped because it invokes J1 without its required lock. Neither runner established batch recovery, persistence or concurrency. The server was stopped; real databases and PREPROD were not touched.
+- Controlled tests: batch preflight 10/10, Level 2 31/31, batch 23/23, UTC 12/12, J1 plan 21/21. No integrated T01–T17 PASS claimed. Independent Level 2 persistence and partial failure recovery require contract clarification and real integration evidence before PREPROD batch activation.
+# 2026-11-27 — Isolated J1/J2 runner repair
+
+- Recorded owner approval for independent durable Level 2 evidence when a previously eligible batch candidate is subsequently blocked by J1; no global transaction or deletion of evidence is introduced.
+- Adapted the synthetic J1 station fixture to the existing baseline fields and wrapped J1/J2 test calls in the canonical worker advisory lock with `finally` release. In MariaDB 11.8.8 isolated under `/tmp`, J1 passed 18/18 and J2 passed 14/14, then 19/19 including five real-writer UTC checks under session UTC−06. The latter excludes an intentionally manually inserted orphan from the writer-only check.
+- Controlled batch/Level 2/UTC tests remain 76/76. The T01–T17 batch integration matrix, including independent Level 2 failure/recovery and concurrent execution, is not complete; batch activation remains blocked. The isolated server was stopped and its temporary directory removed. No Plesk or real database writes.
+# 2026-11-27 — Partial isolated batch integration runner
+
+- Extracted the existing per-scope batch callback into a shared callable used by the real batch loop, preserving its locked preflight and V1.1 requirement. Added an isolated MariaDB runner with strict socket, schema, datadir and disabled-network checks before fixtures.
+- On a separate MariaDB 11.8.8 instance with port 0 under `/tmp`, real batch preflight blocked a V1.1 DAY_OFF and a historical V1.0 DAY_OFF; database readback showed unchanged journey, J1, J2 and Level 2 counts (2/2). This does not validate a historical SCHEDULED journey or the positive persistence path.
+- Controlled parity tests 10/10 and Level 2 tests 31/31; lint and `git diff --check` passed. End-to-end materialization, J1/J2 persistence, evidence concurrency, recovery and checkpoint interruption remain untested. The batch is not approved for PREPROD execution.
+# 2026-11-27 — Batch T01 positive isolated MariaDB execution
+
+- Extracted the batch page cycle as a shared callable; the CLI retains its original profile, database, gate and authorization checks before calling it. The isolated harness calls the cycle directly with an explicitly verified test socket and synthetic scope; this does not validate CLI authentication or PREPROD connectivity.
+- MariaDB 11.8.8 isolated in `/tmp`, port 0: T01 dry-run returned READY/P1_MISSING without writes or checkpoint; the shared execution cycle materialized one SCHEDULED journey and persisted one V1.1 J1 and one corresponding J2, both revision 1. Level 2 remained UNKNOWN because the window was open, with provisional J1/J2; UTC readback matched UTC_TIMESTAMP, the worker lock was free and the checkpoint persisted cycle 1.
+- Related controlled regressions: batch safety 10/10, Level 2 31/31 and batch processor 23/23; PHP lint and diff check passed. Other batch integration scenarios, operational CLI identity and PREPROD validation remain pending. No real database or Plesk writes, cron activation, commit or deployment.
+# 2026-11-27 — Batch T02/T03 isolated idempotency
+
+- Reused the T01 synthetic MariaDB fixture and actual shared batch cycle: T02 returned UP_TO_DATE with unchanged SQL snapshot and checkpoint. Five subsequent cycles retained identical full rows for shifts, J1/J2 headers and segments, associations and Level 2; checkpoint advanced through cycle 6 and each worker lock was free.
+- Verified in MariaDB 11.8.8 isolated under /tmp with networking disabled. This does not validate CLI authentication, changed-input reevaluation, other batch scenarios or PREPROD.
+# 2026-11-27 — Batch Level 2 closed-window isolated attempt
+
+- Reused the T01/T03 evidence for an open window: UNKNOWN/WINDOW_OPEN, provisional PENDING_SYNC_COMPLETION/PENDING_SYNC, no persisted Level 2 evaluation and no duplicates in five later cycles.
+- A synthetic closed window without telemetry was attempted in isolated MariaDB: preflight READY, batch RETRY_NEXT_CYCLE at JOURNEY_EXECUTION_LEVEL2, no persisted shifts, J1, J2 or Level 2, checkpoint saved and lock free. The underlying Level 2 error has not been diagnosed; this is not a completed T08 assertion. T07 remains unexecuted.
+- Corrected two closed-window Level 2 source queries whose mysqli type signatures contained six types for five parameters. An isolated repeat reached the real evaluator: absent relevant devices yielded UNKNOWN/DISPOSITIVOS_RELEVANTES_DESCONOCIDOS with no persisted evaluation; batch retained RETRY_NEXT_CYCLE and no J1/J2. T07 and full T08 coverage remain pending.
+# 2026-11-27 — Batch T07 isolated Level 2 verification
+
+- On MariaDB 11.8.8 isolated in /tmp without networking, 37 healthy synthetic telemetry samples at 900-second intervals covered 2026-11-26 04:00–13:00 UTC. The real evaluator independently returned VERIFIED and the shared batch cycle generated a separate VERIFIED evaluation, materialized one journey, and persisted J1 and J2, both UNMATCHED_NO_PUNCHES with no invented work seconds. Checkpoint and lock release verified.
+- This evidence is synthetic and does not validate CLI authentication or PREPROD. The isolated runner uses existing service calls and test-only telemetry receipt timestamps; T08 and other pending integration scenarios remain open.
+# 2026-11-27 — Isolated T08-B and partial T09
+
+- Real batch on isolated MariaDB with known device/generation and 19 samples spaced 1800 seconds against a 900-second coverage policy persisted INCOMPLETE and provisional J1/J2; lock and checkpoint verified. T08-A reuses the prior UNKNOWN/no-device readback.
+- A later synthetic telemetry observation with actual server receipt produced a second INCOMPLETE Level 2 evaluation (time attribution DEGRADED) and J1/J2 revisions 2, retaining revision 1. It cannot establish VERIFIED. A further unchanged cycle created a third Level 2 evaluation while J1/J2 remained at two; same-second ambiguity in the existing reuse rule requires further investigation. T09 not passed.
+# 2026-11-27 — T09 same-second stabilization in isolated MariaDB
+
+- Re-ran the insufficient-coverage scenario in isolated MariaDB with one real-receipt late synthetic telemetry sample. Five additional batch cycles produced one conservative Level 2 reevaluation then four reuses; counts stabilized at three Level 2 evaluations and two J1/J2 revisions, with lock free and checkpoint advancing to cycle 7.
+- The late observation remained INCOMPLETE/DEGRADED. The governed-punch gap recovery fixture and INCOMPLETE-to-VERIFIED transition remain unexecuted; T09 is not complete. No real database, PREPROD or deployment changes.
+# 2026-11-27 — T09-A real HTTP sequence ingestion
+
+- On isolated MariaDB with networking disabled and a local PHP HTTP server, three synthetic authenticated events passed integrity validation and were accepted in sequence order 1, 3, 2 with accepted-through watermarks 1, 1, 3. Real SQL readback found three original events and three metadata records; earlier rows were unchanged. The test fixture supports an interactive pause after sequence 3.
+- No J1/J2, batch or Level 2 window evaluation was executed. No real database or PREPROD changes.
+# 2026-11-27 — T09-B sequence recovery integrated
+
+- Isolated MariaDB and authenticated local HTTP ingested synthetic sequences 1, 3, 2 with accepted-through 1 then 3. The real shared batch cycle persisted INCOMPLETE/VERIFIED/VERIFIED for the gap, then VERIFIED in all dimensions after sequence 2; one shift, two J1/J2 revisions, prior rows preserved. Five more cycles showed one same-second conservative Level 2 reevaluation and four reuses; worker lock free and checkpoint reached cycle 7.
+- Real HTTP integrity seal readback validated separately; no production or PREPROD data used. Controlled Level 2 31/31 and batch safety 10/10 passed. No deployment, cron or commit.
+# 2026-11-27 — T05 historical schedule and T16 snapshots
+
+- Isolated MariaDB T05: a valid unmaterialized SCHEDULED assignment with historical V1.0 policy and all V1.1 parameters NULL was blocked at batch preflight; zero schedule, J1, J2 and Level 2 writes, checkpoint retained blocked result, worker lock free.
+- T16: extended the existing T09-B runner to snapshot full initial raw events, Level 2 metadata and evaluation, J1/J2 headers, segments and associations, then compare them after recovery and five cycles. Real isolated run preserved historical rows and created matching J1/J2 revisions 2 with a single journey. No PREPROD or production writes.
+# 2026-11-27 — T10 shared-service concurrent deactivation test
+
+- A two-connection isolated MariaDB runner deterministically checked READY under the worker lock, committed synthetic worker deactivation from the independent connection, and observed the real second policy preflight reject the inactive worker. No shift/J1/J2 rows were written and the lock was released. The raw-event fixture was empty.
+- The runner invokes the shared service with existing callbacks, not the complete batch cycle; it does not establish the behavior of the institutional deactivation writer or validate PREPROD. No production changes or deployments.
+# 2026-11-27 — T11 independent Level 2 service validation
+
+- In isolated MariaDB, two real connections and existing shared-service callbacks established READY under the worker lock, persisted real VERIFIED Level 2 evidence, then committed a synthetic worker deactivation and observed the subsequent real policy preflight reject it. The entire Level 2 row remained identical; zero shifts/J1/J2 were written and the lock was free.
+- This test calls the shared service, not the complete batch cycle; checkpoint, institutional deactivation writer, and a legitimate recovery fixture remain unverified. No operational environment changed.
+# 2026-11-27 — Deterministic batch concurrency harness
+
+- Added a test-only mysqli statement observer that runs after the real Level 2 INSERT; the second MariaDB connection verified the committed VERIFIED row and worker lock ownership before committing a synthetic deactivation. No production callback, gate, endpoint or CLI option was added.
+- The real batch cycle recorded RETRY_NEXT_CYCLE at POLICY_PREFLIGHT, saved a blocked checkpoint, released the lock, preserved the complete Level 2 row and wrote no shift/J1/J2. Institutional deactivation integration and legitimate recovery remain unverified.
+# 2026-11-27 — T11 isolated connection-loss recovery
+
+- In isolated MariaDB, test-only coordination confirmed a committed VERIFIED Level 2 row and then killed only the motor connection. The real batch saved RETRY_NEXT_CYCLE, left zero shifts/J1/J2 and released the lock. A new connection reused the same Level 2 row and checkpoint, persisted one shift and initial J1/J2, and an additional cycle created no duplicates. UTC readback and checkpoint cycles 1–3 verified.
+- This technical failure recovery is distinct from recovery after lost eligibility, which was not exercised. No PREPROD, production, cron or deployment changes.
+# 2026-11-28 — T12/T13 isolated J1-commit interruption
+
+- With an isolated MariaDB and the test-only commit observer, the second connection observed committed J1 and segment rows then killed the motor connection before J2. Batch saved a blocked checkpoint and released its lock. A read-only preview identified P2_MISSING_OR_STALE; the next cycle reused J1 revision 1 and persisted J2 revision 1. Three further cycles retained one shift, J1 and J2.
+- Fixture had no punches; association preservation is therefore vacuous. Level 2 was VERIFIED and reused but this runner did not compare its complete row. Further populated-punch and complete Level 2 snapshot checks remain pending.
+# 2026-11-28 — Partial T14 checkpoint process check
+
+- A standalone test used two real PHP processes and a Unix socket barrier to verify JourneyBatchCheckpoint exclusion and reacquisition. This did not execute batch or MariaDB and does not establish T14-A end-to-end, T14-B, or T17.
+# 2026-11-28 — T14-B real worker-lock contention
+
+- Two synthetic PHP processes executed the real shared batch cycle with distinct checkpoints and MariaDB connections against the same worker. A acquired the canonical lock; B returned JOURNEY_EXECUTION_LOCK with zero writes and saved a retry checkpoint. A completed; B's next cycle reused the result. Readback found one journey, J1 and J2, revision 1, linked correctly; lock free.
+- MariaDB was isolated under /tmp with networking disabled. T17 and end-to-end checkpoint contention are outside this result; no production or PREPROD modifications.
+# 2026-11-28 — T14-A shared-checkpoint batch exclusion
+
+- On isolated MariaDB without networking, two PHP processes shared one scope, directory and checkpoint key. While A was paused inside the real batch cycle holding the worker lock and checkpoint, B was rejected at JourneyBatchCheckpoint with BATCH_ALREADY_RUNNING before reaching the worker lock; no rows had been written. A completed; B reopened the same checkpoint and completed the next cycle without duplicate shift/J1/J2.
+- This validates the shared batch cycle and real checkpoint, not the full CLI configuration/authentication entry point. T17 remains pending. No real database, PREPROD or deployment changes.
+# 2026-11-28 — T17 isolated checkpoint crash recovery
+
+- In network-disabled isolated MariaDB, 102 synthetic candidates were discovered. The first real batch page persisted 100 and checkpointed its cursor; a second PHP process committed candidate 101 and was killed with SIGKILL before checkpoint advancement. The previous checkpoint and 101 committed snapshots remained intact; a new PHP process resumed the old cursor and completed 102 results. A full two-page reconciliation retained identical J1/J2 snapshots and all worker locks were free.
+- Fixture contains no punches; this validates checkpoint recovery and does not remove the documented T12/T13 populated-association limitation. No real database, PREPROD, cron or deployment change.
+# 2026-11-28 — R1 populated T12/T13 recovery
+
+- Extended the isolated J1/J2 interruption runner with two integrity-sealed synthetic punches and real Level 2 metadata: J1 committed with ENTRY/EXIT associations before connection interruption; recovery reused J1 and persisted CALCULATED J2 with 3600 worked seconds. Three further cycles preserved J1, segments, associations and counts.
+- Corrected the misleading Level 2 snapshot assertion to compare the entire persisted Level 2 row before failure and after recovery, alongside J1. MariaDB 11.8.8 isolated under /tmp without network; no operational data or production code changes.
+# 2026-11-28 — R2 isolated regression execution
+
+- Re-ran 13 batch runners covering T01–T14, T16 and T17 in network-disabled synthetic MariaDB; each returned exit 0. R1 returned PASS with 3600 seconds. Re-ran J1 18/18 and J2 19/19 including real-writer UTC assertions (T15) in an isolated synthetic schema.
+- Initial J1/J2 attempts failed because the temporary setup lacked required policy/calculation and raw tables; after adding their existing DDL prerequisites to the temporary setup both passed. T08-A runner reports observations but lacks assertions; its exit code alone is not conclusive. No operational database, architecture, deployment or production change.
+# 2026-11-28 — R2 T08-A assertion closure
+
+- Converted the existing isolated T08-A runner to 12 mandatory assertions. The real closed-window Level 2 evaluator returned UNKNOWN / DISPOSITIVOS_RELEVANTES_DESCONOCIDOS without persisting evidence; the real batch returned RETRY_NEXT_CYCLE, preserved zero shift/J1/J2/Level 2 rows, saved its blocked checkpoint and released the worker lock. MariaDB 11.8.8 isolated in /tmp with networking disabled; 12/12 PASS, exit 0.
+- With the other 16 scenarios previously executed in R2 on the same local code, the R2 scenario matrix is 17/17 within documented test scopes. No production code, operational database, cron or deployment change.

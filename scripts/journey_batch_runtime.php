@@ -113,8 +113,8 @@ function journeyBatchEvaluateLevel2(mysqli $db,int $worker,int $workplace,string
     $evidenceFrom=$latest?(string)$latest['window_from_utc']:$from; $evidenceTo=$latest?(string)$latest['window_to_utc']:$to;
     $generations=$service->obtenerGeneracionesYDispositivosRelevantes($db,$physical,$evidenceFrom,$evidenceTo);
     $maxTelemetry=journeyBatchRows($db,'SELECT MAX(t.server_received_at_utc) AS received_at FROM op_rh_v2_dispositivo_telemetria t JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo=t.id_dispositivo WHERE h.id_estacion=? AND h.valido_desde_utc<=? AND (h.valido_hasta_utc IS NULL OR h.valido_hasta_utc>?) AND t.observado_at_utc>=? AND t.observado_at_utc<=?','issss',[$physical,$evidenceTo,$evidenceFrom,$evidenceFrom,$evidenceTo])[0]['received_at']??null;
-    $maxPunch=journeyBatchRows($db,'SELECT MAX(m.recibido_at_utc) AS received_at FROM op_rh_v2_marcaciones_crudas m JOIN op_rh_v2_marcaciones_nivel2_metadata n ON n.id_raw_punch=m.id JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo=n.id_dispositivo WHERE h.id_estacion=? AND h.valido_desde_utc<=? AND (h.valido_hasta_utc IS NULL OR h.valido_hasta_utc>?) AND m.ocurrido_at_utc>=? AND m.ocurrido_at_utc<=? AND n.es_governado_nivel2=1','isssss',[$physical,$evidenceTo,$evidenceFrom,$evidenceFrom,$evidenceTo])[0]['received_at']??null;
-    $maxMetadata=journeyBatchRows($db,'SELECT MAX(n.creado_at_utc) AS received_at FROM op_rh_v2_marcaciones_crudas m JOIN op_rh_v2_marcaciones_nivel2_metadata n ON n.id_raw_punch=m.id JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo=n.id_dispositivo WHERE h.id_estacion=? AND h.valido_desde_utc<=? AND (h.valido_hasta_utc IS NULL OR h.valido_hasta_utc>?) AND m.ocurrido_at_utc>=? AND m.ocurrido_at_utc<=? AND n.es_governado_nivel2=1','isssss',[$physical,$evidenceTo,$evidenceFrom,$evidenceFrom,$evidenceTo])[0]['received_at']??null;
+    $maxPunch=journeyBatchRows($db,'SELECT MAX(m.recibido_at_utc) AS received_at FROM op_rh_v2_marcaciones_crudas m JOIN op_rh_v2_marcaciones_nivel2_metadata n ON n.id_raw_punch=m.id JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo=n.id_dispositivo WHERE h.id_estacion=? AND h.valido_desde_utc<=? AND (h.valido_hasta_utc IS NULL OR h.valido_hasta_utc>?) AND m.ocurrido_at_utc>=? AND m.ocurrido_at_utc<=? AND n.es_governado_nivel2=1','issss',[$physical,$evidenceTo,$evidenceFrom,$evidenceFrom,$evidenceTo])[0]['received_at']??null;
+    $maxMetadata=journeyBatchRows($db,'SELECT MAX(n.creado_at_utc) AS received_at FROM op_rh_v2_marcaciones_crudas m JOIN op_rh_v2_marcaciones_nivel2_metadata n ON n.id_raw_punch=m.id JOIN op_rh_v2_dispositivo_estacion_historial h ON h.id_dispositivo=n.id_dispositivo WHERE h.id_estacion=? AND h.valido_desde_utc<=? AND (h.valido_hasta_utc IS NULL OR h.valido_hasta_utc>?) AND m.ocurrido_at_utc>=? AND m.ocurrido_at_utc<=? AND n.es_governado_nivel2=1','issss',[$physical,$evidenceTo,$evidenceFrom,$evidenceFrom,$evidenceTo])[0]['received_at']??null;
     $received=array_values(array_filter([$maxTelemetry,$maxPunch,$maxMetadata],static fn($v)=>is_string($v)&&$v!=='')); sort($received,SORT_STRING); $latestInput=$received?end($received):null;
     if (!JourneyBatchProcessor::shouldEvaluateLevel2($latest,$physical,$from,$to,$policyRef,$generations,$latestInput,$utcNow)) {
         return ['window_level2_status'=>JourneyBatchProcessor::level2Status($latest),'delivery_completeness'=>$latest['delivery_completeness'],'operational_coverage'=>$latest['operational_coverage'],'time_window_attribution'=>$latest['time_window_attribution'],'evaluation_ref'=>$latest['evaluation_ref'],'physical_station'=>$physical,'from_utc'=>$from,'to_utc'=>$to,'persisted'=>true,'reused'=>true];
@@ -161,6 +161,58 @@ function journeyBatchBounds(mysqli $db,array $stations,?string $from): array {
     return $bounds;
 }
 
+
+/** One candidate uses the same production path in the CLI and integration tests. */
+function journeyBatchProcessScope(mysqli $db, array $scope, bool $execute, ?array $coverageAuthorizationContext): array {
+    ['worker'=>$w,'station'=>$s,'date'=>$d]=$scope;
+    if (!$execute) {
+        $preview=journeyProcessorDryRun($db,$w,$s,$d,$coverageAuthorizationContext);
+        $decision=JourneyBatchProcessor::decision($preview);
+        return $decision+['level2'=>JourneyBatchProcessor::level2Status($preview['level2']??$preview['plan']['level2_status']??null),'read_only'=>true];
+    }
+    require_once __DIR__.'/../modelo/v2/journey/JourneySharedExecutionService.php';
+    // Level 2 evaluation and J1/J2 execute under the same existing
+    // worker lock. The shared service revalidates its plan before writes.
+    $level2=null;
+    $result=(new JourneySharedExecutionService($db))->evaluate($w,$s,$d,true,
+        static function(int $worker,int $workplace,string $date)use($db,&$level2):void {
+            $level2=JourneyBatchProcessor::validateLevel2BeforeExecution(journeyBatchEvaluateLevel2($db,$worker,$workplace,$date));
+        },$coverageAuthorizationContext,
+        static function(int $worker,int $workplace,string $date)use($db,$coverageAuthorizationContext):void {
+            JourneyBatchProcessor::requireExecutablePreview(journeyProcessorDryRun($db,$worker,$workplace,$date,$coverageAuthorizationContext));
+        });
+    return ['status'=>'EXECUTED','reason'=>'SHARED_JOURNEY_EXECUTION','j1_algorithm'=>$result['pairing']['algorithm_version']??$result['pairing']['algorithm']??null,'level2'=>($level2['skipped']??false)?null:JourneyBatchProcessor::level2Status($level2),'level2_reason'=>$level2['reason']??null,'level2_evaluation_ref'=>$level2['evaluation_ref']??null,'level2_reused'=>$level2['reused']??false,'provisional'=>($level2['provisional']??false)||(($result['pairing']['pairing_status']??null)==='PENDING_SYNC_COMPLETION'),'pairing_id'=>$result['pairing']['pairing_id'],'shift_id'=>$result['shift']['id']];
+}
+
+
+/** Execute a batch page after the caller has authenticated the runtime and database. */
+function journeyBatchRunCycle(mysqli $db, array $config, array $stations, ?string $from, bool $execute, bool $isPreprod, ?JourneyBatchCheckpoint $checkpoint): int {
+    try {
+        $state=$checkpoint?->load();
+        if (!$db->query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ') || !$db->query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY')) throw new RuntimeException('BATCH_SNAPSHOT_UNAVAILABLE');
+        try {
+            if ($state===null) $state=['cursor'=>JourneyBatchProcessor::start(journeyBatchBounds($db,$stations,$from)),'cycle'=>1,'blocked'=>0,'ready'=>0];
+            elseif (($state['cursor']??null)===null) $state=['cursor'=>JourneyBatchProcessor::start(journeyBatchBounds($db,$stations,$from)),'cycle'=>(int)$state['cycle']+1,'blocked'=>0,'ready'=>0];
+            // Checkpoint is local to this authorized scope. Validate every cursor row before SQL.
+            $cursor=$state['cursor'];
+            if (!is_array($cursor['bounds']??null)||!is_int($cursor['index']??null)||!is_int($cursor['worker']??null)||$cursor['worker']<0||($cursor['bounds']&&(!isset($cursor['bounds'][$cursor['index']])||!JourneyBatchProcessor::dateValid($cursor['date']??null)))) throw new RuntimeException('BATCH_STATE_INVALID');
+            foreach ($cursor['bounds'] as $b) if (!in_array($b['station']??null,$stations,true)||!JourneyBatchProcessor::dateValid($b['from']??null)||!JourneyBatchProcessor::dateValid($b['to']??null)||$b['from']>$b['to']||($from!==null&&$b['from']<$from)) throw new RuntimeException('BATCH_STATE_INVALID');
+            $page=JourneyBatchProcessor::page($cursor,fn($s,$d,$w,$n)=>journeyBatchWorkers($db,$s,$d,$w,$n));
+        } finally { $db->rollback(); }
+        $coverageAuthorizationContext=['principal_type'=>'SERVICE','service_id'=>(string)$config['service_id'],'system_uid'=>posix_geteuid(),'stations'=>$stations,'preprod_verified'=>$isPreprod];
+        $results=JourneyBatchProcessor::process($page['items'],fn($scope)=>journeyBatchProcessScope($db,$scope,$execute,$coverageAuthorizationContext));
+        $blocked=count(array_filter($results,static fn($r)=>in_array($r['status'],['BLOCKED','RETRY_NEXT_CYCLE'],true)));
+        $retry=count(array_filter($results,static fn($r)=>$r['status']==='RETRY_NEXT_CYCLE'));
+        $state['cursor']=$page['next']; $state['blocked']=(int)$state['blocked']+$blocked;
+        $state['ready']=(int)($state['ready']??0)+count(array_filter($results,static fn($r)=>$r['status']==='READY'));
+        // Save only after the page was attempted. Crash before save replays the page;
+        // failed identities are revisited on the next recurring full reconciliation.
+        if ($checkpoint!==null) $checkpoint->save($state);
+        echo json_encode(['mode'=>$execute?'batch-execute':'batch-dry-run','service_id'=>$config['service_id'],'operation'=>$execute?'EXECUTION':'READ_ONLY','database_writes_enabled'=>$execute,'cycle'=>$state['cycle'],'scan_cycle_complete'=>$page['next']===null,'complete'=>$page['next']===null&&$state['blocked']===0&&$state['ready']===0,'processed'=>count($results),'blocked_in_cycle'=>$state['blocked'],'ready_in_cycle'=>$state['ready'],'retry_next_cycle'=>$retry,'local_checkpoint_saved'=>$checkpoint!==null,'next_cursor'=>$page['next']===null?null:array_intersect_key($page['next'],array_flip(['date','index','worker'])),'limitations'=>['PERIODIC_RECONCILIATION_NOT_IMMEDIATE_CHANGE_FEED','V1_0_AND_NON_SCHEDULED_AUTOMATIC_WRITES_NOT_VERIFIED'],'results'=>$results],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL;
+        return $retry>0 || ($execute&&$blocked>0) ? 2 : 0;
+    } finally { if ($checkpoint!==null) $checkpoint->close(); }
+}
+
 function journeyBatchMain(array $opts,int $argc): int {
     if ($argc!==3 || count($opts)!==2 || !isset($opts['config']) || (isset($opts['batch-dry-run'])===isset($opts['batch-execute'])) || !function_exists('posix_geteuid')) throw new RuntimeException('INVALID_BATCH_OPTIONS');
     $execute=isset($opts['batch-execute']);
@@ -196,44 +248,6 @@ function journeyBatchMain(array $opts,int $argc): int {
     // Dry-run must not create or update local checkpoint/lock files. It is a
     // read-only snapshot and returns its next cursor for explicit inspection.
     $checkpoint=$execute?new JourneyBatchCheckpoint(dirname($real),$key):null;
-    try {
-        $state=$checkpoint?->load();
-        if (!$db->query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ') || !$db->query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY')) throw new RuntimeException('BATCH_SNAPSHOT_UNAVAILABLE');
-        try {
-            if ($state===null) $state=['cursor'=>JourneyBatchProcessor::start(journeyBatchBounds($db,$stations,$from)),'cycle'=>1,'blocked'=>0,'ready'=>0];
-            elseif (($state['cursor']??null)===null) $state=['cursor'=>JourneyBatchProcessor::start(journeyBatchBounds($db,$stations,$from)),'cycle'=>(int)$state['cycle']+1,'blocked'=>0,'ready'=>0];
-            // Checkpoint is local to this authorized scope. Validate every cursor row before SQL.
-            $cursor=$state['cursor'];
-            if (!is_array($cursor['bounds']??null)||!is_int($cursor['index']??null)||!is_int($cursor['worker']??null)||$cursor['worker']<0||($cursor['bounds']&&(!isset($cursor['bounds'][$cursor['index']])||!JourneyBatchProcessor::dateValid($cursor['date']??null)))) throw new RuntimeException('BATCH_STATE_INVALID');
-            foreach ($cursor['bounds'] as $b) if (!in_array($b['station']??null,$stations,true)||!JourneyBatchProcessor::dateValid($b['from']??null)||!JourneyBatchProcessor::dateValid($b['to']??null)||$b['from']>$b['to']||($from!==null&&$b['from']<$from)) throw new RuntimeException('BATCH_STATE_INVALID');
-            $page=JourneyBatchProcessor::page($cursor,fn($s,$d,$w,$n)=>journeyBatchWorkers($db,$s,$d,$w,$n));
-        } finally { $db->rollback(); }
-        $coverageAuthorizationContext=['principal_type'=>'SERVICE','service_id'=>(string)$config['service_id'],'system_uid'=>posix_geteuid(),'stations'=>$stations,'preprod_verified'=>$isPreprod];
-        $results=JourneyBatchProcessor::process($page['items'],function($scope)use($db,$execute,$coverageAuthorizationContext){
-            ['worker'=>$w,'station'=>$s,'date'=>$d]=$scope;
-            if (!$execute) {
-                $preview=journeyProcessorDryRun($db,$w,$s,$d,$coverageAuthorizationContext);
-                $decision=JourneyBatchProcessor::decision($preview);
-                return $decision+['level2'=>JourneyBatchProcessor::level2Status($preview['level2']??$preview['plan']['level2_status']??null),'read_only'=>true];
-            }
-            require_once __DIR__.'/../modelo/v2/journey/JourneySharedExecutionService.php';
-            // Level 2 evaluation and J1/J2 execute under the same existing
-            // worker lock. The shared service revalidates its plan before writes.
-            $level2=null;
-            $result=(new JourneySharedExecutionService($db))->evaluate($w,$s,$d,false,
-                static function(int $worker,int $workplace,string $date)use($db,&$level2):void {
-                    $level2=JourneyBatchProcessor::validateLevel2BeforeExecution(journeyBatchEvaluateLevel2($db,$worker,$workplace,$date));
-                },$coverageAuthorizationContext);
-            return ['status'=>'EXECUTED','reason'=>'SHARED_JOURNEY_EXECUTION','j1_algorithm'=>$result['pairing']['algorithm_version']??$result['pairing']['algorithm']??null,'level2'=>($level2['skipped']??false)?null:JourneyBatchProcessor::level2Status($level2),'level2_reason'=>$level2['reason']??null,'level2_evaluation_ref'=>$level2['evaluation_ref']??null,'level2_reused'=>$level2['reused']??false,'provisional'=>($level2['provisional']??false)||(($result['pairing']['pairing_status']??null)==='PENDING_SYNC_COMPLETION'),'pairing_id'=>$result['pairing']['pairing_id'],'shift_id'=>$result['shift']['id']];
-        });
-        $blocked=count(array_filter($results,static fn($r)=>in_array($r['status'],['BLOCKED','RETRY_NEXT_CYCLE'],true)));
-        $retry=count(array_filter($results,static fn($r)=>$r['status']==='RETRY_NEXT_CYCLE'));
-        $state['cursor']=$page['next']; $state['blocked']=(int)$state['blocked']+$blocked;
-        $state['ready']=(int)($state['ready']??0)+count(array_filter($results,static fn($r)=>$r['status']==='READY'));
-        // Save only after the page was attempted. Crash before save replays the page;
-        // failed identities are revisited on the next recurring full reconciliation.
-        if ($checkpoint!==null) $checkpoint->save($state);
-        echo json_encode(['mode'=>$execute?'batch-execute':'batch-dry-run','service_id'=>$config['service_id'],'operation'=>$execute?'EXECUTION':'READ_ONLY','database_writes_enabled'=>$execute,'cycle'=>$state['cycle'],'scan_cycle_complete'=>$page['next']===null,'complete'=>$page['next']===null&&$state['blocked']===0&&$state['ready']===0,'processed'=>count($results),'blocked_in_cycle'=>$state['blocked'],'ready_in_cycle'=>$state['ready'],'retry_next_cycle'=>$retry,'local_checkpoint_saved'=>$checkpoint!==null,'next_cursor'=>$page['next']===null?null:array_intersect_key($page['next'],array_flip(['date','index','worker'])),'limitations'=>['PERIODIC_RECONCILIATION_NOT_IMMEDIATE_CHANGE_FEED','V1_0_AND_NON_SCHEDULED_AUTOMATIC_WRITES_NOT_VERIFIED'],'results'=>$results],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL;
-        return $retry>0 || ($execute&&$blocked>0) ? 2 : 0;
-    } finally { if ($checkpoint!==null) $checkpoint->close(); $db->close(); }
+    try { return journeyBatchRunCycle($db,$config,$stations,$from,$execute,$isPreprod,$checkpoint); }
+    finally { $db->close(); }
 }
